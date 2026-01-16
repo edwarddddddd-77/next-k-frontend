@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next K - K線天氣預報</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0b0e11',
+                        surface: '#141922',
+                        'surface-light': '#1e2530',
+                        border: '#2a3441',
+                        'neon-green': '#00E396',
+                        'neon-red': '#FF4560',
+                        'neon-purple': '#7850FF',
+                        'neon-blue': '#00B4D8',
+                        'neon-yellow': '#FFE066',
+                        'text-primary': '#FFFFFF',
+                        'text-secondary': '#8A9AAD',
+                        'text-muted': '#5A6B7D',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: #0b0e11;
+            color: #FFFFFF;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2a3441; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5A6B7D; }
+
+        /* Selection */
+        ::selection { background: rgba(120, 80, 255, 0.3); }
+
+        /* Glow effects */
+        .glow-green { box-shadow: 0 0 20px rgba(0, 227, 150, 0.3); }
+        .glow-red { box-shadow: 0 0 20px rgba(255, 69, 96, 0.3); }
+        .glow-purple { box-shadow: 0 0 30px rgba(120, 80, 255, 0.4); }
+        .glow-blue { box-shadow: 0 0 20px rgba(0, 180, 216, 0.3); }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #7850FF, #00B4D8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Card hover */
+        .card-hover {
+            transition: all 0.2s;
+        }
+        .card-hover:hover {
+            border-color: rgba(120, 80, 255, 0.5);
+            box-shadow: 0 0 30px rgba(120, 80, 255, 0.2);
+        }
+
+        /* Button primary */
+        .btn-primary {
+            background: #7850FF;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 0 30px rgba(120, 80, 255, 0.4);
+        }
+
+        /* Pulse animation */
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
+
+        /* Marquee */
+        .marquee-container { overflow: hidden; }
+        .marquee-content {
+            display: flex;
+            animation: marquee 30s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Progress bar */
+        .prob-bar {
+            background: #1e2530;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .prob-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7850FF, #00B4D8);
+            transition: width 0.5s ease;
+        }
+
+        /* Tab active */
+        .tab-active {
+            border-bottom: 2px solid #7850FF;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-neon-purple to-neon-blue flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-neon-green rounded-full animate-pulse-slow"></div>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-text-primary tracking-tight">
+                            Next <span class="text-neon-purple">K</span>
+                        </h1>
+                        <p class="text-[10px] text-text-muted uppercase tracking-widest -mt-0.5">K線天氣預報</p>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="flex items-center gap-3">
+                    <div id="model-status" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neon-yellow/10 text-neon-yellow">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        <span>載入中...</span>
+                    </div>
+                    <div id="connection-status" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neon-red/10 text-neon-red">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"/>
+                        </svg>
+                        <span>連線中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Radar Marquee -->
+        <div class="border-t border-border/50 bg-surface/30">
+            <div class="max-w-7xl mx-auto">
+                <div id="radar-marquee" class="marquee-container py-2 px-4">
+                    <div class="text-text-muted text-sm">掃描市場中...</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Asset Type & Symbol Selector -->
+        <div class="mb-6">
+            <!-- Asset Types -->
+            <div class="flex gap-2 mb-4">
+                <button onclick="switchAssetType('crypto')" id="asset-crypto" class="asset-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-neon-purple/20 text-neon-purple border border-neon-purple/30 text-sm font-medium">
+                    <span>₿</span> 加密貨幣
+                </button>
+                <button onclick="switchAssetType('stock')" id="asset-stock" class="asset-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-light text-text-muted border border-border text-sm font-medium hover:bg-surface">
+                    <span>📈</span> 股票
+                </button>
+                <button onclick="switchAssetType('forex')" id="asset-forex" class="asset-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-light text-text-muted border border-border text-sm font-medium hover:bg-surface">
+                    <span>💱</span> 外匯
+                </button>
+            </div>
+
+            <!-- Symbols -->
+            <div id="symbol-buttons" class="flex gap-2 flex-wrap">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Chart Area - 3 columns -->
+            <div class="lg:col-span-3">
+                <div class="bg-surface rounded-xl border border-border overflow-hidden">
+                    <!-- Chart Header -->
+                    <div class="px-4 py-3 border-b border-border flex items-center justify-between">
+                        <div>
+                            <h2 id="chart-symbol" class="text-text-primary font-semibold">BTC/USDT</h2>
+                            <p id="chart-subtitle" class="text-text-muted text-xs mt-0.5">24小時概率預測</p>
+                        </div>
+                        <div class="text-right">
+                            <div id="current-price" class="text-text-primary font-mono text-lg font-semibold">--</div>
+                            <div id="price-change" class="text-text-muted text-xs">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="p-2">
+                        <div id="chart" class="w-full h-[450px] rounded-lg overflow-hidden bg-surface"></div>
+                    </div>
+                </div>
+
+                <!-- Info Cards -->
+                <div id="info-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                    <!-- Rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Sidebar - 1 column -->
+            <div class="space-y-6">
+                <!-- Trade Simulator -->
+                <div class="bg-surface rounded-xl border border-border p-4">
+                    <h3 class="text-text-primary font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-lg">🎮</span> 交易模擬器
+                    </h3>
+                    <p class="text-text-muted text-xs mb-4">下單前，先讓AI幫你跑1000次未來</p>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-text-muted text-xs mb-1">交易對</label>
+                            <select id="sim-symbol" class="w-full px-3 py-2 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-text-muted text-xs mb-1">方向</label>
+                                <select id="sim-action" class="w-full px-3 py-2 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                                    <option value="buy">做多</option>
+                                    <option value="sell">做空</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-text-muted text-xs mb-1">槓桿</label>
+                                <select id="sim-leverage" class="w-full px-3 py-2 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                                    <option value="1">1x</option>
+                                    <option value="5">5x</option>
+                                    <option value="10">10x</option>
+                                    <option value="20">20x</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-text-muted text-xs mb-1">倉位 (USDT)</label>
+                            <input type="number" id="sim-size" value="1000" class="w-full px-3 py-2 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-text-muted text-xs mb-1">止損</label>
+                                <input type="number" id="sim-sl" placeholder="可選" class="w-full px-3 py-2 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-text-muted text-xs mb-1">止盈</label>
+                                <input type="number" id="sim-tp" placeholder="可選" class="w-full px-3 py-2 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                            </div>
+                        </div>
+
+                        <button onclick="runSimulation()" class="w-full btn-primary py-2.5 rounded-lg text-white font-medium">
+                            🚀 開始模擬
+                        </button>
+                    </div>
+
+                    <!-- Simulation Result -->
+                    <div id="sim-result" class="mt-4 hidden">
+                    </div>
+                </div>
+
+                <!-- Price Ranges -->
+                <div class="bg-surface rounded-xl border border-border p-4">
+                    <h3 class="text-text-secondary text-xs font-medium uppercase tracking-wide mb-3">📊 價格區間概率</h3>
+                    <div id="price-ranges" class="space-y-2">
+                        <div class="text-text-muted text-sm">載入中...</div>
+                    </div>
+                </div>
+
+                <!-- Key Levels -->
+                <div class="bg-surface rounded-xl border border-border p-4 glow-purple">
+                    <h3 class="text-text-secondary text-xs font-medium uppercase tracking-wide mb-3">🎯 關鍵價位</h3>
+                    <div id="key-levels" class="space-y-2">
+                        <div class="text-text-muted text-sm">載入中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-border py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-text-muted text-xs">
+            <p>Next K v2.0.0 · Powered by Kronos Foundation Model</p>
+            <p class="mt-1 text-text-muted/60">本產品僅供研究參考，不構成投資建議</p>
+        </div>
+    </footer>
+
+    <script>
+        // ============== Configuration ==============
+        // API Base URL - Change this to your Railway backend URL after deployment
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? ''  // Local development: same origin
+            : 'https://next-k-api-production.up.railway.app';  // Production: Railway URL (update after deployment)
+
+        // ============== State ==============
+        let currentSymbol = 'BTC/USDT';
+        let currentAssetType = 'crypto';
+        let chart = null;
+        let areaSeries = null;
+        let lineSeries = null;
+
+        const SYMBOLS = {
+            crypto: [
+                { symbol: 'BTC/USDT', name: 'Bitcoin' },
+                { symbol: 'ETH/USDT', name: 'Ethereum' },
+                { symbol: 'SOL/USDT', name: 'Solana' },
+                { symbol: 'BNB/USDT', name: 'BNB' },
+                { symbol: 'PEPE/USDT', name: 'Pepe' }
+            ],
+            stock: [
+                { symbol: 'AAPL', name: 'Apple' },
+                { symbol: 'MSFT', name: 'Microsoft' },
+                { symbol: 'GOOGL', name: 'Google' },
+                { symbol: 'NVDA', name: 'Nvidia' },
+                { symbol: 'TSLA', name: 'Tesla' }
+            ],
+            forex: [
+                { symbol: 'EUR/USD', name: '歐元/美元' },
+                { symbol: 'GBP/USD', name: '英鎊/美元' },
+                { symbol: 'USD/JPY', name: '美元/日圓' },
+                { symbol: 'AUD/USD', name: '澳元/美元' },
+                { symbol: 'USD/CAD', name: '美元/加元' }
+            ]
+        };
+
+        // ============== API ==============
+        const API = {
+            async health() {
+                const res = await fetch(`${API_BASE}/api/health`);
+                return res.json();
+            },
+            async weather(symbol, assetType = 'crypto', horizon = 24) {
+                const res = await fetch(`${API_BASE}/api/weather/${encodeURIComponent(symbol)}?asset_type=${assetType}&horizon=${horizon}`);
+                if (!res.ok) throw new Error(await res.text());
+                return res.json();
+            },
+            async radar(assetType = 'crypto') {
+                const res = await fetch(`${API_BASE}/api/radar?asset_type=${assetType}`);
+                return res.json();
+            },
+            async simulate(params) {
+                const res = await fetch(`${API_BASE}/api/simulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+                if (!res.ok) throw new Error(await res.text());
+                return res.json();
+            }
+        };
+
+        // ============== UI Functions ==============
+        function switchAssetType(assetType) {
+            currentAssetType = assetType;
+            ['crypto', 'stock', 'forex'].forEach(t => {
+                const btn = document.getElementById(`asset-${t}`);
+                if (t === assetType) {
+                    btn.className = 'asset-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-neon-purple/20 text-neon-purple border border-neon-purple/30 text-sm font-medium';
+                } else {
+                    btn.className = 'asset-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-light text-text-muted border border-border text-sm font-medium hover:bg-surface';
+                }
+            });
+            renderSymbolButtons(assetType);
+            updateSimSymbols(assetType);
+            const symbols = SYMBOLS[assetType];
+            if (symbols && symbols.length > 0) {
+                selectSymbol(symbols[0].symbol);
+            }
+            loadRadar();
+        }
+
+        function renderSymbolButtons(assetType) {
+            const container = document.getElementById('symbol-buttons');
+            const symbols = SYMBOLS[assetType] || [];
+            container.innerHTML = symbols.map((s, i) => `
+                <button onclick="selectSymbol('${s.symbol}')" class="symbol-btn px-4 py-2 rounded-lg ${i === 0 ? 'bg-neon-purple/20 text-neon-purple border-neon-purple/30' : 'bg-surface-light text-text-muted border-border hover:bg-surface'} border text-sm font-medium" data-symbol="${s.symbol}">
+                    ${s.symbol}
+                </button>
+            `).join('');
+        }
+
+        function updateSimSymbols(assetType) {
+            const select = document.getElementById('sim-symbol');
+            const symbols = SYMBOLS[assetType] || [];
+            select.innerHTML = symbols.map(s => `<option value="${s.symbol}">${s.symbol}</option>`).join('');
+        }
+
+        function selectSymbol(symbol) {
+            currentSymbol = symbol;
+            document.querySelectorAll('.symbol-btn').forEach(btn => {
+                const isActive = btn.dataset.symbol === symbol;
+                if (isActive) {
+                    btn.className = 'symbol-btn px-4 py-2 rounded-lg bg-neon-purple/20 text-neon-purple border border-neon-purple/30 text-sm font-medium';
+                } else {
+                    btn.className = 'symbol-btn px-4 py-2 rounded-lg bg-surface-light text-text-muted border border-border hover:bg-surface text-sm font-medium';
+                }
+            });
+            document.getElementById('chart-symbol').textContent = symbol;
+            loadWeather(symbol);
+        }
+
+        function formatPrice(price) {
+            if (price < 0.01) return price.toFixed(8);
+            if (price < 1) return price.toFixed(6);
+            if (price < 100) return price.toFixed(4);
+            return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // ============== Chart ==============
+        function initChart() {
+            const container = document.getElementById('chart');
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 450,
+                layout: {
+                    background: { type: 'solid', color: '#141922' },
+                    textColor: '#8A9AAD',
+                },
+                grid: {
+                    vertLines: { color: '#1e2530' },
+                    horzLines: { color: '#1e2530' },
+                },
+                timeScale: {
+                    borderColor: '#2a3441',
+                    timeVisible: true,
+                },
+                rightPriceScale: {
+                    borderColor: '#2a3441',
+                },
+            });
+
+            areaSeries = chart.addAreaSeries({
+                topColor: 'rgba(120, 80, 255, 0.4)',
+                bottomColor: 'rgba(120, 80, 255, 0.05)',
+                lineColor: 'rgba(120, 80, 255, 0.8)',
+                lineWidth: 1,
+            });
+
+            lineSeries = chart.addLineSeries({
+                color: '#00E396',
+                lineWidth: 2,
+            });
+
+            window.addEventListener('resize', () => {
+                chart.applyOptions({ width: container.clientWidth });
+            });
+        }
+
+        function updateChart(forecast) {
+            if (!chart) initChart();
+            const areaData = forecast.map(f => ({ time: f.time, value: f.p75 }));
+            const lineData = forecast.map(f => ({ time: f.time, value: f.mean }));
+            areaSeries.setData(areaData);
+            lineSeries.setData(lineData);
+            chart.timeScale().fitContent();
+        }
+
+        // ============== Weather ==============
+        async function loadWeather(symbol) {
+            try {
+                document.getElementById('current-price').textContent = '載入中...';
+                document.getElementById('price-ranges').innerHTML = '<div class="text-text-muted text-sm animate-pulse">分析中...</div>';
+                document.getElementById('key-levels').innerHTML = '<div class="text-text-muted text-sm animate-pulse">分析中...</div>';
+
+                const data = await API.weather(symbol, currentAssetType);
+
+                // Update price
+                document.getElementById('current-price').textContent = '$' + formatPrice(data.current_price);
+                const changeClass = data.upside_prob > 50 ? 'text-neon-green' : 'text-neon-red';
+                document.getElementById('price-change').innerHTML = `上漲概率: <span class="${changeClass}">${data.upside_prob}%</span>`;
+
+                // Update chart
+                updateChart(data.forecast);
+
+                // Update info cards
+                document.getElementById('info-cards').innerHTML = `
+                    <div class="bg-surface rounded-lg border border-border p-3">
+                        <div class="text-text-muted text-xs mb-1">上漲概率</div>
+                        <div class="font-mono text-sm font-semibold ${data.upside_prob > 50 ? 'text-neon-green' : 'text-neon-red'}">${data.upside_prob.toFixed(1)}%</div>
+                    </div>
+                    <div class="bg-surface rounded-lg border border-border p-3">
+                        <div class="text-text-muted text-xs mb-1">波動率</div>
+                        <div class="font-mono text-sm font-semibold text-text-primary">${data.volatility.toFixed(2)}%</div>
+                    </div>
+                    <div class="bg-surface rounded-lg border border-border p-3">
+                        <div class="text-text-muted text-xs mb-1">模型信心</div>
+                        <div class="font-mono text-sm font-semibold ${data.confidence > 0.7 ? 'text-neon-purple' : 'text-text-primary'}">${(data.confidence * 100).toFixed(1)}%</div>
+                    </div>
+                    <div class="bg-surface rounded-lg border border-border p-3">
+                        <div class="text-text-muted text-xs mb-1">盈虧比</div>
+                        <div class="font-mono text-sm font-semibold text-neon-blue">${data.risk_reward_ratio || '--'}:1</div>
+                    </div>
+                `;
+
+                // Update price ranges
+                document.getElementById('price-ranges').innerHTML = data.price_ranges.slice(0, 5).map(r => `
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="${r.is_current ? 'text-neon-purple' : 'text-text-muted'}">$${formatPrice(r.low)} - $${formatPrice(r.high)}</span>
+                                <span class="text-text-primary font-medium">${r.probability}%</span>
+                            </div>
+                            <div class="prob-bar h-1.5">
+                                <div class="prob-fill" style="width: ${r.probability}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Update key levels
+                document.getElementById('key-levels').innerHTML = `
+                    <div class="space-y-2">
+                        <div class="text-xs text-text-muted mb-2">📈 阻力位</div>
+                        ${data.resistance_levels.map(l => `
+                            <div class="flex justify-between text-sm">
+                                <span class="text-neon-red font-mono">$${formatPrice(l.price)}</span>
+                                <span class="text-text-muted">突破 ${(100 - l.probability).toFixed(0)}%</span>
+                            </div>
+                        `).join('')}
+                        <div class="text-xs text-text-muted mt-3 mb-2">📉 支撐位</div>
+                        ${data.support_levels.map(l => `
+                            <div class="flex justify-between text-sm">
+                                <span class="text-neon-green font-mono">$${formatPrice(l.price)}</span>
+                                <span class="text-text-muted">守住 ${l.probability.toFixed(0)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('current-price').textContent = '錯誤';
+                document.getElementById('price-ranges').innerHTML = `<div class="text-neon-red text-sm">${e.message}</div>`;
+            }
+        }
+
+        // ============== Radar ==============
+        async function loadRadar() {
+            try {
+                const items = await API.radar(currentAssetType);
+                const marquee = document.getElementById('radar-marquee');
+
+                if (!items || items.length === 0) {
+                    marquee.innerHTML = '<div class="text-text-muted text-sm py-1">暫無異動信號</div>';
+                    return;
+                }
+
+                const content = items.map(item => {
+                    const signalColor = item.signal === 'bullish' ? 'text-neon-green' : item.signal === 'bearish' ? 'text-neon-red' : 'text-text-muted';
+                    const changeColor = item.price_change > 0 ? 'text-neon-green' : 'text-neon-red';
+                    return `
+                        <div class="flex items-center gap-4 px-4 cursor-pointer hover:bg-surface-light/50 rounded-lg py-1 transition-colors" onclick="selectSymbol('${item.symbol}')">
+                            <span class="font-medium text-text-primary">${item.symbol}</span>
+                            <span class="font-mono text-sm ${changeColor}">${item.price_change > 0 ? '+' : ''}${item.price_change.toFixed(2)}%</span>
+                            <span class="text-xs ${signalColor} uppercase">${item.signal}</span>
+                            <span class="text-xs text-neon-yellow">異動 ${item.anomaly_score.toFixed(0)}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                marquee.innerHTML = `<div class="marquee-content">${content}${content}</div>`;
+            } catch (e) {
+                console.error('Radar error:', e);
+            }
+        }
+
+        // ============== Simulation ==============
+        async function runSimulation() {
+            const resultDiv = document.getElementById('sim-result');
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = '<div class="text-text-muted text-sm animate-pulse text-center py-4">模擬中... (1000次)</div>';
+
+            try {
+                const params = {
+                    symbol: document.getElementById('sim-symbol').value,
+                    asset_type: currentAssetType,
+                    action: document.getElementById('sim-action').value,
+                    position_size: parseFloat(document.getElementById('sim-size').value),
+                    leverage: parseInt(document.getElementById('sim-leverage').value),
+                    stop_loss: parseFloat(document.getElementById('sim-sl').value) || null,
+                    take_profit: parseFloat(document.getElementById('sim-tp').value) || null,
+                    horizon: 24,
+                };
+
+                const data = await API.simulate(params);
+
+                const recClass = data.recommendation.includes('RECOMMENDED') && !data.recommendation.includes('NOT')
+                    ? 'bg-neon-green/10 text-neon-green border-neon-green/30'
+                    : data.recommendation.includes('CAUTION')
+                    ? 'bg-neon-yellow/10 text-neon-yellow border-neon-yellow/30'
+                    : 'bg-neon-red/10 text-neon-red border-neon-red/30';
+
+                resultDiv.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="p-2 rounded-lg border ${recClass} text-xs font-medium">${data.recommendation}</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted text-xs">勝率</div>
+                                <div class="font-mono text-sm ${data.win_rate > 50 ? 'text-neon-green' : 'text-neon-red'}">${data.win_rate.toFixed(1)}%</div>
+                            </div>
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted text-xs">期望收益</div>
+                                <div class="font-mono text-sm ${data.expected_pnl > 0 ? 'text-neon-green' : 'text-neon-red'}">${data.expected_pnl > 0 ? '+' : ''}$${data.expected_pnl.toFixed(2)}</div>
+                            </div>
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted text-xs">最大盈利</div>
+                                <div class="font-mono text-sm text-neon-green">+$${data.max_profit.toFixed(2)}</div>
+                            </div>
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted text-xs">最大虧損</div>
+                                <div class="font-mono text-sm text-neon-red">$${data.max_loss.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                resultDiv.innerHTML = `<div class="text-neon-red text-sm text-center py-4">${e.message}</div>`;
+            }
+        }
+
+        // ============== Init ==============
+        async function init() {
+            const checkHealth = async () => {
+                try {
+                    const health = await API.health();
+                    const connStatus = document.getElementById('connection-status');
+                    const modelStatus = document.getElementById('model-status');
+
+                    if (health.model_ready) {
+                        connStatus.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neon-green/10 text-neon-green';
+                        connStatus.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg><span>已連線</span>';
+
+                        modelStatus.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neon-purple/10 text-neon-purple';
+                        modelStatus.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span>Kronos 就緒</span>';
+                    } else {
+                        modelStatus.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neon-yellow/10 text-neon-yellow animate-pulse';
+                        modelStatus.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span>模型載入中...</span>';
+                        setTimeout(checkHealth, 3000);
+                    }
+                } catch (e) {
+                    const connStatus = document.getElementById('connection-status');
+                    connStatus.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neon-red/10 text-neon-red';
+                    connStatus.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"/></svg><span>連線失敗</span>';
+                }
+            };
+
+            checkHealth();
+            initChart();
+            renderSymbolButtons(currentAssetType);
+            updateSimSymbols(currentAssetType);
+            loadWeather(currentSymbol);
+            loadRadar();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

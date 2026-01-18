@@ -315,8 +315,9 @@
         let currentSymbol = 'BTC/USDT';
         let currentAssetType = 'crypto';
         let chart = null;
-        let areaSeries = null;
-        let lineSeries = null;
+        let candlestickSeries = null;
+        let p90Series = null;  // Upper confidence band
+        let p10Series = null;  // Lower confidence band
 
         const SYMBOLS = {
             crypto: [
@@ -448,16 +449,32 @@
                 },
             });
 
-            areaSeries = chart.addAreaSeries({
-                topColor: 'rgba(120, 80, 255, 0.4)',
-                bottomColor: 'rgba(120, 80, 255, 0.05)',
-                lineColor: 'rgba(120, 80, 255, 0.8)',
+            // Upper confidence band (p90)
+            p90Series = chart.addLineSeries({
+                color: 'rgba(120, 80, 255, 0.5)',
                 lineWidth: 1,
+                lineStyle: 2, // Dashed
+                crosshairMarkerVisible: false,
+                priceLineVisible: false,
             });
 
-            lineSeries = chart.addLineSeries({
-                color: '#00E396',
-                lineWidth: 2,
+            // Lower confidence band (p10)
+            p10Series = chart.addLineSeries({
+                color: 'rgba(120, 80, 255, 0.5)',
+                lineWidth: 1,
+                lineStyle: 2, // Dashed
+                crosshairMarkerVisible: false,
+                priceLineVisible: false,
+            });
+
+            // Candlestick series for predicted K-lines
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#00E396',
+                downColor: '#FF4560',
+                borderUpColor: '#00E396',
+                borderDownColor: '#FF4560',
+                wickUpColor: '#00E396',
+                wickDownColor: '#FF4560',
             });
 
             window.addEventListener('resize', () => {
@@ -467,10 +484,24 @@
 
         function updateChart(forecast) {
             if (!chart) initChart();
-            const areaData = forecast.map(f => ({ time: f.time, value: f.p75 }));
-            const lineData = forecast.map(f => ({ time: f.time, value: f.mean }));
-            areaSeries.setData(areaData);
-            lineSeries.setData(lineData);
+
+            // Convert forecast to candlestick data
+            // Using: p25 as open, mean as close, min as low, max as high
+            const candleData = forecast.map(f => ({
+                time: f.time,
+                open: f.p25,
+                high: f.max,
+                low: f.min,
+                close: f.mean,
+            }));
+
+            // Confidence bands
+            const p90Data = forecast.map(f => ({ time: f.time, value: f.p90 }));
+            const p10Data = forecast.map(f => ({ time: f.time, value: f.p10 }));
+
+            candlestickSeries.setData(candleData);
+            p90Series.setData(p90Data);
+            p10Series.setData(p10Data);
             chart.timeScale().fitContent();
         }
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Next K - K線天氣預報</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.min.js"></script>
+    <!-- Chart is now rendered as PNG from backend Matplotlib API -->
     <script>
         tailwind.config = {
             theme: {
@@ -204,9 +204,12 @@
                         </div>
                     </div>
 
-                    <!-- Chart -->
+                    <!-- Chart (Matplotlib PNG from API) -->
                     <div class="p-2">
-                        <div id="chart" class="w-full h-[450px] rounded-lg overflow-hidden bg-surface"></div>
+                        <div id="chart-container" class="w-full rounded-lg overflow-hidden bg-surface flex items-center justify-center min-h-[400px]">
+                            <img id="chart-img" class="w-full h-auto" style="display: none;" alt="Forecast Chart">
+                            <div id="chart-loading" class="text-text-muted animate-pulse">載入圖表中...</div>
+                        </div>
                     </div>
                 </div>
 
@@ -314,10 +317,7 @@
         // ============== State ==============
         let currentSymbol = 'BTC/USDT';
         let currentAssetType = 'crypto';
-        let chart = null;
-        let historySeries = null;     // Historical price line (blue)
-        let forecastAreaSeries = null; // Forecast range area (orange)
-        let forecastMeanSeries = null; // Forecast mean line (orange)
+        // Chart is now rendered as PNG from backend API (Matplotlib)
 
         const SYMBOLS = {
             crypto: [
@@ -427,85 +427,28 @@
         }
 
         // ============== Chart ==============
-        function initChart() {
-            const container = document.getElementById('chart');
-            chart = LightweightCharts.createChart(container, {
-                width: container.clientWidth,
-                height: 450,
-                layout: {
-                    background: { type: 'solid', color: '#141922' },
-                    textColor: '#8A9AAD',
-                },
-                grid: {
-                    vertLines: { color: '#1e2530' },
-                    horzLines: { color: '#1e2530' },
-                },
-                timeScale: {
-                    borderColor: '#2a3441',
-                    timeVisible: true,
-                },
-                rightPriceScale: {
-                    borderColor: '#2a3441',
-                },
-            });
+        // Chart is now rendered as PNG image from backend Matplotlib API
+        function loadChartImage(symbol, assetType) {
+            const chartImg = document.getElementById('chart-img');
+            const chartLoading = document.getElementById('chart-loading');
 
-            // Forecast range area (orange shaded) - must be added first to be behind
-            forecastAreaSeries = chart.addAreaSeries({
-                topColor: 'rgba(255, 165, 0, 0.25)',
-                bottomColor: 'rgba(255, 165, 0, 0.05)',
-                lineColor: 'rgba(255, 165, 0, 0.4)',
-                lineWidth: 1,
-                priceLineVisible: false,
-                crosshairMarkerVisible: false,
-            });
+            // Show loading
+            chartImg.style.display = 'none';
+            chartLoading.style.display = 'block';
+            chartLoading.textContent = '生成圖表中...';
 
-            // Historical price line (blue)
-            historySeries = chart.addLineSeries({
-                color: '#4169E1',  // Royal blue
-                lineWidth: 2,
-                priceLineVisible: false,
-                lastValueVisible: false,
-            });
+            // Build chart URL
+            const chartUrl = `${API_BASE}/api/chart/${encodeURIComponent(symbol)}?asset_type=${assetType}&horizon=24&sample_count=5&t=${Date.now()}`;
 
-            // Forecast mean line (orange)
-            forecastMeanSeries = chart.addLineSeries({
-                color: '#FF8C00',  // Dark orange
-                lineWidth: 2,
-                priceLineVisible: true,
-                lastValueVisible: true,
-            });
-
-            window.addEventListener('resize', () => {
-                chart.applyOptions({ width: container.clientWidth });
-            });
-        }
-
-        function updateChart(history, forecast) {
-            if (!chart) initChart();
-
-            // Historical price line (blue) - use close price
-            const historyData = history.map(h => ({ time: h.time, value: h.close }));
-
-            // Forecast range area (orange shaded) - use max as top line
-            // We show the full range (min to max)
-            const forecastAreaData = forecast.map(f => ({ time: f.time, value: f.max }));
-
-            // Forecast mean line (orange)
-            const forecastMeanData = forecast.map(f => ({ time: f.time, value: f.mean }));
-
-            // Connect history to forecast by adding last history point to forecast
-            if (history.length > 0) {
-                const lastHist = history[history.length - 1];
-                forecastMeanData.unshift({ time: lastHist.time, value: lastHist.close });
-                forecastAreaData.unshift({ time: lastHist.time, value: lastHist.close });
-            }
-
-            // Set data
-            historySeries.setData(historyData);
-            forecastAreaSeries.setData(forecastAreaData);
-            forecastMeanSeries.setData(forecastMeanData);
-
-            chart.timeScale().fitContent();
+            // Load image
+            chartImg.onload = () => {
+                chartImg.style.display = 'block';
+                chartLoading.style.display = 'none';
+            };
+            chartImg.onerror = () => {
+                chartLoading.textContent = '圖表載入失敗';
+            };
+            chartImg.src = chartUrl;
         }
 
         // ============== Weather ==============
@@ -522,8 +465,8 @@
                 const changeClass = data.upside_prob > 50 ? 'text-neon-green' : 'text-neon-red';
                 document.getElementById('price-change').innerHTML = `上漲概率: <span class="${changeClass}">${data.upside_prob}%</span>`;
 
-                // Update chart with history + forecast
-                updateChart(data.history || [], data.forecast);
+                // Load chart image from backend API (Matplotlib)
+                loadChartImage(symbol, currentAssetType);
 
                 // Update info cards
                 document.getElementById('info-cards').innerHTML = `
@@ -698,7 +641,6 @@
             };
 
             checkHealth();
-            initChart();
             renderSymbolButtons(currentAssetType);
             updateSimSymbols(currentAssetType);
             loadWeather(currentSymbol);

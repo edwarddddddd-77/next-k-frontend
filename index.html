@@ -315,9 +315,9 @@
         let currentSymbol = 'BTC/USDT';
         let currentAssetType = 'crypto';
         let chart = null;
-        let area90Series = null;  // 90% confidence area (p10-p90)
-        let area75Series = null;  // 50% confidence area (p25-p75)
-        let meanSeries = null;    // Mean prediction line
+        let historySeries = null;     // Historical price line (blue)
+        let forecastAreaSeries = null; // Forecast range area (orange)
+        let forecastMeanSeries = null; // Forecast mean line (orange)
 
         const SYMBOLS = {
             crypto: [
@@ -449,29 +449,27 @@
                 },
             });
 
-            // 80% confidence area (p10-p90) - wider, lighter
-            area90Series = chart.addAreaSeries({
-                topColor: 'rgba(120, 80, 255, 0.15)',
-                bottomColor: 'rgba(120, 80, 255, 0.02)',
-                lineColor: 'rgba(120, 80, 255, 0.3)',
+            // Forecast range area (orange shaded) - must be added first to be behind
+            forecastAreaSeries = chart.addAreaSeries({
+                topColor: 'rgba(255, 165, 0, 0.25)',
+                bottomColor: 'rgba(255, 165, 0, 0.05)',
+                lineColor: 'rgba(255, 165, 0, 0.4)',
                 lineWidth: 1,
                 priceLineVisible: false,
                 crosshairMarkerVisible: false,
             });
 
-            // 50% confidence area (p25-p75) - narrower, darker
-            area75Series = chart.addAreaSeries({
-                topColor: 'rgba(120, 80, 255, 0.35)',
-                bottomColor: 'rgba(120, 80, 255, 0.1)',
-                lineColor: 'rgba(120, 80, 255, 0.5)',
-                lineWidth: 1,
+            // Historical price line (blue)
+            historySeries = chart.addLineSeries({
+                color: '#4169E1',  // Royal blue
+                lineWidth: 2,
                 priceLineVisible: false,
-                crosshairMarkerVisible: false,
+                lastValueVisible: false,
             });
 
-            // Mean prediction line
-            meanSeries = chart.addLineSeries({
-                color: '#00E396',
+            // Forecast mean line (orange)
+            forecastMeanSeries = chart.addLineSeries({
+                color: '#FF8C00',  // Dark orange
                 lineWidth: 2,
                 priceLineVisible: true,
                 lastValueVisible: true,
@@ -482,22 +480,30 @@
             });
         }
 
-        function updateChart(forecast) {
+        function updateChart(history, forecast) {
             if (!chart) initChart();
 
-            // 80% confidence band (p90 upper bound, area fills down)
-            const p90Data = forecast.map(f => ({ time: f.time, value: f.p90 }));
+            // Historical price line (blue) - use close price
+            const historyData = history.map(h => ({ time: h.time, value: h.close }));
 
-            // 50% confidence band (p75 upper bound)
-            const p75Data = forecast.map(f => ({ time: f.time, value: f.p75 }));
+            // Forecast range area (orange shaded) - use max as top line
+            // We show the full range (min to max)
+            const forecastAreaData = forecast.map(f => ({ time: f.time, value: f.max }));
 
-            // Mean prediction line
-            const meanData = forecast.map(f => ({ time: f.time, value: f.mean }));
+            // Forecast mean line (orange)
+            const forecastMeanData = forecast.map(f => ({ time: f.time, value: f.mean }));
 
-            // Set data - order matters for layering (first = bottom)
-            area90Series.setData(p90Data);
-            area75Series.setData(p75Data);
-            meanSeries.setData(meanData);
+            // Connect history to forecast by adding last history point to forecast
+            if (history.length > 0) {
+                const lastHist = history[history.length - 1];
+                forecastMeanData.unshift({ time: lastHist.time, value: lastHist.close });
+                forecastAreaData.unshift({ time: lastHist.time, value: lastHist.close });
+            }
+
+            // Set data
+            historySeries.setData(historyData);
+            forecastAreaSeries.setData(forecastAreaData);
+            forecastMeanSeries.setData(forecastMeanData);
 
             chart.timeScale().fitContent();
         }
@@ -516,8 +522,8 @@
                 const changeClass = data.upside_prob > 50 ? 'text-neon-green' : 'text-neon-red';
                 document.getElementById('price-change').innerHTML = `上漲概率: <span class="${changeClass}">${data.upside_prob}%</span>`;
 
-                // Update chart
-                updateChart(data.forecast);
+                // Update chart with history + forecast
+                updateChart(data.history || [], data.forecast);
 
                 // Update info cards
                 document.getElementById('info-cards').innerHTML = `

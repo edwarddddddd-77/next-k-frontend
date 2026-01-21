@@ -194,9 +194,18 @@
                 <div class="bg-surface rounded-xl border border-border overflow-hidden">
                     <!-- Chart Header -->
                     <div class="px-4 py-3 border-b border-border flex items-center justify-between">
-                        <div>
-                            <h2 id="chart-symbol" class="text-text-primary font-semibold">BTC/USDT</h2>
-                            <p id="chart-subtitle" class="text-text-muted text-xs mt-0.5">24小時概率預測</p>
+                        <div class="flex items-center gap-4">
+                            <div>
+                                <h2 id="chart-symbol" class="text-text-primary font-semibold">BTC/USDT</h2>
+                                <p id="chart-subtitle" class="text-text-muted text-xs mt-0.5">1H · 24根K線預測</p>
+                            </div>
+                            <!-- Timeframe Selector -->
+                            <div class="flex gap-1">
+                                <button onclick="selectTimeframe('1h')" class="tf-btn px-3 py-1.5 rounded-lg bg-neon-blue/20 text-neon-blue border border-neon-blue/30 text-xs font-medium" data-timeframe="1h">1H</button>
+                                <button onclick="selectTimeframe('4h')" class="tf-btn px-3 py-1.5 rounded-lg bg-surface-light text-text-muted border border-border hover:bg-surface text-xs font-medium" data-timeframe="4h">4H</button>
+                                <button onclick="selectTimeframe('1d')" class="tf-btn px-3 py-1.5 rounded-lg bg-surface-light text-text-muted border border-border hover:bg-surface text-xs font-medium" data-timeframe="1d">1D</button>
+                                <button onclick="selectTimeframe('1w')" class="tf-btn px-3 py-1.5 rounded-lg bg-surface-light text-text-muted border border-border hover:bg-surface text-xs font-medium" data-timeframe="1w">1W</button>
+                            </div>
                         </div>
                         <div class="text-right">
                             <div id="current-price" class="text-text-primary font-mono text-lg font-semibold">--</div>
@@ -295,6 +304,43 @@
                         <div class="text-text-muted text-sm">載入中...</div>
                     </div>
                 </div>
+
+                <!-- Backtesting -->
+                <div class="bg-surface rounded-xl border border-border p-4">
+                    <h3 class="text-text-primary font-semibold mb-3 flex items-center gap-2">
+                        <span class="text-lg">📈</span> 回測驗證
+                    </h3>
+                    <p class="text-text-muted text-xs mb-3">驗證模型在歷史數據上的預測準確度</p>
+
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-text-muted text-xs mb-1">測試週期</label>
+                                <select id="bt-periods" class="w-full px-2 py-1.5 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                                    <option value="5">5次</option>
+                                    <option value="10">10次</option>
+                                    <option value="15">15次</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-text-muted text-xs mb-1">預測長度</label>
+                                <select id="bt-horizon" class="w-full px-2 py-1.5 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                                    <option value="6">6根</option>
+                                    <option value="12" selected>12根</option>
+                                    <option value="24">24根</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button onclick="runBacktest()" class="w-full bg-neon-blue/20 text-neon-blue border border-neon-blue/30 py-2 rounded-lg text-sm font-medium hover:bg-neon-blue/30 transition-colors">
+                            🧪 開始回測
+                        </button>
+                    </div>
+
+                    <!-- Backtest Result -->
+                    <div id="bt-result" class="mt-3 hidden">
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -317,6 +363,7 @@
         // ============== State ==============
         let currentSymbol = 'BTC/USDT';
         let currentAssetType = 'crypto';
+        let currentTimeframe = '1h';
         // Chart is now rendered as PNG from backend API (Matplotlib)
 
         const SYMBOLS = {
@@ -349,8 +396,8 @@
                 const res = await fetch(`${API_BASE}/api/health`);
                 return res.json();
             },
-            async weather(symbol, assetType = 'crypto', horizon = 24) {
-                const res = await fetch(`${API_BASE}/api/weather/${encodeURIComponent(symbol)}?asset_type=${assetType}&horizon=${horizon}`);
+            async weather(symbol, assetType = 'crypto', timeframe = '1h') {
+                const res = await fetch(`${API_BASE}/api/weather/${encodeURIComponent(symbol)}?asset_type=${assetType}&timeframe=${timeframe}`);
                 if (!res.ok) throw new Error(await res.text());
                 return res.json();
             },
@@ -364,6 +411,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(params)
                 });
+                if (!res.ok) throw new Error(await res.text());
+                return res.json();
+            },
+            async backtest(symbol, assetType = 'crypto', timeframe = '1h', testPeriods = 5, horizon = 12) {
+                const res = await fetch(`${API_BASE}/api/backtest/${encodeURIComponent(symbol)}?asset_type=${assetType}&timeframe=${timeframe}&test_periods=${testPeriods}&horizon=${horizon}`);
                 if (!res.ok) throw new Error(await res.text());
                 return res.json();
             }
@@ -419,6 +471,19 @@
             loadWeather(symbol);
         }
 
+        function selectTimeframe(timeframe) {
+            currentTimeframe = timeframe;
+            document.querySelectorAll('.tf-btn').forEach(btn => {
+                const isActive = btn.dataset.timeframe === timeframe;
+                if (isActive) {
+                    btn.className = 'tf-btn px-3 py-1.5 rounded-lg bg-neon-blue/20 text-neon-blue border border-neon-blue/30 text-xs font-medium';
+                } else {
+                    btn.className = 'tf-btn px-3 py-1.5 rounded-lg bg-surface-light text-text-muted border border-border hover:bg-surface text-xs font-medium';
+                }
+            });
+            loadWeather(currentSymbol);
+        }
+
         function formatPrice(price) {
             if (price < 0.01) return price.toFixed(8);
             if (price < 1) return price.toFixed(6);
@@ -428,7 +493,7 @@
 
         // ============== Chart ==============
         // Chart is now rendered as PNG image from backend Matplotlib API
-        function loadChartImage(symbol, assetType) {
+        function loadChartImage(symbol, assetType, timeframe) {
             const chartImg = document.getElementById('chart-img');
             const chartLoading = document.getElementById('chart-loading');
 
@@ -437,8 +502,8 @@
             chartLoading.style.display = 'block';
             chartLoading.textContent = '生成圖表中...';
 
-            // Build chart URL
-            const chartUrl = `${API_BASE}/api/chart/${encodeURIComponent(symbol)}?asset_type=${assetType}&horizon=24&sample_count=5&t=${Date.now()}`;
+            // Build chart URL with timeframe
+            const chartUrl = `${API_BASE}/api/chart/${encodeURIComponent(symbol)}?asset_type=${assetType}&timeframe=${timeframe}&sample_count=5&t=${Date.now()}`;
 
             // Load image
             chartImg.onload = () => {
@@ -458,15 +523,16 @@
                 document.getElementById('price-ranges').innerHTML = '<div class="text-text-muted text-sm animate-pulse">分析中...</div>';
                 document.getElementById('key-levels').innerHTML = '<div class="text-text-muted text-sm animate-pulse">分析中...</div>';
 
-                const data = await API.weather(symbol, currentAssetType);
+                const data = await API.weather(symbol, currentAssetType, currentTimeframe);
 
-                // Update price
+                // Update price and timeframe indicator
                 document.getElementById('current-price').textContent = '$' + formatPrice(data.current_price);
                 const changeClass = data.upside_prob > 50 ? 'text-neon-green' : 'text-neon-red';
                 document.getElementById('price-change').innerHTML = `上漲概率: <span class="${changeClass}">${data.upside_prob}%</span>`;
+                document.getElementById('chart-subtitle').textContent = `${currentTimeframe.toUpperCase()} · ${data.horizon}根K線預測`;
 
                 // Load chart image from backend API (Matplotlib)
-                loadChartImage(symbol, currentAssetType);
+                loadChartImage(symbol, currentAssetType, currentTimeframe);
 
                 // Update info cards
                 document.getElementById('info-cards').innerHTML = `
@@ -606,6 +672,58 @@
                                 <div class="text-text-muted text-xs">最大虧損</div>
                                 <div class="font-mono text-sm text-neon-red">$${data.max_loss.toFixed(2)}</div>
                             </div>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                resultDiv.innerHTML = `<div class="text-neon-red text-sm text-center py-4">${e.message}</div>`;
+            }
+        }
+
+        // ============== Backtesting ==============
+        async function runBacktest() {
+            const resultDiv = document.getElementById('bt-result');
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = '<div class="text-text-muted text-sm animate-pulse text-center py-4">回測中...</div>';
+
+            try {
+                const testPeriods = parseInt(document.getElementById('bt-periods').value);
+                const horizon = parseInt(document.getElementById('bt-horizon').value);
+
+                const data = await API.backtest(currentSymbol, currentAssetType, currentTimeframe, testPeriods, horizon);
+
+                // Determine overall assessment
+                const isGood = data.direction_accuracy >= 60 && data.profitable_trades_pct >= 55;
+                const isModerate = data.direction_accuracy >= 50 && data.profitable_trades_pct >= 45;
+                const assessmentClass = isGood ? 'text-neon-green' : isModerate ? 'text-neon-yellow' : 'text-neon-red';
+                const assessmentText = isGood ? '✅ 表現優異' : isModerate ? '⚠️ 表現尚可' : '❌ 需謹慎';
+
+                resultDiv.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="text-center p-2 rounded-lg bg-surface-light">
+                            <div class="text-xs text-text-muted mb-1">整體評估</div>
+                            <div class="text-sm font-semibold ${assessmentClass}">${assessmentText}</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted">方向準確率</div>
+                                <div class="font-mono font-semibold ${data.direction_accuracy >= 55 ? 'text-neon-green' : 'text-neon-red'}">${data.direction_accuracy.toFixed(1)}%</div>
+                            </div>
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted">盈利交易比</div>
+                                <div class="font-mono font-semibold ${data.profitable_trades_pct >= 50 ? 'text-neon-green' : 'text-neon-red'}">${data.profitable_trades_pct.toFixed(1)}%</div>
+                            </div>
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted">平均誤差</div>
+                                <div class="font-mono font-semibold text-text-primary">${data.mean_absolute_error.toFixed(2)}%</div>
+                            </div>
+                            <div class="bg-surface-light rounded-lg p-2">
+                                <div class="text-text-muted">10%內準確</div>
+                                <div class="font-mono font-semibold ${data.within_10pct_accuracy >= 70 ? 'text-neon-green' : 'text-text-primary'}">${data.within_10pct_accuracy.toFixed(1)}%</div>
+                            </div>
+                        </div>
+                        <div class="text-text-muted text-xs text-center mt-2">
+                            測試: ${data.test_periods}次 · 時間框架: ${currentTimeframe.toUpperCase()}
                         </div>
                     </div>
                 `;

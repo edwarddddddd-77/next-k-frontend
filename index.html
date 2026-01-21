@@ -317,22 +317,22 @@
                             <div>
                                 <label class="block text-text-muted text-xs mb-1">測試週期</label>
                                 <select id="bt-periods" class="w-full px-2 py-1.5 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
+                                    <option value="3" selected>3次 (快)</option>
                                     <option value="5">5次</option>
-                                    <option value="10">10次</option>
-                                    <option value="15">15次</option>
+                                    <option value="8">8次 (慢)</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-text-muted text-xs mb-1">預測長度</label>
                                 <select id="bt-horizon" class="w-full px-2 py-1.5 rounded-lg bg-surface-light border border-border text-text-primary text-sm focus:border-neon-purple focus:outline-none">
-                                    <option value="6">6根</option>
-                                    <option value="12" selected>12根</option>
-                                    <option value="24">24根</option>
+                                    <option value="6" selected>6根 (快)</option>
+                                    <option value="12">12根</option>
+                                    <option value="18">18根 (慢)</option>
                                 </select>
                             </div>
                         </div>
 
-                        <button onclick="runBacktest()" class="w-full bg-neon-blue/20 text-neon-blue border border-neon-blue/30 py-2 rounded-lg text-sm font-medium hover:bg-neon-blue/30 transition-colors">
+                        <button onclick="runBacktest()" id="bt-button" class="w-full bg-neon-blue/20 text-neon-blue border border-neon-blue/30 py-2 rounded-lg text-sm font-medium hover:bg-neon-blue/30 transition-colors">
                             🧪 開始回測
                         </button>
                     </div>
@@ -683,8 +683,15 @@
         // ============== Backtesting ==============
         async function runBacktest() {
             const resultDiv = document.getElementById('bt-result');
+            const button = document.getElementById('bt-button');
+
+            // Disable button during backtest
+            button.disabled = true;
+            button.innerHTML = '⏳ 回測中...';
+            button.className = 'w-full bg-surface-light text-text-muted border border-border py-2 rounded-lg text-sm font-medium cursor-not-allowed';
+
             resultDiv.classList.remove('hidden');
-            resultDiv.innerHTML = '<div class="text-text-muted text-sm animate-pulse text-center py-4">回測中...</div>';
+            resultDiv.innerHTML = '<div class="text-text-muted text-sm animate-pulse text-center py-4">🔄 AI模型計算中，請稍候...</div>';
 
             try {
                 const testPeriods = parseInt(document.getElementById('bt-periods').value);
@@ -729,6 +736,11 @@
                 `;
             } catch (e) {
                 resultDiv.innerHTML = `<div class="text-neon-red text-sm text-center py-4">${e.message}</div>`;
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.innerHTML = '🧪 開始回測';
+                button.className = 'w-full bg-neon-blue/20 text-neon-blue border border-neon-blue/30 py-2 rounded-lg text-sm font-medium hover:bg-neon-blue/30 transition-colors';
             }
         }
 

@@ -608,12 +608,13 @@
 
                 const content = items.map(item => {
                     const signalColor = item.signal === 'bullish' ? 'text-neon-green' : item.signal === 'bearish' ? 'text-neon-red' : 'text-text-muted';
+                    const signalText = item.signal === 'bullish' ? '🟢 看多' : item.signal === 'bearish' ? '🔴 看空' : '⚪ 震盪';
                     const changeColor = item.price_change > 0 ? 'text-neon-green' : 'text-neon-red';
                     return `
                         <div class="flex items-center gap-4 px-4 cursor-pointer hover:bg-surface-light/50 rounded-lg py-1 transition-colors" onclick="selectSymbol('${item.symbol}')">
                             <span class="font-medium text-text-primary">${item.symbol}</span>
                             <span class="font-mono text-sm ${changeColor}">${item.price_change > 0 ? '+' : ''}${item.price_change.toFixed(2)}%</span>
-                            <span class="text-xs ${signalColor} uppercase">${item.signal}</span>
+                            <span class="text-xs ${signalColor}">${signalText}</span>
                             <span class="text-xs text-neon-yellow">異動 ${item.anomaly_score.toFixed(0)}</span>
                         </div>
                     `;

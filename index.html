@@ -2445,7 +2445,7 @@
                     : 'border-border/70 bg-surface/40 opacity-90';
                 const status = openN > 0 ? '持仓中' : (enabled ? '启用' : '停用');
                 const nameNode = editable
-                    ? '<button type="button" class="mq-robot-name-btn text-left w-full text-[9px] text-text-muted truncate mb-1 hover:text-accent" title="1秒内连点5次可编辑参数" data-mq-robot-name="' + escHtml(String(pid)) + '">' + escHtml(name || tpl) + '</button>'
+                    ? '<button type="button" class="mq-robot-name-btn text-left w-full text-[9px] text-text-muted truncate mb-1" data-mq-robot-name="' + escHtml(String(pid)) + '">' + escHtml(name || tpl) + '</button>'
                     : '<div class="text-[9px] text-text-muted truncate mb-1" title="' + escHtml(name || '') + '">' + escHtml(name || tpl) + '</div>';
                 cards.push(
                     '<div class="min-w-[10.5rem] max-w-[14rem] flex-1 rounded-lg border px-2.5 py-2 ' + enCls + '">'

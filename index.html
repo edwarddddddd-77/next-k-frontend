@@ -718,6 +718,28 @@
         </div>
     </div>
 
+    <div id="mq-param-editor-modal" class="hidden fixed inset-0 z-[75]">
+        <div class="absolute inset-0 bg-black/55" data-mq-param-modal-close="1"></div>
+        <div class="absolute inset-x-3 top-[8vh] mx-auto max-w-2xl rounded-xl border border-border/70 bg-surface shadow-2xl">
+            <div class="px-4 py-3 border-b border-border/70 flex items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-text-primary text-sm font-semibold">机器人参数编辑</h3>
+                    <p id="mq-param-editor-title" class="text-[11px] text-text-muted mt-0.5">-</p>
+                </div>
+                <button type="button" id="mq-param-editor-close" class="px-2 py-1 rounded-md border border-border/80 text-text-secondary text-xs hover:border-accent/40 hover:text-accent">关闭</button>
+            </div>
+            <div class="px-4 py-3 max-h-[64vh] overflow-y-auto">
+                <p class="text-[11px] text-text-muted mb-2">仅修改当前机器人的 tactical 参数；保存后下一轮扫描生效。</p>
+                <p id="mq-param-editor-msg" class="text-[11px] font-mono min-h-[1rem] mb-2"></p>
+                <div id="mq-param-editor-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+            </div>
+            <div class="px-4 py-3 border-t border-border/70 flex justify-end gap-2">
+                <button type="button" id="mq-param-editor-cancel" class="btn-secondary px-3 py-1.5 rounded-lg border border-border/90 text-text-secondary text-xs hover:border-accent/40 hover:text-accent">取消</button>
+                <button type="button" id="mq-param-editor-save" class="btn-secondary px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/35 text-accent text-xs font-medium hover:bg-accent/15">保存参数</button>
+            </div>
+        </div>
+    </div>
+
     <script src="api-base.js"></script>
     <script>
         const API_BASE = resolveApiBase();
@@ -2409,7 +2431,7 @@
                 return;
             }
             const cards = [];
-            const renderCard = (pid, sym, name, enabled, tplKey) => {
+            const renderCard = (pid, sym, name, enabled, tplKey, editable) => {
                 const r = realizedMap.get(pid);
                 const o = openMap.get(pid);
                 const realized = r ? Number(r.total_pnl_usdt) : 0;
@@ -2422,12 +2444,15 @@
                     ? 'border-neon-purple/35 bg-neon-purple/[0.06]'
                     : 'border-border/70 bg-surface/40 opacity-90';
                 const status = openN > 0 ? '持仓中' : (enabled ? '启用' : '停用');
+                const nameNode = editable
+                    ? '<button type="button" class="mq-robot-name-btn text-left w-full text-[9px] text-text-muted truncate mb-1 hover:text-accent" title="1秒内连点5次可编辑参数" data-mq-robot-name="' + escHtml(String(pid)) + '">' + escHtml(name || tpl) + '</button>'
+                    : '<div class="text-[9px] text-text-muted truncate mb-1" title="' + escHtml(name || '') + '">' + escHtml(name || tpl) + '</div>';
                 cards.push(
                     '<div class="min-w-[10.5rem] max-w-[14rem] flex-1 rounded-lg border px-2.5 py-2 ' + enCls + '">'
                     + '<div class="flex items-center justify-between gap-1 mb-1">'
                     + '<span class="font-mono text-[11px] font-semibold text-text-primary">#' + escHtml(String(pid)) + ' ' + escHtml(sym) + '</span>'
                     + '<span class="text-[9px] text-text-muted">' + escHtml(status) + '</span></div>'
-                    + '<div class="text-[9px] text-text-muted truncate mb-1" title="' + escHtml(name || '') + '">' + escHtml(name || tpl) + '</div>'
+                    + nameNode
                     + '<div class="font-mono text-base font-semibold ' + mqPnlClass(total) + '">' + escHtml(mqFmtSignedPnl(total, 2)) + ' <span class="text-[9px] font-normal text-text-muted">合计U</span></div>'
                     + '<div class="text-[9px] font-mono mt-1 leading-relaxed">'
                     + '<span class="' + mqPnlClass(realized) + '">已实现 ' + escHtml(mqFmtSignedPnl(realized, 2)) + '</span>'
@@ -2448,6 +2473,7 @@
                     String(p.name || ''),
                     !!p.enabled,
                     String(p.template || 'balanced').toLowerCase(),
+                    true,
                 );
             });
             orphanIds.forEach((pid) => {
@@ -2458,9 +2484,163 @@
                     '已删Profile',
                     false,
                     '',
+                    false,
                 );
             });
             el.innerHTML = cards.join('');
+        }
+
+        const MQ_PARAM_EDITOR_FIELDS = [
+            { key: 'base_leverage', label: '基础杠杆', type: 'number', step: '0.1', min: '1' },
+            { key: 'max_leverage', label: '最大杠杆', type: 'number', step: '0.1', min: '1' },
+            { key: 'risk_per_trade', label: '单笔风险比例', type: 'number', step: '0.01', min: '0.01', max: '1' },
+            { key: 'max_position_pct', label: '最大仓位占比', type: 'number', step: '0.01', min: '0.01', max: '1' },
+            { key: 'entry_threshold', label: '入场阈值', type: 'number', step: '0.01', min: '0.01', max: '1' },
+            { key: 'exit_threshold', label: '出场阈值', type: 'number', step: '0.01', min: '0.01', max: '1' },
+            { key: 'sl_atr_mult', label: '止损 ATR 倍数', type: 'number', step: '0.1', min: '0.1' },
+            { key: 'tp_rr_ratio', label: '止盈 RR 倍数', type: 'number', step: '0.1', min: '0.1' },
+            { key: 'trailing_enabled', label: '启用移动止损', type: 'bool' },
+            { key: 'trailing_activation_pct', label: '移动止损激活阈值', type: 'number', step: '0.01', min: '0.01' },
+            { key: 'trailing_distance_atr', label: '移动止损 ATR 距离', type: 'number', step: '0.1', min: '0.1' },
+            { key: 'rolling_enabled', label: '启用滚仓', type: 'bool' },
+            { key: 'rolling_trigger_pct', label: '滚仓触发浮盈比例', type: 'number', step: '0.01', min: '0.01' },
+            { key: 'rolling_reinvest_pct', label: '滚仓再投入比例', type: 'number', step: '0.01', min: '0.01', max: '1' },
+            { key: 'rolling_max_times', label: '最大滚仓次数', type: 'number', step: '1', min: '1' },
+            { key: 'rolling_move_stop', label: '滚仓后保本移损', type: 'bool' },
+        ];
+        let _mqParamEditorProfileId = null;
+        const _mqRobotNameTapTs = new Map();
+
+        function mqBuildEffectiveParams(profile) {
+            const initial = (profile && profile.initial_params) || {};
+            const tactical = (profile && profile.tactical_params) || {};
+            return { ...initial, ...tactical };
+        }
+
+        function mqSetParamEditorMessage(html, isError) {
+            const msgEl = document.getElementById('mq-param-editor-msg');
+            if (!msgEl) return;
+            if (!html) {
+                msgEl.textContent = '';
+                return;
+            }
+            msgEl.innerHTML = isError
+                ? '<span class="text-neon-red">' + escHtml(String(html)) + '</span>'
+                : '<span class="text-neon-green">' + escHtml(String(html)) + '</span>';
+        }
+
+        function mqCloseParamEditor() {
+            const modal = document.getElementById('mq-param-editor-modal');
+            if (modal) modal.classList.add('hidden');
+            _mqParamEditorProfileId = null;
+            mqSetParamEditorMessage('', false);
+        }
+
+        function mqOpenParamEditor(profileId) {
+            const pid = Number(profileId);
+            if (!Number.isFinite(pid)) return;
+            const profile = (_mqProfilesCache || []).find((p) => Number(p.id) === pid);
+            if (!profile) {
+                alert('未找到该机器人 Profile');
+                return;
+            }
+            _mqParamEditorProfileId = pid;
+            const title = document.getElementById('mq-param-editor-title');
+            const fieldsRoot = document.getElementById('mq-param-editor-fields');
+            const modal = document.getElementById('mq-param-editor-modal');
+            if (!fieldsRoot || !modal) return;
+
+            const params = mqBuildEffectiveParams(profile);
+            if (title) {
+                title.textContent = '#' + pid + ' · ' + (profile.symbol || '') + ' · ' + (profile.name || profile.template || '');
+            }
+
+            const html = MQ_PARAM_EDITOR_FIELDS.map((f) => {
+                if (f.type === 'bool') {
+                    const checked = params[f.key] ? ' checked' : '';
+                    return '<label class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border border-border/70 bg-surface-light/[0.15]">'
+                        + '<span class="text-xs text-text-secondary">' + escHtml(f.label) + '</span>'
+                        + '<input type="checkbox" data-mq-param-key="' + escHtml(f.key) + '"' + checked + ' class="h-4 w-4 accent-accent" /></label>';
+                }
+                const raw = params[f.key];
+                const val = raw == null ? '' : String(raw);
+                const minAttr = f.min != null ? ' min="' + escHtml(String(f.min)) + '"' : '';
+                const maxAttr = f.max != null ? ' max="' + escHtml(String(f.max)) + '"' : '';
+                const stepAttr = f.step != null ? ' step="' + escHtml(String(f.step)) + '"' : '';
+                return '<label class="block px-2.5 py-2 rounded-lg border border-border/70 bg-surface-light/[0.15]">'
+                    + '<span class="text-[11px] text-text-muted">' + escHtml(f.label) + '</span>'
+                    + '<input type="number" data-mq-param-key="' + escHtml(f.key) + '" value="' + escHtml(val) + '"' + minAttr + maxAttr + stepAttr
+                    + ' class="mt-1 w-full px-2 py-1.5 rounded-md bg-background/80 border border-border/80 text-text-primary text-xs font-mono focus:border-accent/50 focus:outline-none" /></label>';
+            }).join('');
+
+            fieldsRoot.innerHTML = html;
+            mqSetParamEditorMessage('', false);
+            modal.classList.remove('hidden');
+        }
+
+        function mqRegisterRobotNameTap(profileId) {
+            const pid = Number(profileId);
+            if (!Number.isFinite(pid)) return;
+            const now = Date.now();
+            const prev = _mqRobotNameTapTs.get(pid) || [];
+            const next = prev.filter((ts) => now - ts <= 1000);
+            next.push(now);
+            _mqRobotNameTapTs.set(pid, next);
+            if (next.length >= 5) {
+                _mqRobotNameTapTs.set(pid, []);
+                mqOpenParamEditor(pid);
+            }
+        }
+
+        async function mqSaveParamEditor() {
+            const pid = Number(_mqParamEditorProfileId);
+            if (!Number.isFinite(pid)) return;
+            const profile = (_mqProfilesCache || []).find((p) => Number(p.id) === pid);
+            if (!profile) {
+                alert('Profile 不存在，可能已被删除');
+                mqCloseParamEditor();
+                return;
+            }
+
+            const saveBtn = document.getElementById('mq-param-editor-save');
+            const tactical = { ...((profile && profile.tactical_params) || {}) };
+            const nodes = document.querySelectorAll('#mq-param-editor-fields [data-mq-param-key]');
+            nodes.forEach((node) => {
+                const key = node.getAttribute('data-mq-param-key');
+                const def = MQ_PARAM_EDITOR_FIELDS.find((x) => x.key === key);
+                if (!key || !def) return;
+                if (def.type === 'bool') {
+                    tactical[key] = !!node.checked;
+                    return;
+                }
+                const raw = String(node.value || '').trim();
+                if (raw === '') return;
+                const num = Number(raw);
+                if (!Number.isFinite(num)) return;
+                tactical[key] = def.step === '1' ? Math.trunc(num) : num;
+            });
+
+            if (tactical.base_leverage != null && tactical.max_leverage != null) {
+                const baseLev = Number(tactical.base_leverage);
+                const maxLev = Number(tactical.max_leverage);
+                if (Number.isFinite(baseLev) && Number.isFinite(maxLev) && maxLev < baseLev) {
+                    tactical.max_leverage = baseLev;
+                }
+            }
+
+            mqSetParamEditorMessage('保存中…', false);
+            if (saveBtn) saveBtn.disabled = true;
+            try {
+                await API.mqPatchProfile(pid, { tactical_params: tactical });
+                mqSetParamEditorMessage('保存成功，正在刷新…', false);
+                await hydrateMqBoard();
+                setTimeout(() => mqCloseParamEditor(), 180);
+            } catch (e) {
+                const err = (e && e.message) ? String(e.message) : '保存失败';
+                mqSetParamEditorMessage(err, true);
+            } finally {
+                if (saveBtn) saveBtn.disabled = false;
+            }
         }
 
         function renderMqSummary(sum) {
@@ -4290,6 +4470,20 @@
                 const id = btn.getAttribute('data-mq-toggle');
                 const en = btn.getAttribute('data-mq-enabled') === '1';
                 if (id) void toggleMqProfileEnabled(id, en);
+            });
+            document.getElementById('mq-robot-pnl')?.addEventListener('click', (ev) => {
+                const btn = ev.target && ev.target.closest && ev.target.closest('[data-mq-robot-name]');
+                if (!btn) return;
+                ev.preventDefault();
+                const pid = btn.getAttribute('data-mq-robot-name');
+                if (pid) mqRegisterRobotNameTap(pid);
+            });
+            document.getElementById('mq-param-editor-save')?.addEventListener('click', () => void mqSaveParamEditor());
+            document.getElementById('mq-param-editor-close')?.addEventListener('click', mqCloseParamEditor);
+            document.getElementById('mq-param-editor-cancel')?.addEventListener('click', mqCloseParamEditor);
+            document.getElementById('mq-param-editor-modal')?.addEventListener('click', (ev) => {
+                const closeEl = ev.target && ev.target.closest && ev.target.closest('[data-mq-param-modal-close]');
+                if (closeEl) mqCloseParamEditor();
             });
             updateMqTemplateHint();
             void ensureMqUniverseDatalist();

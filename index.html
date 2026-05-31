@@ -2558,7 +2558,7 @@
             const html = MQ_PARAM_EDITOR_FIELDS.map((f) => {
                 if (f.type === 'bool') {
                     const checked = params[f.key] ? ' checked' : '';
-                    return '<label class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border border-border/70 bg-surface-light/[0.15]">'
+                    return '<label class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border border-border/70 bg-surface-light">'
                         + '<span class="text-xs text-text-secondary">' + escHtml(f.label) + '</span>'
                         + '<input type="checkbox" data-mq-param-key="' + escHtml(f.key) + '"' + checked + ' class="h-4 w-4 accent-accent" /></label>';
                 }
@@ -2567,10 +2567,10 @@
                 const minAttr = f.min != null ? ' min="' + escHtml(String(f.min)) + '"' : '';
                 const maxAttr = f.max != null ? ' max="' + escHtml(String(f.max)) + '"' : '';
                 const stepAttr = f.step != null ? ' step="' + escHtml(String(f.step)) + '"' : '';
-                return '<label class="block px-2.5 py-2 rounded-lg border border-border/70 bg-surface-light/[0.15]">'
+                return '<label class="block px-2.5 py-2 rounded-lg border border-border/70 bg-surface-light">'
                     + '<span class="text-[11px] text-text-muted">' + escHtml(f.label) + '</span>'
                     + '<input type="number" data-mq-param-key="' + escHtml(f.key) + '" value="' + escHtml(val) + '"' + minAttr + maxAttr + stepAttr
-                    + ' class="mt-1 w-full px-2 py-1.5 rounded-md bg-background/80 border border-border/80 text-text-primary text-xs font-mono focus:border-accent/50 focus:outline-none" /></label>';
+                    + ' class="mt-1 w-full px-2 py-1.5 rounded-md bg-surface border border-border text-text-primary text-xs font-mono focus:border-accent/50 focus:outline-none" /></label>';
             }).join('');
 
             fieldsRoot.innerHTML = html;

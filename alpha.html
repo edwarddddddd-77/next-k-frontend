@@ -219,10 +219,11 @@
             <div class="panel-head">
                 <div>
                     <div class="panel-kicker">Paper Hedge</div>
-                    <h2 class="panel-title">砸盘窗口 · 纸面对冲</h2>
-                    <p class="panel-sub">现货偏多 + 合约开空；只记账，不下真单</p>
+                    <h2 class="panel-title">砸盘窗口 · 自动托管</h2>
+                    <p class="panel-sub">筹码窗口亮起自动开；熄灭/超时自动平；只记账不下真单</p>
                 </div>
-                <div class="panel-toolbar">
+                <div class="panel-toolbar flex flex-wrap gap-1.5">
+                    <span id="paper-auto-pill" class="metric-chip bias-vol">自动 —</span>
                     <span id="paper-window-pill" class="metric-chip bias-vol">—</span>
                     <span id="paper-pnl" class="metric-chip">累计 —</span>
                 </div>
@@ -230,17 +231,6 @@
             <div class="panel-body pt-0 space-y-4">
                 <div id="paper-hint" class="text-sm text-text-secondary"></div>
                 <ol id="paper-checklist" class="text-[12px] text-text-secondary space-y-1.5 list-decimal pl-4"></ol>
-                <div class="border border-border/60 rounded-md p-3 bg-surface-light/15">
-                    <div class="text-xs font-semibold text-text-primary mb-2">开纸面仓</div>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
-                        <input id="paper-symbol" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="SYMBOL" />
-                        <input id="paper-spot" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="现货入场价" />
-                        <input id="paper-fut" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="合约入场价" />
-                        <input id="paper-size" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="名义 USDT" />
-                        <button type="button" id="btn-paper-open" class="btn-ghost">记一笔</button>
-                    </div>
-                    <p class="text-[11px] text-text-muted">简化盈亏：现货多涨赚 + 合约空跌赚，名义等权。</p>
-                </div>
                 <div id="paper-body" class="state-muted text-sm">载入纸面账本…</div>
             </div>
         </div>
@@ -524,23 +514,29 @@
                 ${agg.pressure_pp != null ? `<span class="metric-chip">抛压 ${fmtNum(agg.pressure_pp, 2)} pp</span>` : ''}
             </div>` : ''}
         `;
-        const symInput = document.getElementById('paper-symbol');
-        if (symInput && focus.symbol && !symInput.value) symInput.value = focus.symbol;
         loadPaper(agg);
     }
 
     function renderPaper(data) {
         const win = (data && data.window) || {};
+        const auto = (data && data.auto) || {};
         const pill = document.getElementById('paper-window-pill');
+        const autoEl = document.getElementById('paper-auto-pill');
         const hint = document.getElementById('paper-hint');
         const pnlEl = document.getElementById('paper-pnl');
         const list = document.getElementById('paper-checklist');
         const body = document.getElementById('paper-body');
+        if (autoEl) {
+            autoEl.textContent = auto.enabled
+                ? `自动 · ${auto.size_usd || 500}U · 最多${auto.max_open || 3}仓 · ≤${auto.max_hold_hours || 12}h`
+                : '自动已关';
+            autoEl.className = 'metric-chip ' + (auto.enabled ? 'bias-vol' : '');
+        }
         if (pill) {
             pill.textContent = win.label || '—';
             pill.className = 'metric-chip ' + (win.window_open ? 'bias-bear' : 'bias-vol');
         }
-        if (hint) hint.textContent = win.hint || '';
+        if (hint) hint.textContent = (auto.hint ? auto.hint + ' ' : '') + (win.hint || '');
         if (pnlEl) {
             const p = data && data.total_pnl_usd;
             pnlEl.textContent = '累计 ' + (p == null ? '—' : ((p >= 0 ? '+' : '') + Number(p).toFixed(2) + ' U'));
@@ -554,30 +550,30 @@
         const trades = (data && data.trades) || [];
         if (!body) return;
         if (!trades.length) {
-            body.innerHTML = '<p class="text-text-muted text-sm">尚无纸面仓。窗口亮起时填入场价记一笔。</p>';
+            body.innerHTML = '<p class="text-text-muted text-sm">尚无自动纸面仓。砸盘窗口亮起且能拉到币安价格后，后台会自动开仓。</p>';
             return;
         }
         body.innerHTML = `
             <table class="data-table">
-                <thead><tr><th>标的</th><th>状态</th><th>现货入/出</th><th>合约入/出</th><th>名义</th><th>盈亏</th><th></th></tr></thead>
+                <thead><tr><th>标的</th><th>信号</th><th>现货入/出</th><th>合约入/出</th><th>名义</th><th>盈亏</th><th>状态</th></tr></thead>
                 <tbody>
                 ${trades.map(t => {
                     const open = t.status === 'open';
+                    const st = open
+                        ? (t.auto ? '自动持仓' : '持仓')
+                        : (t.close_reason || (t.auto ? '自动已平' : '已平'));
                     return `<tr>
                         <td class="font-serif">${esc(t.symbol)}</td>
-                        <td class="${open ? 'bias-vol' : 'bias-neu'}">${esc(open ? '持仓中' : '已平')}</td>
+                        <td class="text-[11px] text-text-secondary">${esc(t.signal || '—')}</td>
                         <td class="font-mono text-[11px]">${esc(t.spot_entry)}${t.spot_exit != null ? ' → ' + esc(t.spot_exit) : ''}</td>
                         <td class="font-mono text-[11px]">${esc(t.fut_entry)}${t.fut_exit != null ? ' → ' + esc(t.fut_exit) : ''}</td>
                         <td class="font-mono">${fmtNum(t.size_usd, 0)}</td>
                         <td class="font-mono ${t.pnl_usd > 0 ? 'bias-bull' : t.pnl_usd < 0 ? 'bias-bear' : ''}">${t.pnl_usd == null ? '—' : ((t.pnl_usd >= 0 ? '+' : '') + Number(t.pnl_usd).toFixed(2))}</td>
-                        <td>${open ? `<button type="button" class="btn-ghost text-[11px] btn-paper-close" data-id="${esc(t.id)}">平仓</button>` : ''}</td>
+                        <td class="text-[11px] text-text-secondary max-w-[12rem]">${esc(st)}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>
             </table>`;
-        body.querySelectorAll('.btn-paper-close').forEach(btn => {
-            btn.addEventListener('click', () => closePaperTrade(btn.dataset.id));
-        });
     }
 
     async function loadPaper(agg) {
@@ -592,53 +588,6 @@
             console.error(e);
             const body = document.getElementById('paper-body');
             if (body) body.innerHTML = '<p class="text-neon-red text-sm">纸面加载失败：' + esc(e.message || e) + '</p>';
-        }
-    }
-
-    async function openPaperTrade() {
-        const symbol = document.getElementById('paper-symbol').value.trim();
-        const spot_entry = Number(document.getElementById('paper-spot').value);
-        const fut_entry = Number(document.getElementById('paper-fut').value);
-        const size_usd = Number(document.getElementById('paper-size').value);
-        const agg = lastFocus && lastFocus.chip && lastFocus.chip.aggregate;
-        try {
-            const res = await fetch(`${API_BASE}/api/alpha/paper/open`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    symbol,
-                    spot_entry,
-                    fut_entry,
-                    size_usd,
-                    signal: agg && agg.signal || '',
-                    coingecko_id: lastFocus && lastFocus.coingecko_id || '',
-                }),
-            });
-            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
-            await loadPaper(agg);
-            document.getElementById('paper-spot').value = '';
-            document.getElementById('paper-fut').value = '';
-            document.getElementById('paper-size').value = '';
-        } catch (e) {
-            alert('开仓失败：' + (e.message || e));
-        }
-    }
-
-    async function closePaperTrade(id) {
-        const spot_exit = Number(prompt('现货平仓价'));
-        const fut_exit = Number(prompt('合约平仓价'));
-        if (!(spot_exit > 0) || !(fut_exit > 0)) return;
-        const agg = lastFocus && lastFocus.chip && lastFocus.chip.aggregate;
-        try {
-            const res = await fetch(`${API_BASE}/api/alpha/paper/close`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ trade_id: id, spot_exit, fut_exit }),
-            });
-            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
-            await loadPaper(agg);
-        } catch (e) {
-            alert('平仓失败：' + (e.message || e));
         }
     }
 
@@ -969,7 +918,6 @@
         }
     }
 
-    document.getElementById('btn-paper-open')?.addEventListener('click', () => openPaperTrade());
     loadProviders();
     loadBoard(false).then(async () => {
         const ts = document.getElementById('holders-ts')?.textContent || '';

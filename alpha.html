@@ -161,6 +161,7 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 <span id="board-ts" class="header-clock hidden md:inline">--</span>
+                <div id="provider-status" class="hidden sm:flex items-center gap-1.5 flex-wrap justify-end max-w-[20rem]"></div>
                 <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
                     <span class="status-dot"></span><span>接口连接中…</span>
                 </div>
@@ -175,11 +176,12 @@
             <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
                     <div class="panel-kicker">Focus Window</div>
-                    <h2 class="panel-title text-lg mt-1">今日焦点</h2>
+                    <h2 class="panel-title text-lg mt-1">今日焦点 · 筹码优先</h2>
+                    <p class="panel-sub mt-1">主信号看链上地址变动；价格仅为辅助</p>
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" id="btn-refresh" class="btn-ghost">更新行情</button>
                     <button type="button" id="btn-holders-top" class="btn-ghost">刷新持仓</button>
+                    <button type="button" id="btn-refresh" class="btn-ghost">更新行情（辅助）</button>
                 </div>
             </div>
             <div id="focus-body" class="state-muted animate-pulse">正在载入 Alpha 焦点…</div>
@@ -261,7 +263,7 @@
                 <div>
                     <div class="panel-kicker">On-chain Holders</div>
                     <h2 class="panel-title">多链 Top 持仓监控</h2>
-                    <p class="panel-sub">ETH / BSC / Base / Arbitrum / Solana · 对比上次快照看流出 · 刷新约需 30–90 秒</p>
+                    <p class="panel-sub">对齐原文：盯头部地址余额变化 · 首次为基线，再刷才有同动/抛压 · ETH/BSC 密钥在 Railway 配置</p>
                 </div>
                 <div class="panel-toolbar">
                     <span id="holders-ts" class="panel-ts">--</span>
@@ -382,6 +384,37 @@
         el.innerHTML = '<span class="status-dot"></span><span>' + esc(text) + '</span>';
     }
 
+    function providerChip(label, keyed, mode) {
+        const ok = !!keyed;
+        const tip = ok ? (mode || 'keyed') : (mode || 'freekey');
+        return `<span class="metric-chip ${ok ? 'bias-bull' : 'bias-vol'}" title="${esc(tip)}">${esc(label)} · ${ok ? '已配密钥' : '免费额度'}</span>`;
+    }
+
+    function renderProviders(providers) {
+        const el = document.getElementById('provider-status');
+        if (!el || !providers) return;
+        const eth = providers.ethplorer || {};
+        const bnb = providers.binplorer || {};
+        const cg = providers.coingecko || {};
+        el.innerHTML = [
+            providerChip('ETH', eth.keyed, eth.mode),
+            providerChip('BSC', bnb.keyed, bnb.mode),
+            providerChip('行情', cg.keyed, cg.mode),
+        ].join('');
+    }
+
+    async function loadProviders() {
+        try {
+            const res = await fetch(`${API_BASE}/api/alpha/providers`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.providers) renderProviders(data.providers);
+            else if (data) renderProviders(data);
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
     function scoreBar(val, kind) {
         const v = Math.max(0, Math.min(100, Number(val) || 0));
         return '<div class="bar-track w-20 inline-block align-middle mr-2"><div class="bar-fill ' + kind + '" style="width:' + v + '%"></div></div><span class="font-mono text-[11px]">' + v.toFixed(0) + '</span>';
@@ -426,13 +459,16 @@
             </div>
             ` : ''}
             ${m ? `
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div class="mt-3 pt-3 border-t border-border/50">
+                <div class="text-[11px] text-text-muted mb-2 tracking-wide uppercase">行情辅助（非原文主信号）</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                 <div><div class="text-text-muted text-[11px] mb-0.5">价格</div><div class="font-mono">$${fmtNum(m.price, 6)}</div></div>
                 <div><div class="text-text-muted text-[11px] mb-0.5">1h</div><div class="font-mono ${pctClass(m.chg_1h)}">${fmtPct(m.chg_1h)}</div></div>
                 <div><div class="text-text-muted text-[11px] mb-0.5">价量抛压</div><div>${scoreBar(m.sell_pressure, 'sell')}</div></div>
                 <div><div class="text-text-muted text-[11px] mb-0.5">价量受限</div><div>${scoreBar(m.float_tight, 'tight')}</div></div>
+                </div>
             </div>
-            ` : '<p class="text-text-muted text-xs">市场数据尚未覆盖该标的。</p>'}
+            ` : '<p class="text-text-muted text-xs mt-2">无行情辅助数据（不影响链上筹码监控）。</p>'}
         `;
     }
 
@@ -724,6 +760,8 @@
             renderRank('rank-tight-body', data.rank_float_tight || [], 'float_tight', 'tight');
             renderBoard(data.board || []);
             renderCounts(data.counts);
+            if (data.providers) renderProviders(data.providers);
+            else loadProviders();
             if (data.chip_watch) renderHolders(data.chip_watch);
             document.getElementById('disclaimer').textContent =
                 (data.strategy && data.strategy.disclaimer) || '';
@@ -738,7 +776,7 @@
                 '<p class="text-neon-red text-sm">加载失败：' + esc(e.message || e) + '</p>' +
                 '<p class="text-text-muted text-xs mt-2">确认 API 可访问；本地可设 localStorage NEXT_K_API_BASE</p>';
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '更新行情'; }
+            if (btn) { btn.disabled = false; btn.textContent = '更新行情（辅助）'; }
         }
     }
 
@@ -746,9 +784,11 @@
     document.getElementById('btn-holders').addEventListener('click', () => loadHolders(true));
     document.getElementById('btn-holders-top').addEventListener('click', () => loadHolders(true));
     document.getElementById('btn-history').addEventListener('click', () => loadHistory());
+    loadProviders();
     loadBoard(false).then(() => loadHolders(false));
     loadHistory();
     setInterval(() => loadBoard(false), 120000);
+    setInterval(() => loadProviders(), 300000);
 </script>
 </body>
 </html>

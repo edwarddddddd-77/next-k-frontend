@@ -467,8 +467,8 @@
             },
             error: {
                 box: 'adv-vol',
-                stance: '建议：检查数据源后重试',
-                doText: '链上拉取失败，暂不依据本页交易。确认 ETH/BSC 密钥后重刷。',
+                stance: '建议：点「刷新持仓」重建快照',
+                doText: '页面若仍显示旧的 CoinGecko 429，多半是上午失败快照未刷新。合约已写死，重刷应走 ETH/BSC 持仓接口，与 CoinGecko 无关。',
                 meta: String(agg.action || ''),
             },
             airdrop_dump: {
@@ -847,8 +847,8 @@
             }
             const data = await res.json();
             renderHolders(data);
-            // 持仓更新后重读看板 + 历史
-            await loadBoard(false);
+            // 持仓更新后重读看板 + 历史（看板不得覆盖刚刷的持仓）
+            await loadBoard(false, { skipHolders: true });
             await loadHistory();
         } catch (e) {
             console.error(e);
@@ -858,7 +858,8 @@
         }
     }
 
-    async function loadBoard(force) {
+    async function loadBoard(force, opts) {
+        const skipHolders = opts && opts.skipHolders;
         const btn = document.getElementById('btn-refresh');
         if (btn) { btn.disabled = true; btn.textContent = '更新中…'; }
         try {
@@ -885,7 +886,14 @@
             renderCounts(data.counts);
             if (data.providers) renderProviders(data.providers);
             else loadProviders();
-            if (data.chip_watch) renderHolders(data.chip_watch);
+            // 仅在未刚刷持仓时用看板里的 chip_watch；且不得用更旧快照覆盖
+            if (!skipHolders && data.chip_watch) {
+                const curTs = document.getElementById('holders-ts')?.textContent || '';
+                const nextTs = String(data.chip_watch.generated_at_cst || '').replace('+08:00', ' CST');
+                const curMs = Date.parse(curTs.replace(' CST', '+08:00')) || 0;
+                const nextMs = Date.parse(String(data.chip_watch.generated_at_cst || '')) || 0;
+                if (!curMs || nextMs >= curMs) renderHolders(data.chip_watch);
+            }
             document.getElementById('disclaimer').textContent =
                 (data.strategy && data.strategy.disclaimer) || '';
             if (data.errors && data.errors.length) {

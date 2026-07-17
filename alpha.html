@@ -255,6 +255,25 @@
         </div>
     </section>
 
+    <section class="mb-7" aria-label="历史回测">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Backtest</div>
+                    <h2 class="panel-title">早期窗口回测</h2>
+                    <p class="panel-sub">用历史 Alpha 上新后的合约 5m K 线验证「初期买盘」；巨鲸地址变动无法免费回溯</p>
+                </div>
+                <div class="panel-toolbar">
+                    <span id="backtest-ts" class="panel-ts">--</span>
+                    <button type="button" id="btn-backtest" class="btn-ghost">重跑回测</button>
+                </div>
+            </div>
+            <div id="backtest-body" class="panel-body pt-0">
+                <div class="state-muted animate-pulse py-4">载入回测…</div>
+            </div>
+        </div>
+    </section>
+
     <section class="mb-7" aria-label="链上持仓">
         <div class="dash-card card-hover">
             <div class="panel-head">
@@ -595,6 +614,75 @@
         }).join('');
     }
 
+    function renderBacktest(data) {
+        const el = document.getElementById('backtest-body');
+        const ts = document.getElementById('backtest-ts');
+        if (!data || !data.ok) {
+            el.innerHTML = '<p class="state-muted py-3">暂无回测结果</p>';
+            return;
+        }
+        if (ts) ts.textContent = (data.generated_at_cst || '').replace('+08:00', ' CST') || '--';
+        const s = data.summary || {};
+        const rows = data.events || [];
+        el.innerHTML = `
+            <div class="flex flex-wrap gap-2 mb-3">
+                <span class="metric-chip">有效样本 ${esc(s.n_ok)}/${esc(s.n_events)}</span>
+                <span class="metric-chip bias-bull">10m 上涨率 ${s.early_window_hit_rate != null ? esc(s.early_window_hit_rate) + '%' : '—'}</span>
+                <span class="metric-chip">1h 上涨率 ${s.first_hour_hit_rate != null ? esc(s.first_hour_hit_rate) + '%' : '—'}</span>
+                <span class="metric-chip">均 10m ${s.avg_ret_10m != null ? fmtPct(s.avg_ret_10m) : '—'}</span>
+                <span class="metric-chip">均 1h ${s.avg_ret_60m != null ? fmtPct(s.avg_ret_60m) : '—'}</span>
+                <span class="metric-chip">均 24h ${s.avg_ret_1440m != null ? fmtPct(s.avg_ret_1440m) : '—'}</span>
+            </div>
+            <p class="text-[12px] text-text-secondary mb-2">${esc(s.thesis || '')}</p>
+            <p class="text-[11px] text-text-muted mb-3">${esc(s.limitation || '')}</p>
+            <table class="data-table">
+                <thead><tr>
+                    <th>标的</th><th>合约</th><th>10m</th><th>1h</th><th>4h</th><th>24h</th><th>30m回撤</th><th>结论</th>
+                </tr></thead>
+                <tbody>
+                ${rows.map(r => {
+                    if (!r.ok) {
+                        return `<tr>
+                            <td class="font-semibold">${esc(r.symbol)}</td>
+                            <td class="text-text-muted font-mono text-[11px]">${esc(r.perp || '')}</td>
+                            <td colspan="5" class="text-text-muted text-[11px]">${esc(r.message || r.error || '失败')}</td>
+                            <td class="text-text-muted">—</td>
+                        </tr>`;
+                    }
+                    return `<tr>
+                        <td><span class="font-semibold">${esc(r.symbol)}</span><div class="text-text-muted text-[11px]">${esc(r.name || '')}</div></td>
+                        <td class="font-mono text-[11px]">${esc(r.perp)}</td>
+                        <td class="font-mono ${pctClass(r.ret_10m)}">${fmtPct(r.ret_10m)}</td>
+                        <td class="font-mono ${pctClass(r.ret_60m)}">${fmtPct(r.ret_60m)}</td>
+                        <td class="font-mono ${pctClass(r.ret_240m)}">${fmtPct(r.ret_240m)}</td>
+                        <td class="font-mono ${pctClass(r.ret_1440m)}">${fmtPct(r.ret_1440m)}</td>
+                        <td class="font-mono ${pctClass(r.max_dd_30m_pct)}">${r.max_dd_30m_pct != null ? fmtNum(r.max_dd_30m_pct, 2) + '%' : '—'}</td>
+                        <td class="text-[11px] ${r.early_window_green ? 'bias-bull' : 'bias-neu'}">${esc(r.verdict || '')}</td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    async function loadBacktest(force) {
+        const btn = document.getElementById('btn-backtest');
+        if (btn) { btn.disabled = true; btn.textContent = '回测中…'; }
+        try {
+            const url = force
+                ? `${API_BASE}/api/alpha/backtest/refresh`
+                : `${API_BASE}/api/alpha/backtest`;
+            const res = await fetch(url, { method: force ? 'POST' : 'GET' });
+            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
+            renderBacktest(await res.json());
+        } catch (e) {
+            console.error(e);
+            document.getElementById('backtest-body').innerHTML =
+                '<p class="text-neon-red text-sm py-3">回测失败：' + esc(e.message || e) + '</p>';
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '重跑回测'; }
+        }
+    }
+
     async function loadHolders(force) {
         const btns = [document.getElementById('btn-holders'), document.getElementById('btn-holders-top')].filter(Boolean);
         btns.forEach(b => { b.disabled = true; b.textContent = '拉取中…'; });
@@ -667,7 +755,9 @@
     document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
     document.getElementById('btn-holders').addEventListener('click', () => loadHolders(true));
     document.getElementById('btn-holders-top').addEventListener('click', () => loadHolders(true));
+    document.getElementById('btn-backtest').addEventListener('click', () => loadBacktest(true));
     loadBoard(false).then(() => loadHolders(false));
+    loadBacktest(false);
     setInterval(() => loadBoard(false), 120000);
 </script>
 </body>

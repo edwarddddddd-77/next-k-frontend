@@ -274,6 +274,25 @@
         </div>
     </section>
 
+    <section class="mb-7" aria-label="历史记录">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">History</div>
+                    <h2 class="panel-title">每期总结 · 历史记录</h2>
+                    <p class="panel-sub">每次刷新持仓自动落盘；默认保留 180 天</p>
+                </div>
+                <div class="panel-toolbar">
+                    <span id="history-ts" class="panel-ts">--</span>
+                    <button type="button" id="btn-history" class="btn-ghost">刷新记录</button>
+                </div>
+            </div>
+            <div id="history-body" class="panel-body pt-0">
+                <div class="state-muted animate-pulse py-4">载入历史…</div>
+            </div>
+        </div>
+    </section>
+
     <section class="mb-4" aria-label="地址类型">
         <div class="dash-card">
             <div class="panel-head">
@@ -595,6 +614,64 @@
         }).join('');
     }
 
+    function renderHistory(data) {
+        const el = document.getElementById('history-body');
+        const ts = document.getElementById('history-ts');
+        if (!data || !data.ok) {
+            el.innerHTML = '<p class="state-muted py-3">暂无历史。刷新持仓后会自动写入每期总结。</p>';
+            return;
+        }
+        if (ts) ts.textContent = (data.updated_at_cst || '').replace('+08:00', ' CST') || '--';
+        const periods = data.periods || [];
+        if (!periods.length) {
+            el.innerHTML = `<p class="state-muted py-3">尚无记录（保留 ${esc(data.retention_days || 180)} 天）。点「刷新持仓」生成当期总结。</p>`;
+            return;
+        }
+        el.innerHTML = `
+            <p class="text-[11px] text-text-muted mb-3">共 ${esc(data.count)} 期 · 保留 ${esc(data.retention_days)} 天</p>
+            <div class="space-y-3">
+            ${periods.map(p => {
+                const latest = p.latest || {};
+                const snaps = (p.summaries || []).slice(0, 5);
+                return `
+                <div class="border border-border/60 rounded-md p-3 bg-surface-light/15">
+                    <div class="flex flex-wrap items-baseline gap-2 mb-1">
+                        <span class="font-serif text-base">${esc(p.symbol)}</span>
+                        <span class="text-text-muted text-xs">${esc(p.name || '')}</span>
+                        <span class="metric-chip">${esc(p.event || '—')}</span>
+                        <span class="metric-chip ${biasClass(latest.bias)}">${esc(latest.signal_label || '—')}</span>
+                    </div>
+                    <p class="text-[12px] text-text-secondary mb-1">${esc(latest.one_liner || latest.action || '')}</p>
+                    ${latest.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(latest.quote)}」</p>` : ''}
+                    <div class="text-[11px] text-text-muted mb-2">开盘 ${esc(String(p.start_at_cst || '').replace('+08:00',''))} · 更新 ${esc(String(p.updated_at_cst || '').replace('+08:00',''))}</div>
+                    ${snaps.length > 1 ? `
+                    <details class="text-[11px]">
+                        <summary class="cursor-pointer text-text-secondary">近 ${snaps.length} 次快照</summary>
+                        <ul class="mt-2 space-y-1 text-text-muted">
+                        ${snaps.map(s => `<li>${esc(String(s.at_cst || '').replace('+08:00',''))} · <span class="${biasClass(s.bias)}">${esc(s.signal_label || '')}</span> · ${esc(s.one_liner || '')}</li>`).join('')}
+                        </ul>
+                    </details>` : ''}
+                </div>`;
+            }).join('')}
+            </div>`;
+    }
+
+    async function loadHistory() {
+        const btn = document.getElementById('btn-history');
+        if (btn) { btn.disabled = true; btn.textContent = '加载中…'; }
+        try {
+            const res = await fetch(`${API_BASE}/api/alpha/history?limit=40`);
+            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
+            renderHistory(await res.json());
+        } catch (e) {
+            console.error(e);
+            document.getElementById('history-body').innerHTML =
+                '<p class="text-neon-red text-sm py-3">历史加载失败：' + esc(e.message || e) + '</p>';
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '刷新记录'; }
+        }
+    }
+
     async function loadHolders(force) {
         const btns = [document.getElementById('btn-holders'), document.getElementById('btn-holders-top')].filter(Boolean);
         btns.forEach(b => { b.disabled = true; b.textContent = '拉取中…'; });
@@ -611,8 +688,9 @@
             }
             const data = await res.json();
             renderHolders(data);
-            // 持仓更新后重读看板（会挂上最新 chip_watch → 刷新焦点原文信号）
+            // 持仓更新后重读看板 + 历史
             await loadBoard(false);
+            await loadHistory();
         } catch (e) {
             console.error(e);
             body.innerHTML = '<p class="text-neon-red text-sm py-3">持仓拉取失败：' + esc(e.message || e) + '</p>';
@@ -667,7 +745,9 @@
     document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
     document.getElementById('btn-holders').addEventListener('click', () => loadHolders(true));
     document.getElementById('btn-holders-top').addEventListener('click', () => loadHolders(true));
+    document.getElementById('btn-history').addEventListener('click', () => loadHistory());
     loadBoard(false).then(() => loadHolders(false));
+    loadHistory();
     setInterval(() => loadBoard(false), 120000);
 </script>
 </body>

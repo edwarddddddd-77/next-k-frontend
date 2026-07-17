@@ -662,14 +662,16 @@
                         <span class="metric-chip">同动 ${esc(a.simultaneous_movers ?? '—')}</span>
                     </div>
                     <table class="data-table mb-1">
-                        <thead><tr><th>#</th><th>地址</th><th>占比</th><th>变动</th></tr></thead>
+                        <thead><tr><th>#</th><th>地址</th><th>身份</th><th>占比</th><th>变动</th></tr></thead>
                         <tbody>
                         ${holders.map(h => {
                             const d = h.delta_share_pct;
                             const move = h.move || '';
+                            const idLab = h.label || h.type || '—';
                             return `<tr>
                                 <td class="text-text-muted">${esc(h.rank)}</td>
                                 <td class="font-mono text-[11px]"><a class="hover:text-gold" href="${esc(h.explorer_url || '#')}" target="_blank" rel="noopener">${esc(shortAddr(h.address))}</a></td>
+                                <td class="text-[11px] text-text-secondary">${esc(idLab)}</td>
                                 <td class="font-mono">${fmtNum(h.share_pct, 2)}%</td>
                                 <td class="font-mono ${d == null ? '' : pctClass(d)}">${d == null ? (move === 'new_in_top' ? '新进' : '—') : fmtPct(d)}</td>
                             </tr>`;

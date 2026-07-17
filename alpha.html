@@ -199,40 +199,26 @@
 </header>
 
 <main class="max-w-7xl mx-auto px-4 py-8">
-    <section class="mb-7" aria-label="今日焦点">
+    <section class="mb-7" aria-label="今日结论">
         <div class="focus-hero">
             <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
-                    <div class="panel-kicker">Focus Window</div>
-                    <h2 class="panel-title text-lg mt-1">今日焦点 · 筹码监控</h2>
-                    <p class="panel-sub mt-1">只盯链上地址变动；默认不拉 CoinGecko 行情</p>
+                    <div class="panel-kicker">Auto Chip Desk</div>
+                    <h2 class="panel-title text-lg mt-1">筹码结论</h2>
+                    <p class="panel-sub mt-1">后台每 3 分钟自动对比 Top 持仓；你只需看结果</p>
                 </div>
-                <div class="flex gap-2">
-                    <button type="button" id="btn-holders-top" class="btn-ghost">刷新持仓</button>
-                </div>
+                <span id="auto-badge" class="metric-chip bias-vol">自动监控中</span>
             </div>
-            <div id="focus-body" class="state-muted animate-pulse">正在载入 Alpha 焦点…</div>
+            <div id="focus-body" class="state-muted animate-pulse">正在载入…</div>
         </div>
     </section>
 
-    <section class="mb-7 grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="策略与日历">
-        <div class="dash-card card-hover lg:col-span-1">
-            <div class="panel-head">
-                <div>
-                    <div class="panel-kicker">CJ Playbook</div>
-                    <h2 class="panel-title">原文决策树</h2>
-                    <p class="panel-sub">对齐 @gch_enbsbxbs：地址余额 · 多鲸同动 · 仅 Alpha · 空投抛压 · 早期窗口</p>
-                </div>
-            </div>
-            <div id="rules-body" class="panel-body pt-1">
-                <div class="state-muted animate-pulse">载入中…</div>
-            </div>
-        </div>
-        <div class="dash-card card-hover lg:col-span-2">
+    <section class="mb-7" aria-label="上新日历">
+        <div class="dash-card card-hover">
             <div class="panel-head">
                 <div>
                     <div class="panel-kicker">Calendar</div>
-                    <h2 class="panel-title">上新 / 空投时间线</h2>
+                    <h2 class="panel-title">上新 / 空投</h2>
                 </div>
                 <div id="count-pills" class="panel-toolbar flex flex-wrap gap-1.5"></div>
             </div>
@@ -246,13 +232,12 @@
         <div class="dash-card card-hover">
             <div class="panel-head">
                 <div>
-                    <div class="panel-kicker">On-chain Holders</div>
-                    <h2 class="panel-title">多链 Top 持仓监控</h2>
-                    <p class="panel-sub">原文第一步：盯靠前地址余额变化 · 刷两次看「变动」列 · 多地址同动偏空</p>
+                    <div class="panel-kicker">Holders</div>
+                    <h2 class="panel-title">谁在动</h2>
+                    <p class="panel-sub">Top 地址余额变动（系统自动刷新）</p>
                 </div>
                 <div class="panel-toolbar">
                     <span id="holders-ts" class="panel-ts">--</span>
-                    <button type="button" id="btn-holders" class="btn-ghost">刷新持仓</button>
                 </div>
             </div>
             <div id="holders-body" class="panel-body pt-0">
@@ -266,30 +251,15 @@
             <div class="panel-head">
                 <div>
                     <div class="panel-kicker">History</div>
-                    <h2 class="panel-title">每期总结 · 历史记录</h2>
-                    <p class="panel-sub">每次刷新持仓自动落盘；默认保留 180 天</p>
+                    <h2 class="panel-title">历史记录</h2>
                 </div>
                 <div class="panel-toolbar">
                     <span id="history-ts" class="panel-ts">--</span>
-                    <button type="button" id="btn-history" class="btn-ghost">刷新记录</button>
                 </div>
             </div>
             <div id="history-body" class="panel-body pt-0">
                 <div class="state-muted animate-pulse py-4">载入历史…</div>
             </div>
-        </div>
-    </section>
-
-    <section class="mb-4" aria-label="地址类型">
-        <div class="dash-card">
-            <div class="panel-head">
-                <div>
-                    <div class="panel-kicker">Labels</div>
-                    <h2 class="panel-title">地址分类（对齐原文）</h2>
-                    <p class="panel-sub">可选：有名单再标。主用法是看「变动」；标了才能出「仅 Alpha 涨 / 空投跑」</p>
-                </div>
-            </div>
-            <div id="addr-body" class="panel-body pt-0"></div>
         </div>
     </section>
 
@@ -407,81 +377,79 @@
         if (!agg) {
             return {
                 box: 'adv-vol',
-                stance: '建议：先刷新持仓',
-                doText: '点「刷新持仓」建立基线；没有链上快照时不给方向建议。',
-                meta: '原文主信号来自头部地址余额变化，不是价格。',
+                stance: '监控中',
+                doText: '系统正在拉首轮持仓基线，下一轮对比后出结论。',
+                meta: '',
             };
         }
         const signal = String(agg.signal || '');
         const map = {
             baseline: {
                 box: 'adv-vol',
-                stance: '建议：再刷一次持仓',
-                doText: '已建基线。过几分钟再点「刷新持仓」，看「变动」列谁在出入 → 对齐原文「盯靠前地址余额变化」。',
-                meta: '第一次只有快照，第二次才有对比。',
+                stance: '监控中',
+                doText: '已建基线，等待下一轮自动对比。',
+                meta: '',
             },
             error: {
                 box: 'adv-vol',
-                stance: '建议：点「刷新持仓」重建快照',
-                doText: '页面若仍显示旧的 CoinGecko 429，多半是上午失败快照未刷新。合约已写死，重刷应走 ETH/BSC 持仓接口，与 CoinGecko 无关。',
-                meta: String(agg.action || ''),
+                stance: '数据异常',
+                doText: String(agg.action || '持仓拉取失败，等待下次自动重试'),
+                meta: '',
             },
             airdrop_dump: {
                 box: 'adv-bear',
-                stance: '建议：跑 / 减仓优先',
-                doText: '第二类（空投）地址放量流出且抛压偏大 → 优先进场离场或大幅减仓，勿追涨。',
-                meta: '对齐原文：「动的幅度就是抛压，大就跑」',
+                stance: '跑',
+                doText: '空投类抛压偏大，优先减仓离场。',
+                meta: '',
             },
             multi_whale_outflow: {
                 box: 'adv-bear',
-                stance: '建议：减仓 / 观望',
-                doText: '多巨鲸同动 → 流通放大、偏空。控制仓位，等头部安静再看。',
-                meta: '对齐原文：「很多巨鲸地址开始动…基本上就会跌」',
+                stance: '减仓',
+                doText: '多个头部地址同流出，流通放大。',
+                meta: '同动 ' + (agg.simultaneous_movers ?? '—'),
             },
             alpha_only_move: {
                 box: 'adv-bull',
-                stance: '建议：偏多 / 可做波短',
-                doText: '仅 Alpha/头部候选在动，空投与交易所未放量 → 流通受限，短线可偏多，仍设止损。',
-                meta: '对齐原文：「只有 alpha 地址在交易…基本上就会涨」',
+                stance: '偏多',
+                doText: '仅头部候选在动，流通偏受限。',
+                meta: '',
             },
             airdrop_watch: {
                 box: 'adv-vol',
-                stance: '建议：盯抛压，准备跑',
-                doText: '空投地址已开始动但未达跑出门槛。提高刷新频率，抛压放大立即减仓。',
-                meta: '抛压 ' + (agg.airdrop_pressure_pp != null ? Number(agg.airdrop_pressure_pp).toFixed(2) : fmtNum(agg.pressure_pp, 2)) + ' pp',
+                stance: '盯紧',
+                doText: '空投地址开始动，抛压放大就跑。',
+                meta: '',
             },
             early_buy_window: {
                 box: 'adv-bull',
-                stance: '建议：早期窗口偏多观察',
-                doText: '开盘前 5–10 分钟且大户未动 → 卖盘偏薄。可轻仓参与买盘侧，一旦多鲸同动立刻收紧。',
-                meta: '对齐原文：「初期几乎是没有卖盘的，只有买盘」',
+                stance: '偏多',
+                doText: '早期窗口，头部大户未明显放量。',
+                meta: '',
             },
             light_outflow: {
                 box: Number(agg.pressure_pp) >= 1 ? 'adv-bear' : 'adv-vol',
-                stance: Number(agg.pressure_pp) >= 1 ? '建议：谨慎，继续观察' : '建议：观望，继续刷',
-                doText: '有轻度流出但未达多鲸/空投阈值。对照释放时间线，勿重仓。',
-                meta: '同动 ' + (agg.simultaneous_movers ?? '—') + ' · 抛压 ' + fmtNum(agg.pressure_pp, 2) + ' pp',
+                stance: Number(agg.pressure_pp) >= 1 ? '谨慎' : '观望',
+                doText: '有轻度流出，尚未失控。',
+                meta: '同动 ' + (agg.simultaneous_movers ?? '—'),
             },
             quiet: {
                 box: phase === 'early_window' ? 'adv-bull' : 'adv-vol',
-                stance: phase === 'upcoming' ? '建议：准备开盘盯盘' : '建议：继续盯头部是否动',
-                doText: phase === 'upcoming'
-                    ? '临近开盘：准备好刷新节奏，开盘后立刻对比余额变化。'
-                    : '头部相对稳定、流通未明显放大。保持监控，空投进场或是变盘点。',
-                meta: '对齐原文：「地址动的越少越好分析」',
+                stance: phase === 'upcoming' ? '待命' : '观望',
+                doText: phase === 'upcoming' ? '临近开盘，系统会持续盯盘。' : '头部相对稳定。',
+                meta: '',
             },
             no_data: {
                 box: 'adv-vol',
-                stance: '建议：暂无链上建议',
-                doText: '尚无可用合约或持仓数据。确认日历 contracts / 密钥后刷新。',
-                meta: String(agg.action || ''),
+                stance: '暂无',
+                doText: '尚无可用合约或持仓。',
+                meta: '',
             },
         };
         const hit = map[signal] || {
             box: biasClass(agg.bias) === 'bias-bear' ? 'adv-bear' : biasClass(agg.bias) === 'bias-bull' ? 'adv-bull' : 'adv-vol',
-            stance: '建议：' + (agg.signal_label || '按链上信号执行'),
-            doText: String(agg.action || '按决策树执行'),
-            meta: agg.quote ? '「' + agg.quote + '」' : '',
+            stance: String(agg.signal_label || '观望'),
+            doText: String(agg.action || ''),
+            meta: '',
         };
         return hit;
     }
@@ -489,52 +457,35 @@
     function renderAdviceBox(agg, phase) {
         const a = chipAdvice(agg, phase);
         return `
-            <div class="advice-box ${a.box}">
-                <div class="advice-stance ${a.box === 'adv-bear' ? 'bias-bear' : a.box === 'adv-bull' ? 'bias-bull' : 'bias-vol'}">${esc(a.stance)}</div>
-                <div class="advice-do">${esc(a.doText)}</div>
-                ${a.meta ? `<div class="advice-meta">${esc(a.meta)}</div>` : ''}
+            <div class="advice-box ${a.box} mt-3">
+                <div class="text-3xl font-serif tracking-wide mb-1 ${a.box === 'adv-bear' ? 'text-neon-red' : a.box === 'adv-bull' ? 'text-neon-green' : 'text-gold'}">${esc(a.stance)}</div>
+                <div class="text-sm text-text-secondary leading-relaxed">${esc(a.doText)}</div>
+                ${a.meta ? `<div class="text-[11px] text-text-muted mt-1">${esc(a.meta)}</div>` : ''}
             </div>`;
     }
 
     function renderFocus(focus) {
         const el = document.getElementById('focus-body');
         if (!focus) {
-            el.innerHTML = '<p class="text-text-muted text-sm">暂无排期焦点。可用环境变量 <code class="text-accent">ALPHA_CALENDAR_JSON</code> 追加上新。</p>';
+            el.innerHTML = '<p class="text-text-muted text-sm">暂无排期焦点。</p>';
             el.className = '';
             return;
         }
-        const m = focus.market;
         const chip = focus.chip;
         const agg = chip && chip.aggregate;
-        const bias = agg ? agg.signal_label : '等待链上快照';
-        const biasC = agg ? biasClass(agg.bias) : 'bias-neu';
-        const chainBits = (chip && chip.chains || []).map(c =>
-            `<span class="metric-chip">${esc(c.chain_label || c.chain)} Top10 ${fmtNum(c.top10_share_pct, 1)}%</span>`
-        ).join('');
         el.className = '';
         el.innerHTML = `
-            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1">
                 <span class="font-serif text-2xl tracking-wide text-text-primary">${esc(focus.symbol)}</span>
                 <span class="text-text-secondary text-sm">${esc(focus.name || '')}</span>
                 <span class="phase-pill phase-${esc(focus.phase)}">${esc(phaseLabel(focus.phase))}</span>
-            </div>
-            <p class="text-text-secondary text-sm mb-2 leading-relaxed">${esc(focus.window_hint || focus.note || '')}</p>
-            <div class="flex flex-wrap gap-2 mb-2">
                 <span class="metric-chip">开盘 ${esc(minutesLabel(focus.minutes_to_start))}</span>
-                <span class="metric-chip">事件 ${esc(focus.event || '—')}</span>
-                ${focus.points_threshold != null ? '<span class="metric-chip">积分 ≥ ' + esc(focus.points_threshold) + '</span>' : ''}
-                <span class="metric-chip ${biasC}">链上 ${esc(bias)}</span>
-                ${chainBits}
             </div>
             ${renderAdviceBox(agg, focus.phase)}
-            ${agg ? `
-            ${agg.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(agg.quote)}」</p>` : ''}
-            ${Array.isArray(agg.playbook_steps) && agg.playbook_steps.length ? `<div class="text-[11px] text-text-muted mb-2 space-y-0.5">${agg.playbook_steps.map(s => `<div>· ${esc(s.text || '')}</div>`).join('')}</div>` : ''}
-            <div class="flex flex-wrap gap-2 mb-1">
-            ${(agg.simultaneous_movers != null) ? `<span class="metric-chip">同动地址 ${esc(agg.simultaneous_movers)}</span>` : ''}
-            ${(agg.pressure_pp != null) ? `<span class="metric-chip">抛压 ${fmtNum(agg.pressure_pp, 2)} pp</span>` : ''}
-            </div>
-            ` : ''}
+            ${(agg && (agg.simultaneous_movers != null || agg.pressure_pp != null)) ? `<div class="flex flex-wrap gap-2 mt-2">
+                ${agg.simultaneous_movers != null ? `<span class="metric-chip">同动 ${esc(agg.simultaneous_movers)}</span>` : ''}
+                ${agg.pressure_pp != null ? `<span class="metric-chip">抛压 ${fmtNum(agg.pressure_pp, 2)} pp</span>` : ''}
+            </div>` : ''}
         `;
     }
 
@@ -544,28 +495,9 @@
         return s.slice(0, 6) + '…' + s.slice(-4);
     }
 
-    function renderRules(strategy) {
-        const el = document.getElementById('rules-body');
-        const rules = (strategy && strategy.rules) || [];
-        el.innerHTML = rules.map((r, i) => `
-            <div class="rule-item">
-                <div class="text-xs font-semibold text-text-primary mb-1">${i + 1}. ${esc(r.title)}</div>
-                <div class="text-[12px] text-text-secondary leading-relaxed mb-1">${esc(r.body)}</div>
-                ${r.quote ? `<div class="text-[11px] text-gold/90 leading-relaxed border-l border-gold/30 pl-2">「${esc(r.quote)}」</div>` : ''}
-            </div>
-        `).join('') || '<p class="state-muted">无规则</p>';
-    }
+    function renderRules(_strategy) { /* simplified desk: no playbook panel */ }
 
-    function renderAddr(types) {
-        const el = document.getElementById('addr-body');
-        const rows = types || [];
-        el.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${rows.map(t => `
-            <div class="border border-border/70 rounded-md p-3 bg-surface-light/20">
-                <div class="text-xs font-semibold text-text-primary mb-1">${esc(t.label)}</div>
-                <div class="text-[11px] text-text-muted font-mono">${esc(t.id)} · ${esc(t.bias)}</div>
-            </div>
-        `).join('')}</div>`;
-    }
+    function renderAddr(_types) { /* simplified desk: no label legend */ }
 
     function renderCalendar(items) {
         const el = document.getElementById('calendar-body');
@@ -710,34 +642,27 @@
         const el = document.getElementById('holders-body');
         const ts = document.getElementById('holders-ts');
         if (!chip || !chip.ok || !(chip.watches || []).length) {
-            el.innerHTML = '<p class="state-muted py-4">尚无链上快照。点「刷新持仓」拉 Top 地址；隔几分钟再刷一次，看「变动」列谁在动。</p>';
+            el.innerHTML = '<p class="state-muted py-4">系统自动拉基线中，下一轮对比后这里会显示谁在动。</p>';
             if (ts) ts.textContent = '--';
             return;
         }
         if (ts) ts.textContent = (chip.generated_at_cst || '').replace('+08:00', ' CST') || '--';
         el.innerHTML = (chip.watches || []).map(w => {
             const agg = w.aggregate || {};
-            const cov = agg.label_coverage || w.label_coverage || {};
             const chains = w.chains || [];
+            const a0 = chipAdvice(agg, null);
             const chainBlocks = chains.map(c => {
                 const a = c.analysis || {};
-                const holders = (c.holders || []).slice(0, 12);
-                const movers = (a.movers || []).slice(0, 5);
+                const holders = (c.holders || []).slice(0, 10);
                 return `
                 <div class="border border-border/60 rounded-md p-3 mb-3 bg-surface-light/15">
                     <div class="flex flex-wrap items-center gap-2 mb-2">
                         <span class="font-semibold text-sm">${esc(c.chain_label || c.chain)}</span>
-                        <span class="metric-chip ${biasClass(a.bias)}">${esc(a.signal_label || '—')}</span>
                         <span class="metric-chip">Top10 ${fmtNum(c.top10_share_pct, 1)}%</span>
-                        <span class="metric-chip">流出 ${fmtNum(a.outflow_share_pct, 2)} pp</span>
-                        <span class="text-text-muted text-[11px] font-mono truncate max-w-[14rem]" title="${esc(c.contract)}">${esc(shortAddr(c.contract))}</span>
+                        <span class="metric-chip">同动 ${esc(a.simultaneous_movers ?? '—')}</span>
                     </div>
-                    <p class="text-[11px] text-text-muted mb-1">${esc(a.action || '')}${a.has_baseline ? '' : ' · 首次基线，再刷一次才有变动'}</p>
-                    ${a.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(a.quote)}」</p>` : ''}
-                    ${(a.simultaneous_movers != null) ? `<span class="metric-chip mb-2 mr-1">同动 ${esc(a.simultaneous_movers)}</span>` : ''}
-                    ${(a.pressure_pp != null) ? `<span class="metric-chip mb-2">抛压 ${fmtNum(a.pressure_pp, 2)} pp</span>` : ''}
-                    <table class="data-table mb-2">
-                        <thead><tr><th>#</th><th>地址</th><th>原文类型</th><th>占比</th><th>变动</th></tr></thead>
+                    <table class="data-table mb-1">
+                        <thead><tr><th>#</th><th>地址</th><th>占比</th><th>变动</th></tr></thead>
                         <tbody>
                         ${holders.map(h => {
                             const d = h.delta_share_pct;
@@ -745,46 +670,38 @@
                             return `<tr>
                                 <td class="text-text-muted">${esc(h.rank)}</td>
                                 <td class="font-mono text-[11px]"><a class="hover:text-gold" href="${esc(h.explorer_url || '#')}" target="_blank" rel="noopener">${esc(shortAddr(h.address))}</a></td>
-                                <td>${labelSelectHtml(h, w.coingecko_id || '', c.chain || 'ethereum')}</td>
                                 <td class="font-mono">${fmtNum(h.share_pct, 2)}%</td>
                                 <td class="font-mono ${d == null ? '' : pctClass(d)}">${d == null ? (move === 'new_in_top' ? '新进' : '—') : fmtPct(d)}</td>
                             </tr>`;
                         }).join('')}
                         </tbody>
                     </table>
-                    ${movers.length ? `<div class="text-[11px] text-text-secondary">异动：${movers.map(m => esc(shortAddr(m.address)) + ' ' + esc(m.move) + ' ' + (m.delta_share_pct == null ? '' : fmtPct(m.delta_share_pct))).join(' · ')}</div>` : ''}
                 </div>`;
             }).join('');
-            const covLine = cov.total != null
-                ? `<span class="metric-chip ${cov.ready ? 'bias-bull' : 'bias-vol'}">原文标注 ${esc(cov.tagged_playbook || 0)}/${esc(cov.total || 0)}</span>`
-                : '';
             return `
             <div class="mb-5">
                 <div class="flex flex-wrap items-baseline gap-2 mb-2">
                     <span class="font-serif text-base">${esc(w.symbol)}</span>
                     <span class="text-text-muted text-xs">${esc(w.name || '')}</span>
-                    <span class="metric-chip ${biasClass(agg.bias)}">${esc(agg.signal_label || '—')}</span>
-                    ${covLine}
+                    <span class="metric-chip ${biasClass(agg.bias)}">${esc(a0.stance)}</span>
                 </div>
-                ${renderAdviceBox(agg, (chains[0] && chains[0].analysis && chains[0].analysis.phase) || null)}
                 ${chainBlocks || '<p class="state-muted text-xs">该币暂无支持链持仓</p>'}
                 ${(w.errors || []).length ? '<p class="text-neon-red text-[11px]">部分链失败：' + esc((w.errors || []).join(' | ')) + '</p>' : ''}
             </div>`;
         }).join('');
-        bindLabelSelects(el);
     }
 
     function renderHistory(data) {
         const el = document.getElementById('history-body');
         const ts = document.getElementById('history-ts');
         if (!data || !data.ok) {
-            el.innerHTML = '<p class="state-muted py-3">暂无历史。刷新持仓后会自动写入每期总结。</p>';
+            el.innerHTML = '<p class="state-muted py-3">暂无历史。系统自动刷持仓后会写入。</p>';
             return;
         }
         if (ts) ts.textContent = (data.updated_at_cst || '').replace('+08:00', ' CST') || '--';
         const periods = data.periods || [];
         if (!periods.length) {
-            el.innerHTML = `<p class="state-muted py-3">尚无记录（保留 ${esc(data.retention_days || 180)} 天）。点「刷新持仓」生成当期总结。</p>`;
+            el.innerHTML = `<p class="state-muted py-3">尚无记录（保留 ${esc(data.retention_days || 180)} 天）。</p>`;
             return;
         }
         el.innerHTML = `
@@ -833,11 +750,10 @@
     }
 
     async function loadHolders(force) {
-        const btns = [document.getElementById('btn-holders'), document.getElementById('btn-holders-top')].filter(Boolean);
-        btns.forEach(b => { b.disabled = true; b.textContent = '拉取中…'; });
         const body = document.getElementById('holders-body');
-        if (force) body.innerHTML = '<div class="state-muted animate-pulse py-4">正在拉取多链 Top 持仓，请稍候…</div>';
+        const badge = document.getElementById('auto-badge');
         try {
+            if (force && badge) badge.textContent = '正在拉持仓…';
             const url = force
                 ? `${API_BASE}/api/alpha/holders/refresh`
                 : `${API_BASE}/api/alpha/holders`;
@@ -848,14 +764,15 @@
             }
             const data = await res.json();
             renderHolders(data);
-            // 持仓更新后重读看板 + 历史（看板不得覆盖刚刷的持仓）
             await loadBoard(false, { skipHolders: true });
             await loadHistory();
+            if (badge) badge.textContent = '自动监控中';
         } catch (e) {
             console.error(e);
-            body.innerHTML = '<p class="text-neon-red text-sm py-3">持仓拉取失败：' + esc(e.message || e) + '</p>';
-        } finally {
-            btns.forEach(b => { b.disabled = false; b.textContent = '刷新持仓'; });
+            if (force && body) {
+                body.innerHTML = '<p class="text-neon-red text-sm py-3">持仓拉取失败：' + esc(e.message || e) + '</p>';
+            }
+            if (badge) badge.textContent = '监控异常 · 将重试';
         }
     }
 
@@ -874,21 +791,17 @@
             setStatus(true, 'Alpha 已连接');
             document.getElementById('board-ts').textContent = (data.generated_at_cst || '').replace('+08:00', ' CST') || '--';
             renderFocus(data.focus);
-            renderRules(data.strategy);
-            renderAddr((data.strategy && data.strategy.address_types) || []);
             renderCalendar(data.calendar || []);
             if (data.providers) renderProviders(data.providers);
             else loadProviders();
-            // 仅在未刚刷持仓时用看板里的 chip_watch；且不得用更旧快照覆盖
             if (!skipHolders && data.chip_watch) {
                 const curTs = document.getElementById('holders-ts')?.textContent || '';
-                const nextTs = String(data.chip_watch.generated_at_cst || '').replace('+08:00', ' CST');
                 const curMs = Date.parse(curTs.replace(' CST', '+08:00')) || 0;
                 const nextMs = Date.parse(String(data.chip_watch.generated_at_cst || '')) || 0;
                 if (!curMs || nextMs >= curMs) renderHolders(data.chip_watch);
             }
             document.getElementById('disclaimer').textContent =
-                (data.strategy && data.strategy.disclaimer) || '';
+                '系统自动监控日历币 Top 持仓余额变化；多地址同动偏空，安静则观望。非投资建议。';
             if (data.errors && data.errors.length) {
                 setStatus(true, '部分数据源失败');
             }
@@ -897,21 +810,21 @@
             setStatus(false, '接口失败');
             document.getElementById('focus-body').className = '';
             document.getElementById('focus-body').innerHTML =
-                '<p class="text-neon-red text-sm">加载失败：' + esc(e.message || e) + '</p>' +
-                '<p class="text-text-muted text-xs mt-2">确认 API 可访问；本地可设 localStorage NEXT_K_API_BASE</p>';
-        } finally {
-            /* no market refresh button */
+                '<p class="text-neon-red text-sm">加载失败：' + esc(e.message || e) + '</p>';
         }
     }
 
-    document.getElementById('btn-holders').addEventListener('click', () => loadHolders(true));
-    document.getElementById('btn-holders-top').addEventListener('click', () => loadHolders(true));
-    document.getElementById('btn-history').addEventListener('click', () => loadHistory());
     loadProviders();
-    loadBoard(false).then(() => loadHolders(false));
+    loadBoard(false).then(async () => {
+        const ts = document.getElementById('holders-ts')?.textContent || '';
+        await loadHolders(!ts.includes('CST'));
+    });
     loadHistory();
-    setInterval(() => loadBoard(false), 120000);
+    setInterval(() => loadBoard(false), 60000);
+    setInterval(() => loadHolders(false), 60000);
+    setInterval(() => loadHolders(true), 180000);
     setInterval(() => loadProviders(), 300000);
+    setInterval(() => loadHistory(), 180000);
 </script>
 </body>
 </html>

@@ -139,6 +139,51 @@
         </div>
     </section>
 
+    <section class="mb-7" aria-label="跨所纸面">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Paper Lock</div>
+                    <h2 class="panel-title">跨所纸面对锁</h2>
+                    <p class="panel-sub">多+空对锁；扣双边开平手续费；可选估算持仓期费率</p>
+                </div>
+                <div class="panel-toolbar flex flex-wrap gap-1.5">
+                    <span id="paper-net" class="metric-chip">净盈亏 —</span>
+                    <span id="paper-fees" class="metric-chip">手续费 —</span>
+                </div>
+            </div>
+            <div class="panel-body pt-0 space-y-3">
+                <p id="paper-fee-note" class="text-[11px] text-text-muted"></p>
+                <div id="paper-fee-table" class="flex flex-wrap gap-1.5 text-[11px]"></div>
+                <div class="border border-border/60 rounded-md p-3 bg-surface-light/15">
+                    <div class="text-xs font-semibold text-text-primary mb-2">开纸面仓</div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-2">
+                        <input id="xp-base" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="BTC" />
+                        <select id="xp-ex-long" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5">
+                            <option value="hyperliquid">多腿·HL</option>
+                            <option value="backpack">多腿·BP</option>
+                            <option value="binance">多腿·币安</option>
+                            <option value="okx">多腿·OKX</option>
+                        </select>
+                        <select id="xp-ex-short" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5">
+                            <option value="backpack" selected>空腿·BP</option>
+                            <option value="hyperliquid">空腿·HL</option>
+                            <option value="binance">空腿·币安</option>
+                            <option value="okx">空腿·OKX</option>
+                        </select>
+                        <input id="xp-long-px" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="多腿入场" />
+                        <input id="xp-short-px" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="空腿入场" />
+                        <input id="xp-size" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="名义 USDT" />
+                        <input id="xp-fr-long" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="多腿8h费率(可选)" />
+                        <input id="xp-fr-short" type="number" step="any" class="text-[12px] bg-surface border border-border rounded px-2 py-1.5" placeholder="空腿8h费率(可选)" />
+                    </div>
+                    <button type="button" id="btn-xp-open" class="btn-ghost">记一笔（已含预估手续费）</button>
+                </div>
+                <div id="paper-body" class="state-muted text-sm">载入纸面…</div>
+            </div>
+        </div>
+    </section>
+
     <section class="mb-7" aria-label="全表">
         <div class="dash-card card-hover">
             <div class="panel-head">
@@ -228,10 +273,10 @@
                 <thead><tr>
                     <th>币</th><th>所对</th>
                     <th>${mode === 'funding' ? '费率差(8h)' : '价差'}</th>
-                    <th>纸面</th>
+                    <th>纸面</th><th></th>
                 </tr></thead>
                 <tbody>
-                ${rows.slice(0, 20).map(r => `
+                ${rows.slice(0, 20).map((r, i) => `
                     <tr>
                         <td class="font-serif">${esc(r.base)}</td>
                         <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}${r.primary ? ' ★' : ''}</td>
@@ -239,10 +284,168 @@
                             ${mode === 'funding' ? esc(fmtPct(r.funding_diff_8h_pct, 4)) : esc(fmtPct(r.price_diff_pct, 3))}
                         </td>
                         <td class="text-[11px] text-text-secondary max-w-xs">${esc(r.advice)}</td>
+                        <td><button type="button" class="btn-ghost text-[11px] btn-fill-paper" data-idx="${i}" data-mode="${mode}">填入</button></td>
                     </tr>
                 `).join('')}
                 </tbody>
             </table>`;
+    }
+
+    let lastFundingAlerts = [];
+    let lastPriceAlerts = [];
+
+    function fillPaperFromRow(r) {
+        if (!r) return;
+        // 费率高的所开空，低的开多
+        const aHigher = Number(r.funding_8h_a) >= Number(r.funding_8h_b);
+        const exShort = aHigher ? r.ex_a : r.ex_b;
+        const exLong = aHigher ? r.ex_b : r.ex_a;
+        const shortPx = aHigher ? r.mark_a : r.mark_b;
+        const longPx = aHigher ? r.mark_b : r.mark_a;
+        const frShort = aHigher ? r.funding_8h_a : r.funding_8h_b;
+        const frLong = aHigher ? r.funding_8h_b : r.funding_8h_a;
+        document.getElementById('xp-base').value = r.base || '';
+        document.getElementById('xp-ex-long').value = exLong;
+        document.getElementById('xp-ex-short').value = exShort;
+        document.getElementById('xp-long-px').value = longPx;
+        document.getElementById('xp-short-px').value = shortPx;
+        document.getElementById('xp-fr-long').value = frLong != null ? frLong : '';
+        document.getElementById('xp-fr-short').value = frShort != null ? frShort : '';
+        document.getElementById('xp-base').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function bindFillButtons(mode) {
+        const root = document.getElementById(mode === 'funding' ? 'funding-body' : 'price-body');
+        if (!root) return;
+        const list = mode === 'funding' ? lastFundingAlerts : lastPriceAlerts;
+        root.querySelectorAll('.btn-fill-paper').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.dataset.idx);
+                fillPaperFromRow(list[idx]);
+            });
+        });
+    }
+
+    function renderPaper(data) {
+        const netEl = document.getElementById('paper-net');
+        const feeEl = document.getElementById('paper-fees');
+        const noteEl = document.getElementById('paper-fee-note');
+        const tableEl = document.getElementById('paper-fee-table');
+        const body = document.getElementById('paper-body');
+        const net = data && data.total_net_pnl_usd;
+        const fees = data && data.total_fees_usd;
+        if (netEl) {
+            netEl.textContent = '净盈亏 ' + (net == null ? '—' : ((net >= 0 ? '+' : '') + Number(net).toFixed(2) + ' U'));
+            netEl.className = 'metric-chip ' + (net > 0 ? 'bias-bull' : net < 0 ? 'bias-bear' : 'bias-vol');
+        }
+        if (feeEl) feeEl.textContent = '手续费累计 ' + (fees == null ? '—' : Number(fees).toFixed(2) + ' U');
+        if (noteEl) noteEl.textContent = data.fee_note || '';
+        if (tableEl) {
+            const ft = data.fee_table || {};
+            tableEl.innerHTML = Object.keys(ft).map(k =>
+                `<span class="metric-chip">${esc(exName(k))} taker ${(Number(ft[k]) * 100).toFixed(3)}%</span>`
+            ).join('');
+        }
+        const trades = (data && data.trades) || [];
+        if (!body) return;
+        if (!trades.length) {
+            body.innerHTML = '<p class="text-text-muted text-sm">尚无纸面仓。点警报旁「填入」或手动开仓。</p>';
+            return;
+        }
+        body.innerHTML = `
+            <table class="data-table">
+                <thead><tr>
+                    <th>币</th><th>多/空所</th><th>入场</th><th>出场</th><th>名义</th>
+                    <th>价差盈亏</th><th>费率估算</th><th>手续费</th><th>净盈亏</th><th></th>
+                </tr></thead>
+                <tbody>
+                ${trades.map(t => {
+                    const open = t.status === 'open';
+                    return `<tr>
+                        <td class="font-serif">${esc(t.base)}</td>
+                        <td class="text-[11px]">${esc(exName(t.ex_long))}/${esc(exName(t.ex_short))}</td>
+                        <td class="font-mono text-[11px]">${esc(t.long_entry)} / ${esc(t.short_entry)}</td>
+                        <td class="font-mono text-[11px]">${t.long_exit != null ? esc(t.long_exit) + ' / ' + esc(t.short_exit) : '—'}</td>
+                        <td class="font-mono">${esc(t.size_usd)}</td>
+                        <td class="font-mono text-[11px]">${t.price_pnl_usd == null ? (open ? '持仓中' : '—') : ((t.price_pnl_usd >= 0 ? '+' : '') + Number(t.price_pnl_usd).toFixed(2))}</td>
+                        <td class="font-mono text-[11px]">${t.funding_pnl_usd == null ? '—' : ((t.funding_pnl_usd >= 0 ? '+' : '') + Number(t.funding_pnl_usd).toFixed(2))}</td>
+                        <td class="font-mono text-[11px] bias-bear">${open ? ('预估 ' + Number(t.est_fees_usd || 0).toFixed(2)) : (t.fees_usd == null ? '—' : ('-' + Number(t.fees_usd).toFixed(2)))}</td>
+                        <td class="font-mono ${t.net_pnl_usd > 0 ? 'bias-bull' : t.net_pnl_usd < 0 ? 'bias-bear' : ''}">${t.net_pnl_usd == null ? '—' : ((t.net_pnl_usd >= 0 ? '+' : '') + Number(t.net_pnl_usd).toFixed(2))}</td>
+                        <td>${open ? `<button type="button" class="btn-ghost text-[11px] btn-xp-close" data-id="${esc(t.id)}">平仓</button>` : ''}</td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>`;
+        body.querySelectorAll('.btn-xp-close').forEach(btn => {
+            btn.addEventListener('click', () => closeXpTrade(btn.dataset.id));
+        });
+    }
+
+    async function loadPaper() {
+        try {
+            const res = await fetch(`${API_BASE}/api/xarb/paper`);
+            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
+            renderPaper(await res.json());
+        } catch (e) {
+            console.error(e);
+            const body = document.getElementById('paper-body');
+            if (body) body.innerHTML = '<p class="text-neon-red text-sm">纸面加载失败：' + esc(e.message || e) + '</p>';
+        }
+    }
+
+    async function openXpTrade() {
+        const base = document.getElementById('xp-base').value.trim();
+        const ex_long = document.getElementById('xp-ex-long').value;
+        const ex_short = document.getElementById('xp-ex-short').value;
+        const long_entry = Number(document.getElementById('xp-long-px').value);
+        const short_entry = Number(document.getElementById('xp-short-px').value);
+        const size_usd = Number(document.getElementById('xp-size').value);
+        const frL = document.getElementById('xp-fr-long').value;
+        const frS = document.getElementById('xp-fr-short').value;
+        try {
+            const res = await fetch(`${API_BASE}/api/xarb/paper/open`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    base,
+                    ex_long,
+                    ex_short,
+                    long_entry,
+                    short_entry,
+                    size_usd,
+                    funding_8h_long: frL === '' ? null : Number(frL),
+                    funding_8h_short: frS === '' ? null : Number(frS),
+                    pair: ex_long + '/' + ex_short,
+                }),
+            });
+            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
+            const data = await res.json();
+            if (data.book) renderPaper(data.book);
+            else await loadPaper();
+        } catch (e) {
+            alert('开仓失败：' + (e.message || e));
+        }
+    }
+
+    async function closeXpTrade(id) {
+        const long_exit = Number(prompt('多腿平仓价'));
+        const short_exit = Number(prompt('空腿平仓价'));
+        if (!(long_exit > 0) || !(short_exit > 0)) return;
+        const hoursRaw = prompt('持仓小时（回车=按开仓时间自动算）', '');
+        const hours_held = hoursRaw === null || hoursRaw === '' ? null : Number(hoursRaw);
+        try {
+            const res = await fetch(`${API_BASE}/api/xarb/paper/close`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ trade_id: id, long_exit, short_exit, hours_held }),
+            });
+            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
+            const data = await res.json();
+            if (data.book) renderPaper(data.book);
+            else await loadPaper();
+        } catch (e) {
+            alert('平仓失败：' + (e.message || e));
+        }
     }
 
     function renderRows(rows) {
@@ -304,12 +507,17 @@
                 `费率≥${fmtPct(th.funding_alert_8h_pct, 3)} · 价差≥${fmtPct(th.price_alert_pct, 2)}`;
 
             renderFocus(data.focus);
-            document.getElementById('fr-count').textContent = String((data.funding_alerts || []).length);
-            document.getElementById('px-count').textContent = String((data.price_alerts || []).length);
-            document.getElementById('funding-body').innerHTML = alertTable(data.funding_alerts, 'funding');
-            document.getElementById('price-body').innerHTML = alertTable(data.price_alerts, 'price');
+            lastFundingAlerts = data.funding_alerts || [];
+            lastPriceAlerts = data.price_alerts || [];
+            document.getElementById('fr-count').textContent = String(lastFundingAlerts.length);
+            document.getElementById('px-count').textContent = String(lastPriceAlerts.length);
+            document.getElementById('funding-body').innerHTML = alertTable(lastFundingAlerts, 'funding');
+            document.getElementById('price-body').innerHTML = alertTable(lastPriceAlerts, 'price');
+            bindFillButtons('funding');
+            bindFillButtons('price');
             renderRows(data.rows || []);
             document.getElementById('disclaimer').textContent = data.note || '';
+            await loadPaper();
 
             if (data.errors && data.errors.length) setStatus(true, '部分所失败');
         } catch (e) {
@@ -324,7 +532,9 @@
     }
 
     document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
+    document.getElementById('btn-xp-open').addEventListener('click', () => openXpTrade());
     loadBoard(false);
+    loadPaper();
     setInterval(() => loadBoard(false), 60000);
 </script>
 </body>

@@ -248,7 +248,7 @@
                 <div>
                     <div class="panel-kicker">On-chain Holders</div>
                     <h2 class="panel-title">多链 Top 持仓监控</h2>
-                    <p class="panel-sub">对齐原文：盯头部地址余额变化 · 首次为基线，再刷才有同动/抛压 · ETH/BSC 密钥在 Railway 配置</p>
+                    <p class="panel-sub">原文第一步：盯靠前地址余额变化 · 刷两次看「变动」列 · 多地址同动偏空</p>
                 </div>
                 <div class="panel-toolbar">
                     <span id="holders-ts" class="panel-ts">--</span>
@@ -286,7 +286,7 @@
                 <div>
                     <div class="panel-kicker">Labels</div>
                     <h2 class="panel-title">地址分类（对齐原文）</h2>
-                    <p class="panel-sub">在持仓表把地址标成 alpha / airdrop / mm / exchange；未标注不会当成原文里的 Alpha 或空投</p>
+                    <p class="panel-sub">可选：有名单再标。主用法是看「变动」；标了才能出「仅 Alpha 涨 / 空投跑」</p>
                 </div>
             </div>
             <div id="addr-body" class="panel-body pt-0"></div>
@@ -413,32 +413,18 @@
             };
         }
         const signal = String(agg.signal || '');
-        if (agg.needs_labels) {
-            return {
-                box: 'adv-vol',
-                stance: '建议：先标注地址再谈方向',
-                doText: '原文靠认得谁是 Alpha / 空投 / 做市。请在持仓表下拉框标注后，多空建议才对齐。',
-                meta: String(agg.label_hint || ''),
-            };
-        }
         const map = {
             baseline: {
                 box: 'adv-vol',
                 stance: '建议：再刷一次持仓',
-                doText: '当前只有基线。再点一次「刷新持仓」，对比余额变动后才出多空建议。',
-                meta: '首次快照无法判断同动/抛压。',
+                doText: '已建基线。过几分钟再点「刷新持仓」，看「变动」列谁在出入 → 对齐原文「盯靠前地址余额变化」。',
+                meta: '第一次只有快照，第二次才有对比。',
             },
             error: {
                 box: 'adv-vol',
                 stance: '建议：点「刷新持仓」重建快照',
                 doText: '页面若仍显示旧的 CoinGecko 429，多半是上午失败快照未刷新。合约已写死，重刷应走 ETH/BSC 持仓接口，与 CoinGecko 无关。',
                 meta: String(agg.action || ''),
-            },
-            needs_labels: {
-                box: 'adv-vol',
-                stance: '建议：先标注地址再谈方向',
-                doText: '原文靠认得谁是 Alpha / 空投 / 做市。请在持仓表下拉框标注后，多空建议才对齐。',
-                meta: String(agg.label_hint || agg.action || ''),
             },
             airdrop_dump: {
                 box: 'adv-bear',
@@ -724,7 +710,7 @@
         const el = document.getElementById('holders-body');
         const ts = document.getElementById('holders-ts');
         if (!chip || !chip.ok || !(chip.watches || []).length) {
-            el.innerHTML = '<p class="state-muted py-4">尚无链上快照。点击「刷新持仓」拉取 Top 地址，再在表内标注 Alpha / 空投 / 做市。</p>';
+            el.innerHTML = '<p class="state-muted py-4">尚无链上快照。点「刷新持仓」拉 Top 地址；隔几分钟再刷一次，看「变动」列谁在动。</p>';
             if (ts) ts.textContent = '--';
             return;
         }

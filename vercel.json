@@ -5,7 +5,8 @@
   "outputDirectory": ".",
   "redirects": [
     { "source": "/wangge", "destination": "/grid.html", "permanent": true },
-    { "source": "/wangge.html", "destination": "/grid.html", "permanent": true }
+    { "source": "/wangge.html", "destination": "/grid.html", "permanent": true },
+    { "source": "/trading-os", "destination": "/trading-os.html", "permanent": false }
   ],
   "headers": [
     {

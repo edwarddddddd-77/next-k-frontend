@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next K · Trading OS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="theme.css" />
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="api-base.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+                        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: 'var(--bg)',
+                        surface: 'var(--surface)',
+                        'surface-light': 'var(--surface-light)',
+                        border: 'var(--border)',
+                        accent: 'var(--accent)',
+                        gold: 'var(--gold)',
+                        'neon-green': 'var(--neon-green)',
+                        'neon-red': 'var(--neon-red)',
+                        'neon-blue': 'var(--neon-blue)',
+                        warn: 'var(--warn)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'text-muted': 'var(--text-muted)',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .focus-hero {
+            border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+            border-radius: var(--radius-lg);
+            background:
+                radial-gradient(ellipse 80% 70% at 12% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 55%),
+                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 70%, var(--surface)) 0%, var(--surface) 100%);
+            padding: 1.25rem 1.35rem;
+        }
+        .metric-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+        }
+        .sig-on { color: var(--neon-green); }
+        .sig-off { color: var(--text-muted); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .data-table thead th {
+            padding: 0.55rem 0.65rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table tbody td {
+            padding: 0.48rem 0.65rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+        }
+        .phase-wait { color: var(--text-muted); }
+        .phase-approach { color: var(--neon-blue); }
+        .phase-confirmed { color: var(--neon-green); }
+        .phase-bull { color: var(--gold); }
+    </style>
+</head>
+<body class="min-h-screen">
+<header class="app-header sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-2.5">
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <div class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
+                        <div class="brand-subtitle hidden sm:block">Trading OS</div>
+                    </div>
+                </div>
+                <nav class="hidden sm:flex items-center gap-1.5 ml-2">
+                    <a class="nav-pill" href="index.html">策略看板</a>
+                    <a class="nav-pill" href="alpha.html">Alpha 筹码</a>
+                    <a class="nav-pill nav-pill-active" href="trading-os.html">Trading OS</a>
+                    <a class="nav-pill" href="grid.html">Next K 网格</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span id="board-ts" class="header-clock hidden md:inline">--</span>
+                <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">强制刷新</button>
+                <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
+                    <span class="status-dot"></span><span>接口连接中…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <section class="mb-7" aria-label="自动结论">
+        <div class="focus-hero">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                <div>
+                    <div class="panel-kicker">Auto Desk</div>
+                    <h2 class="panel-title text-lg mt-1">周期结论</h2>
+                    <p class="panel-sub mt-1">后台定时拉 CVDD / Taker / 订单簿；你只看结果，不手填</p>
+                </div>
+                <span id="phase-badge" class="metric-chip">--</span>
+            </div>
+            <div id="focus-body" class="state-muted animate-pulse">正在载入…</div>
+        </div>
+    </section>
+
+    <section class="mb-7 grid grid-cols-2 md:grid-cols-4 gap-3" aria-label="核心指标">
+        <div class="dash-card p-4">
+            <div class="text-[0.625rem] uppercase tracking-wider text-text-muted">BTC</div>
+            <div id="m-price" class="font-serif text-xl mt-1">--</div>
+        </div>
+        <div class="dash-card p-4">
+            <div class="text-[0.625rem] uppercase tracking-wider text-text-muted">底区参考</div>
+            <div id="m-cvdd" class="font-serif text-xl mt-1">--</div>
+            <div id="m-cvdd-sub" class="text-[0.625rem] text-text-muted mt-1"></div>
+        </div>
+        <div class="dash-card p-4">
+            <div class="text-[0.625rem] uppercase tracking-wider text-text-muted">距底区</div>
+            <div id="m-dist" class="font-serif text-xl mt-1">--</div>
+        </div>
+        <div class="dash-card p-4">
+            <div class="text-[0.625rem] uppercase tracking-wider text-text-muted">信号分</div>
+            <div id="m-score" class="font-serif text-xl mt-1">--</div>
+        </div>
+    </section>
+
+    <section class="mb-7 grid md:grid-cols-2 gap-4">
+        <div class="dash-card card-hover p-4">
+            <div class="panel-head mb-3">
+                <div>
+                    <div class="panel-kicker">Signals</div>
+                    <h3 class="panel-title text-base">自动勾选</h3>
+                </div>
+            </div>
+            <ul id="sig-list" class="space-y-2 text-sm text-text-secondary"></ul>
+        </div>
+        <div class="dash-card card-hover p-4">
+            <div class="panel-head mb-3">
+                <div>
+                    <div class="panel-kicker">Microstructure</div>
+                    <h3 class="panel-title text-base">微观结构</h3>
+                </div>
+            </div>
+            <dl id="micro-list" class="space-y-2 text-sm text-text-secondary"></dl>
+        </div>
+    </section>
+
+    <section class="mb-7">
+        <div class="dash-card card-hover p-4">
+            <div class="panel-head mb-3">
+                <div>
+                    <div class="panel-kicker">Manual CVDD</div>
+                    <h3 class="panel-title text-base">粘贴真 CVDD</h3>
+                    <p class="panel-sub mt-1">从 Glassnode / LookIntoBitcoin / Bitbo 图表抄数字，写入后优先于实现价代理</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2 items-end">
+                <label class="text-xs text-text-muted">
+                    CVDD
+                    <input id="ov-cvdd" type="number" step="1" min="1000" placeholder="例如 46200"
+                        class="mt-1 block w-36 px-2 py-1.5 text-sm bg-surface-light border border-border rounded text-text-primary" />
+                </label>
+                <label class="text-xs text-text-muted">
+                    日期
+                    <input id="ov-date" type="text" placeholder="YYYY-MM-DD"
+                        class="mt-1 block w-36 px-2 py-1.5 text-sm bg-surface-light border border-border rounded text-text-primary" />
+                </label>
+                <label class="text-xs text-text-muted">
+                    来源
+                    <input id="ov-src" type="text" placeholder="glassnode"
+                        class="mt-1 block w-32 px-2 py-1.5 text-sm bg-surface-light border border-border rounded text-text-primary" />
+                </label>
+                <button id="btn-ov-save" type="button" class="metric-chip hover:border-gold/40 cursor-pointer px-3 py-1.5">保存并重算</button>
+                <button id="btn-ov-clear" type="button" class="metric-chip hover:border-neon-red/40 cursor-pointer px-3 py-1.5">清除覆盖</button>
+            </div>
+            <p id="ov-status" class="text-xs text-text-muted mt-2">当前：自动源</p>
+        </div>
+    </section>
+
+    <section class="mb-7">
+        <div class="dash-card card-hover p-4">
+            <div class="panel-head mb-3">
+                <div>
+                    <div class="panel-kicker">Rules</div>
+                    <h3 class="panel-title text-base">硬规则（默认）</h3>
+                </div>
+            </div>
+            <div id="rules-body" class="text-sm text-text-secondary">--</div>
+        </div>
+    </section>
+
+    <section class="mb-7">
+        <div class="dash-card card-hover p-4 overflow-x-auto">
+            <div class="panel-head mb-3">
+                <div>
+                    <div class="panel-kicker">Journal</div>
+                    <h3 class="panel-title text-base">自动日志</h3>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>价格</th>
+                        <th>CVDD</th>
+                        <th>距离%</th>
+                        <th>分</th>
+                        <th>阶段</th>
+                        <th>Taker1h</th>
+                        <th>盘口</th>
+                    </tr>
+                </thead>
+                <tbody id="journal-body">
+                    <tr><td colspan="8" class="text-text-muted">载入中…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="text-xs text-text-muted pb-8">研究快照，不构成投资建议。调度默认每 30 分钟：NEXT_K_TRADING_OS_INTERVAL_MIN</p>
+</main>
+
+<script>
+const API_BASE = (typeof resolveApiBase === 'function' ? resolveApiBase() : 'http://127.0.0.1:8000').replace(/\/$/, '');
+const PHASE_CLASS = {
+    wait: 'phase-wait',
+    approach: 'phase-approach',
+    confirmed: 'phase-confirmed',
+    bull: 'phase-bull',
+};
+const SIG_LABELS = {
+    cvdd_near: '接近 CVDD（≤25%）',
+    cvdd_very_near: '非常接近 CVDD（≤12%）',
+    taker_weak: 'Taker 买盘相对走弱',
+    book_bid_heavy: '订单簿买盘偏重',
+    price_above_cvdd: '价格仍在 CVDD 上方',
+};
+
+function fmt(n, d = 0) {
+    if (n == null || Number.isNaN(Number(n))) return '--';
+    return Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+}
+function setStatus(ok, msg) {
+    const el = document.getElementById('connection-status');
+    el.className = ok
+        ? 'status-pill status-pill-ok bg-neon-green/[0.07] text-neon-green border-neon-green/18'
+        : 'status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18';
+    el.innerHTML = `<span class="status-dot"></span><span>${msg}</span>`;
+}
+function renderSnap(s) {
+    const score = s.score || {};
+    const phase = score.phase || 'wait';
+    const meta = score.phase_meta || {};
+    document.getElementById('board-ts').textContent = (s.fetched_at_cst || '').replace('T', ' ').slice(0, 19) || '--';
+    document.getElementById('phase-badge').textContent = meta.title || phase;
+    document.getElementById('phase-badge').className = `metric-chip ${PHASE_CLASS[phase] || ''}`;
+    document.getElementById('focus-body').className = '';
+    document.getElementById('focus-body').innerHTML = `
+        <div class="font-serif text-lg ${PHASE_CLASS[phase] || ''} mb-1">${meta.title || phase}</div>
+        <p class="text-sm text-text-secondary leading-relaxed">${s.actions || meta.body || ''}</p>
+        ${s.errors && s.errors.length ? `<p class="text-xs text-neon-red mt-2">部分源失败: ${s.errors.join(' · ')}</p>` : ''}
+    `;
+    document.getElementById('m-price').textContent = '$' + fmt(s.price, 0);
+    document.getElementById('m-cvdd').textContent = (s.cvdd && s.cvdd.cvdd) ? ('$' + fmt(s.cvdd.cvdd, 0)) : '--';
+    const sub = document.getElementById('m-cvdd-sub');
+    if (s.cvdd) {
+        const bits = [];
+        if (s.cvdd.primary === 'manual_override') bits.push('手动覆盖');
+        if (s.cvdd.primary === 'bmp_dash_cvdd') bits.push('BM Pro 真CVDD');
+        if (s.cvdd.primary === 'realized_price_proxy') bits.push('实现价代理');
+        if (s.cvdd.primary === 'bitbo_cvdd') bits.push('Bitbo CVDD');
+        if (s.cvdd.balanced_price) bits.push('均衡价 $' + fmt(s.cvdd.balanced_price, 0));
+        if (s.cvdd.realized_price && s.cvdd.primary !== 'realized_price_proxy') {
+            bits.push('实现价 $' + fmt(s.cvdd.realized_price, 0));
+        }
+        sub.textContent = bits.join(' · ');
+    } else sub.textContent = '';
+
+    const ovEl = document.getElementById('ov-status');
+    if (s.cvdd && s.cvdd.primary === 'manual_override' && s.cvdd.override) {
+        const o = s.cvdd.override;
+        ovEl.textContent = `当前：手动覆盖 $${fmt(o.cvdd, 0)} · ${o.source_label || 'manual'} · ${o.set_at_cst || ''}`.replace('T', ' ').slice(0, 120);
+        if (!document.getElementById('ov-cvdd').value) document.getElementById('ov-cvdd').value = o.cvdd;
+        if (o.date) document.getElementById('ov-date').value = o.date;
+        if (o.source_label) document.getElementById('ov-src').value = o.source_label;
+    } else {
+        ovEl.textContent = '当前：' + ((s.cvdd && s.cvdd.note) || '自动源');
+    }
+    document.getElementById('m-dist').textContent = score.distance_pct != null ? (fmt(score.distance_pct, 1) + '%') : '--';
+    document.getElementById('m-score').textContent = `${score.score ?? '--'}/${score.score_max ?? 4}`;
+
+    const sigs = score.signals || {};
+    document.getElementById('sig-list').innerHTML = Object.keys(SIG_LABELS).map((k) => {
+        const on = !!sigs[k];
+        return `<li class="${on ? 'sig-on' : 'sig-off'}">${on ? '●' : '○'} ${SIG_LABELS[k]}</li>`;
+    }).join('');
+
+    const t1h = (s.taker && s.taker['1h']) || {};
+    const t1d = (s.taker && s.taker['1d']) || {};
+    const book = s.orderbook || {};
+    const fund = s.funding || {};
+    document.getElementById('micro-list').innerHTML = [
+        ['Taker 1h 最新', fmt(t1h.taker_buy_ratio_last, 3)],
+        ['Taker 1h 均值', fmt(t1h.taker_buy_ratio_avg, 3)],
+        ['Taker 1d 最新', fmt(t1d.taker_buy_ratio_last, 3)],
+        ['盘口 imbalance', fmt(book.imbalance, 3)],
+        ['点差 bps', fmt(book.spread_bps, 2)],
+        ['资金费率', fund.last_funding_rate != null ? (Number(fund.last_funding_rate) * 100).toFixed(4) + '%' : '--'],
+    ].map(([k, v]) => `<div class="flex justify-between gap-4"><dt>${k}</dt><dd class="text-text-primary">${v}</dd></div>`).join('');
+
+    const r = s.rules || {};
+    document.getElementById('rules-body').innerHTML = `
+        卫星仓 ≤ <b>${r.satellite_pct_max ?? 5}%</b> ·
+        单笔风险 ≤ <b>${r.single_risk_pct_max ?? 1}%</b> ·
+        杠杆 ≤ <b>${r.leverage_max ?? 3}x</b><br/>
+        <span class="text-text-muted text-xs">${r.note || ''}</span>
+    `;
+}
+function renderJournal(j) {
+    const items = j.items || [];
+    const tb = document.getElementById('journal-body');
+    if (!items.length) {
+        tb.innerHTML = '<tr><td colspan="8" class="text-text-muted">暂无自动日志</td></tr>';
+        return;
+    }
+    tb.innerHTML = items.map((x) => `
+        <tr>
+            <td>${(x.fetched_at_cst || '').replace('T', ' ').slice(0, 16)}</td>
+            <td>${fmt(x.price, 0)}</td>
+            <td>${fmt(x.cvdd, 0)}</td>
+            <td>${x.distance_pct != null ? fmt(x.distance_pct, 1) : '--'}</td>
+            <td>${x.score ?? '--'}</td>
+            <td class="${PHASE_CLASS[x.phase] || ''}">${x.phase || '--'}</td>
+            <td>${fmt(x.taker_1h, 3)}</td>
+            <td>${fmt(x.book_imbalance, 3)}</td>
+        </tr>
+    `).join('');
+}
+async function fetchJson(url, opts = {}, timeoutMs = 120000) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...opts, signal: ctrl.signal });
+    } finally {
+        clearTimeout(t);
+    }
+}
+async function loadAll(refresh = false) {
+    try {
+        const url = `${API_BASE}/api/trading-os/snapshot${refresh ? '?refresh=true' : ''}`;
+        const [sRes, jRes] = await Promise.all([
+            fetchJson(url),
+            fetchJson(`${API_BASE}/api/trading-os/journal?limit=40`, {}, 30000),
+        ]);
+        if (!sRes.ok) throw new Error('snapshot ' + sRes.status);
+        const s = await sRes.json();
+        renderSnap(s);
+        if (jRes.ok) renderJournal(await jRes.json());
+        setStatus(true, s.cached ? (s.stale ? '缓存(过期)' : `缓存 ${Math.round(s.age_sec || 0)}s`) : '已刷新');
+    } catch (e) {
+        setStatus(false, '连接失败');
+        document.getElementById('focus-body').className = '';
+        document.getElementById('focus-body').textContent = '无法连接 API：' + e.message + ' · base=' + API_BASE;
+    }
+}
+document.getElementById('btn-refresh').addEventListener('click', () => loadAll(true));
+document.getElementById('btn-ov-save').addEventListener('click', async () => {
+    const cvdd = Number(document.getElementById('ov-cvdd').value);
+    if (!cvdd || cvdd < 1000) {
+        document.getElementById('ov-status').textContent = '请填有效 CVDD 数字';
+        return;
+    }
+    document.getElementById('ov-status').textContent = '保存中…';
+    try {
+        const res = await fetch(`${API_BASE}/api/trading-os/cvdd-override`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cvdd,
+                date: document.getElementById('ov-date').value || '',
+                source_label: document.getElementById('ov-src').value || 'manual',
+                note: '手动粘贴的 CVDD',
+                refresh: true,
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.status);
+        if (data.snapshot) renderSnap(data.snapshot);
+        else await loadAll(false);
+        document.getElementById('ov-status').textContent = '已保存并重算';
+        const jRes = await fetch(`${API_BASE}/api/trading-os/journal?limit=40`);
+        if (jRes.ok) renderJournal(await jRes.json());
+    } catch (e) {
+        document.getElementById('ov-status').textContent = '保存失败: ' + e.message;
+    }
+});
+document.getElementById('btn-ov-clear').addEventListener('click', async () => {
+    document.getElementById('ov-status').textContent = '清除中…';
+    try {
+        const res = await fetch(`${API_BASE}/api/trading-os/cvdd-override?refresh=true`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.status);
+        document.getElementById('ov-cvdd').value = '';
+        if (data.snapshot) renderSnap(data.snapshot);
+        else await loadAll(true);
+        document.getElementById('ov-status').textContent = '已清除，回到自动源';
+    } catch (e) {
+        document.getElementById('ov-status').textContent = '清除失败: ' + e.message;
+    }
+});
+loadAll(false);
+setInterval(() => loadAll(false), 60000);
+</script>
+</body>
+</html>

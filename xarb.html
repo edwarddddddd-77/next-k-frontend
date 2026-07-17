@@ -99,7 +99,7 @@
                 <div>
                     <div class="panel-kicker">Cross-Exchange Desk</div>
                     <h2 class="panel-title text-lg mt-1">跨所费率 / 价差</h2>
-                    <p class="panel-sub mt-1">币安 · Hyperliquid · OKX · 自动扫描 · 只给纸面方向</p>
+                    <p class="panel-sub mt-1">主：HL ↔ Backpack · 辅：币安 / OKX · 只给纸面方向</p>
                 </div>
                 <div class="flex gap-2 items-center">
                     <span id="cov-pill" class="metric-chip">—</span>
@@ -181,7 +181,7 @@
     }
 
     function exName(x) {
-        const m = { binance: '币安', hyperliquid: 'HL', okx: 'OKX' };
+        const m = { binance: '币安', hyperliquid: 'HL', backpack: 'BP', okx: 'OKX' };
         return m[x] || x;
     }
 
@@ -234,7 +234,7 @@
                 ${rows.slice(0, 20).map(r => `
                     <tr>
                         <td class="font-serif">${esc(r.base)}</td>
-                        <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}</td>
+                        <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}${r.primary ? ' ★' : ''}</td>
                         <td class="font-mono ${mode === 'funding' ? (Math.abs(r.funding_diff_8h_pct) > 0.02 ? 'bias-vol' : '') : (Math.abs(r.price_diff_pct) > 0.1 ? 'bias-vol' : '')}">
                             ${mode === 'funding' ? esc(fmtPct(r.funding_diff_8h_pct, 4)) : esc(fmtPct(r.price_diff_pct, 3))}
                         </td>
@@ -263,7 +263,7 @@
                 ${rows.slice(0, 60).map(r => `
                     <tr>
                         <td class="font-serif">${esc(r.base)}</td>
-                        <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}</td>
+                        <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}${r.primary ? ' ★' : ''}</td>
                         <td class="font-mono text-[11px]">${esc(fmtNum(r.mark_a, 4))}</td>
                         <td class="font-mono text-[11px]">${esc(fmtNum(r.mark_b, 4))}</td>
                         <td class="font-mono text-[11px]">${esc(fmtPct(r.funding_8h_a * 100, 4))}</td>
@@ -297,7 +297,7 @@
 
             const cov = data.coverage || {};
             document.getElementById('cov-pill').textContent =
-                `BN ${cov.binance ?? 0} · HL ${cov.hyperliquid ?? 0} · OKX ${cov.okx ?? 0}`;
+                `HL ${cov.hyperliquid ?? 0} · BP ${cov.backpack ?? 0} · BN ${cov.binance ?? 0} · OKX ${cov.okx ?? 0}`;
 
             const th = data.thresholds || {};
             document.getElementById('th-pill').textContent =

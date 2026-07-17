@@ -1,50 +1,51 @@
 /* Next K — Premium dashboard theme (shared)
-   仅暗色（与 Next K 网格一致）；无亮色切换 */
+   白天模式（策略看板 / Alpha 筹码 / Next K 网格） */
 
-:root,
-.dark {
-    --bg: #0E0E10;
-    --surface: #161618;
-    --surface-light: #1E1E22;
-    --border: #2E2E34;
-    --accent: #D48483;
-    --gold: #D4B483;
-    --gold-soft: rgba(212, 180, 131, 0.1);
-    --neon-green: #8FBA8A;
-    --neon-red: #E08B84;
-    --neon-purple: #D4B483;
-    --neon-blue: #8FA3B0;
-    --neon-yellow: #D4B483;
-    --warn: #D4B483;
-    --text-primary: #EEECE8;
-    --text-secondary: #A8A4A0;
-    --text-muted: #6E6A66;
-    --scrollbar-track: #1A1A1E;
-    --scrollbar-thumb: #3A3A40;
-    --scrollbar-thumb-hover: #505058;
-    --shadow-color: rgba(0, 0, 0, 0.45);
-    --hover-bg: rgba(38, 38, 44, 0.72);
-    --card-glow: rgba(212, 180, 131, 0.06);
-    --btn-hover-bg: #222228;
-    --oi-hover: #222228;
-    --code-bg: #222228;
-    --hero-bg-start: #1A1A1E;
-    --hero-bg-mid: #18181C;
-    --hero-bg-end: #141418;
-    --hero-shadow: rgba(0, 0, 0, 0.35);
-    --hero-inner-glow: rgba(255, 255, 255, 0.04);
-    --glass: rgba(22, 22, 24, 0.82);
-    --glass-border: rgba(46, 46, 52, 0.75);
+:root {
+    color-scheme: light;
+    --bg: #F2F4F7;
+    --surface: #FFFFFF;
+    --surface-light: #EBEEF2;
+    --border: #D5DBE3;
+    --accent: #C45C5B;
+    --gold: #A67C3D;
+    --gold-soft: rgba(166, 124, 61, 0.12);
+    --neon-green: #2F8A52;
+    --neon-red: #C24B45;
+    --neon-purple: #A67C3D;
+    --neon-blue: #3E6B82;
+    --neon-yellow: #A67C3D;
+    --warn: #A67C3D;
+    --text-primary: #1B1D22;
+    --text-secondary: #555B66;
+    --text-muted: #858C97;
+    --scrollbar-track: #E6E9EE;
+    --scrollbar-thumb: #C2C8D0;
+    --scrollbar-thumb-hover: #A7AFB9;
+    --shadow-color: rgba(27, 29, 34, 0.10);
+    --hover-bg: rgba(27, 29, 34, 0.045);
+    --card-glow: rgba(166, 124, 61, 0.08);
+    --btn-hover-bg: #E6E9EE;
+    --oi-hover: #E6E9EE;
+    --code-bg: #E8ECF1;
+    --hero-bg-start: #F7F8FA;
+    --hero-bg-mid: #F0F3F6;
+    --hero-bg-end: #E8ECF1;
+    --hero-shadow: rgba(27, 29, 34, 0.08);
+    --hero-inner-glow: rgba(255, 255, 255, 0.85);
+    --glass: rgba(255, 255, 255, 0.88);
+    --glass-border: rgba(213, 219, 227, 0.95);
+    --ink: #1B1D22;
     --radius-sm: 0.125rem;
     --radius-md: 0.1875rem;
     --radius-lg: 0.25rem;
     --radius-xl: 0.3125rem;
     --card-shadow:
-        0 1px 2px color-mix(in srgb, var(--shadow-color) 80%, transparent),
-        0 12px 40px -18px var(--shadow-color);
+        0 1px 2px color-mix(in srgb, var(--shadow-color) 70%, transparent),
+        0 10px 28px -14px var(--shadow-color);
     --card-shadow-hover:
-        0 2px 4px color-mix(in srgb, var(--shadow-color) 70%, transparent),
-        0 20px 48px -20px color-mix(in srgb, var(--shadow-color) 140%, transparent);
+        0 2px 4px color-mix(in srgb, var(--shadow-color) 60%, transparent),
+        0 16px 36px -16px color-mix(in srgb, var(--shadow-color) 140%, transparent);
 }
 
 body {
@@ -54,10 +55,10 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--bg);
     background-image:
-        radial-gradient(ellipse 90% 55% at 8% -5%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 52%),
-        radial-gradient(ellipse 70% 45% at 92% 8%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 48%),
-        radial-gradient(ellipse 60% 40% at 50% 100%, color-mix(in srgb, var(--gold) 4%, transparent), transparent 55%),
-        linear-gradient(180deg, color-mix(in srgb, var(--surface) 55%, var(--bg)) 0%, var(--bg) 42%);
+        radial-gradient(ellipse 90% 55% at 8% -5%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 52%),
+        radial-gradient(ellipse 70% 45% at 92% 8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 48%),
+        radial-gradient(ellipse 60% 40% at 50% 100%, color-mix(in srgb, var(--neon-blue) 5%, transparent), transparent 55%),
+        linear-gradient(180deg, #FAFBFC 0%, var(--bg) 42%);
     background-attachment: fixed;
 }
 
@@ -67,7 +68,7 @@ body::before {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.35;
+    opacity: 0.22;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
 }
 
@@ -122,7 +123,7 @@ h1, h2, h3, .hl-title, .panel-title {
         inset 0 1px 0 color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
-.brand-mark svg { width: 1rem; height: 1rem; color: var(--bg); }
+.brand-mark svg { width: 1rem; height: 1rem; color: var(--ink); }
 
 .brand-title {
     font-family: "Noto Serif SC", Georgia, serif;

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next K · 跨所警报</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="theme.css" />
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="api-base.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+                        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: 'var(--bg)',
+                        surface: 'var(--surface)',
+                        'surface-light': 'var(--surface-light)',
+                        border: 'var(--border)',
+                        accent: 'var(--accent)',
+                        gold: 'var(--gold)',
+                        'neon-green': 'var(--neon-green)',
+                        'neon-red': 'var(--neon-red)',
+                        'neon-blue': 'var(--neon-blue)',
+                        warn: 'var(--warn)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'text-muted': 'var(--text-muted)',
+                    },
+                    borderRadius: {
+                        sm: '0.125rem',
+                        DEFAULT: '0.1875rem',
+                        md: '0.1875rem',
+                        lg: '0.25rem',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .focus-hero {
+            border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+            border-radius: var(--radius-lg);
+            background:
+                radial-gradient(ellipse 80% 70% at 12% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 55%),
+                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 70%, var(--surface)) 0%, var(--surface) 100%);
+            padding: 1.25rem 1.35rem;
+        }
+        .metric-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+        }
+        .bias-bull { color: var(--neon-green); }
+        .bias-bear { color: var(--neon-red); }
+        .bias-vol { color: var(--gold); }
+        .bias-neu { color: var(--text-muted); }
+    </style>
+</head>
+<body class="bg-background text-text-primary font-sans antialiased min-h-screen">
+<header class="border-b border-border/80 bg-surface/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 min-w-0">
+                <a href="index.html" class="font-serif text-lg tracking-wide text-text-primary shrink-0">Next K</a>
+                <nav class="hidden sm:flex items-center gap-1.5 ml-2">
+                    <a class="nav-pill" href="index.html">策略看板</a>
+                    <a class="nav-pill" href="alpha.html">Alpha 筹码</a>
+                    <a class="nav-pill nav-pill-active" href="xarb.html">跨所警报</a>
+                    <a class="nav-pill" href="grid.html">Next K 网格</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span id="board-ts" class="header-clock hidden md:inline">--</span>
+                <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
+                    <span class="status-dot"></span><span>接口连接中…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <section class="mb-7" aria-label="焦点结论">
+        <div class="focus-hero">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                <div>
+                    <div class="panel-kicker">Cross-Exchange Desk</div>
+                    <h2 class="panel-title text-lg mt-1">跨所费率 / 价差</h2>
+                    <p class="panel-sub mt-1">币安 · Hyperliquid · OKX · 自动扫描 · 只给纸面方向</p>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <span id="cov-pill" class="metric-chip">—</span>
+                    <button type="button" id="btn-refresh" class="btn-ghost">强制刷新</button>
+                </div>
+            </div>
+            <div id="focus-body" class="state-muted animate-pulse">正在扫描…</div>
+        </div>
+    </section>
+
+    <section class="mb-7 grid grid-cols-1 lg:grid-cols-2 gap-4" aria-label="警报列表">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Funding</div>
+                    <h2 class="panel-title">费率差警报</h2>
+                    <p class="panel-sub">约 8h 口径；HL 已按小时×8</p>
+                </div>
+                <span id="fr-count" class="metric-chip">0</span>
+            </div>
+            <div id="funding-body" class="panel-body pt-0 overflow-x-auto">
+                <div class="state-muted animate-pulse py-4">载入中…</div>
+            </div>
+        </div>
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Mark Spread</div>
+                    <h2 class="panel-title">标记价差警报</h2>
+                    <p class="panel-sub">相对中间价偏离</p>
+                </div>
+                <span id="px-count" class="metric-chip">0</span>
+            </div>
+            <div id="price-body" class="panel-body pt-0 overflow-x-auto">
+                <div class="state-muted animate-pulse py-4">载入中…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-7" aria-label="全表">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">All Pairs</div>
+                    <h2 class="panel-title">对比明细</h2>
+                </div>
+                <span id="th-pill" class="metric-chip text-[11px]">阈值 —</span>
+            </div>
+            <div id="rows-body" class="panel-body pt-0 overflow-x-auto">
+                <div class="state-muted animate-pulse py-4">载入中…</div>
+            </div>
+        </div>
+    </section>
+
+    <p id="disclaimer" class="text-text-muted text-[11px] leading-relaxed mb-8"></p>
+</main>
+
+<script>
+    const API_BASE = resolveApiBase();
+
+    function esc(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function fmtPct(v, d = 4) {
+        if (v == null || Number.isNaN(Number(v))) return '—';
+        const n = Number(v);
+        const sign = n > 0 ? '+' : '';
+        return sign + n.toFixed(d) + '%';
+    }
+
+    function fmtNum(v, d = 2) {
+        if (v == null || Number.isNaN(Number(v))) return '—';
+        return Number(v).toFixed(d);
+    }
+
+    function exName(x) {
+        const m = { binance: '币安', hyperliquid: 'HL', okx: 'OKX' };
+        return m[x] || x;
+    }
+
+    function setStatus(ok, text) {
+        const el = document.getElementById('connection-status');
+        if (!el) return;
+        el.className = ok
+            ? 'status-pill status-pill-ok bg-neon-green/[0.07] text-neon-green border-neon-green/18'
+            : 'status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18';
+        el.innerHTML = '<span class="status-dot"></span><span>' + esc(text) + '</span>';
+    }
+
+    function renderFocus(focus) {
+        const el = document.getElementById('focus-body');
+        if (!focus) {
+            el.innerHTML = '<p class="text-text-muted text-sm">暂无数据</p>';
+            el.className = '';
+            return;
+        }
+        const kind = focus.kind || 'quiet';
+        const color = kind === 'funding' || kind === 'price' ? 'text-gold' : 'text-text-muted';
+        el.className = '';
+        el.innerHTML = `
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1">
+                ${focus.base ? `<span class="font-serif text-2xl tracking-wide">${esc(focus.base)}</span>` : ''}
+                ${focus.pair ? `<span class="metric-chip">${esc(focus.pair)}</span>` : ''}
+                <span class="metric-chip">${esc(kind)}</span>
+            </div>
+            <div class="text-3xl font-serif tracking-wide mb-1 ${color}">${esc(focus.stance || '—')}</div>
+            <div class="text-sm text-text-secondary leading-relaxed">${esc(focus.detail || '')}</div>
+            <div class="flex flex-wrap gap-2 mt-3">
+                ${focus.funding_diff_8h_pct != null ? `<span class="metric-chip">费率差 ${esc(fmtPct(focus.funding_diff_8h_pct, 4))}</span>` : ''}
+                ${focus.price_diff_pct != null ? `<span class="metric-chip">价差 ${esc(fmtPct(focus.price_diff_pct, 3))}</span>` : ''}
+            </div>
+        `;
+    }
+
+    function alertTable(rows, mode) {
+        if (!rows || !rows.length) {
+            return '<p class="state-muted text-sm py-3">当前无触发</p>';
+        }
+        return `
+            <table class="data-table">
+                <thead><tr>
+                    <th>币</th><th>所对</th>
+                    <th>${mode === 'funding' ? '费率差(8h)' : '价差'}</th>
+                    <th>纸面</th>
+                </tr></thead>
+                <tbody>
+                ${rows.slice(0, 20).map(r => `
+                    <tr>
+                        <td class="font-serif">${esc(r.base)}</td>
+                        <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}</td>
+                        <td class="font-mono ${mode === 'funding' ? (Math.abs(r.funding_diff_8h_pct) > 0.02 ? 'bias-vol' : '') : (Math.abs(r.price_diff_pct) > 0.1 ? 'bias-vol' : '')}">
+                            ${mode === 'funding' ? esc(fmtPct(r.funding_diff_8h_pct, 4)) : esc(fmtPct(r.price_diff_pct, 3))}
+                        </td>
+                        <td class="text-[11px] text-text-secondary max-w-xs">${esc(r.advice)}</td>
+                    </tr>
+                `).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function renderRows(rows) {
+        const el = document.getElementById('rows-body');
+        if (!rows || !rows.length) {
+            el.innerHTML = '<p class="state-muted py-3">暂无对比行</p>';
+            return;
+        }
+        el.innerHTML = `
+            <table class="data-table">
+                <thead><tr>
+                    <th>币</th><th>所对</th>
+                    <th>标记A</th><th>标记B</th>
+                    <th>费率A</th><th>费率B</th>
+                    <th>费率差</th><th>价差</th><th>旗标</th>
+                </tr></thead>
+                <tbody>
+                ${rows.slice(0, 60).map(r => `
+                    <tr>
+                        <td class="font-serif">${esc(r.base)}</td>
+                        <td class="text-[11px]">${esc(exName(r.ex_a))}/${esc(exName(r.ex_b))}</td>
+                        <td class="font-mono text-[11px]">${esc(fmtNum(r.mark_a, 4))}</td>
+                        <td class="font-mono text-[11px]">${esc(fmtNum(r.mark_b, 4))}</td>
+                        <td class="font-mono text-[11px]">${esc(fmtPct(r.funding_8h_a * 100, 4))}</td>
+                        <td class="font-mono text-[11px]">${esc(fmtPct(r.funding_8h_b * 100, 4))}</td>
+                        <td class="font-mono text-[11px]">${esc(fmtPct(r.funding_diff_8h_pct, 4))}</td>
+                        <td class="font-mono text-[11px]">${esc(fmtPct(r.price_diff_pct, 3))}</td>
+                        <td class="text-[11px]">
+                            ${r.funding_alert ? '<span class="bias-vol">费率</span> ' : ''}
+                            ${r.price_alert ? '<span class="bias-bear">价差</span>' : ''}
+                            ${!r.funding_alert && !r.price_alert ? '—' : ''}
+                        </td>
+                    </tr>
+                `).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    async function loadBoard(force) {
+        const btn = document.getElementById('btn-refresh');
+        if (force && btn) { btn.disabled = true; btn.textContent = '刷新中…'; }
+        try {
+            const url = `${API_BASE}/api/xarb/board${force ? '?refresh=true' : ''}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(await res.text() || ('HTTP ' + res.status));
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'board_failed');
+
+            setStatus(true, '跨所已连接');
+            document.getElementById('board-ts').textContent =
+                (data.generated_at_cst || '').replace('+08:00', ' CST') || '--';
+
+            const cov = data.coverage || {};
+            document.getElementById('cov-pill').textContent =
+                `BN ${cov.binance ?? 0} · HL ${cov.hyperliquid ?? 0} · OKX ${cov.okx ?? 0}`;
+
+            const th = data.thresholds || {};
+            document.getElementById('th-pill').textContent =
+                `费率≥${fmtPct(th.funding_alert_8h_pct, 3)} · 价差≥${fmtPct(th.price_alert_pct, 2)}`;
+
+            renderFocus(data.focus);
+            document.getElementById('fr-count').textContent = String((data.funding_alerts || []).length);
+            document.getElementById('px-count').textContent = String((data.price_alerts || []).length);
+            document.getElementById('funding-body').innerHTML = alertTable(data.funding_alerts, 'funding');
+            document.getElementById('price-body').innerHTML = alertTable(data.price_alerts, 'price');
+            renderRows(data.rows || []);
+            document.getElementById('disclaimer').textContent = data.note || '';
+
+            if (data.errors && data.errors.length) setStatus(true, '部分所失败');
+        } catch (e) {
+            console.error(e);
+            setStatus(false, '接口失败');
+            document.getElementById('focus-body').className = '';
+            document.getElementById('focus-body').innerHTML =
+                '<p class="text-neon-red text-sm">加载失败：' + esc(e.message || e) + '</p>';
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '强制刷新'; }
+        }
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
+    loadBoard(false);
+    setInterval(() => loadBoard(false), 60000);
+</script>
+</body>
+</html>

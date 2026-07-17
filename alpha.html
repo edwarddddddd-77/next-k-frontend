@@ -135,6 +135,34 @@
             background: color-mix(in srgb, var(--neon-green) 8%, transparent);
         }
         .phase-scheduled { color: var(--text-muted); border-color: var(--border); }
+        .advice-box {
+            margin: 0.75rem 0 1rem;
+            padding: 0.85rem 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 55%, var(--surface));
+        }
+        .advice-box.adv-bear {
+            border-color: color-mix(in srgb, var(--neon-red) 40%, var(--border));
+            background: color-mix(in srgb, var(--neon-red) 7%, var(--surface));
+        }
+        .advice-box.adv-bull {
+            border-color: color-mix(in srgb, var(--neon-green) 40%, var(--border));
+            background: color-mix(in srgb, var(--neon-green) 7%, var(--surface));
+        }
+        .advice-box.adv-vol {
+            border-color: color-mix(in srgb, var(--gold) 40%, var(--border));
+            background: color-mix(in srgb, var(--gold) 8%, var(--surface));
+        }
+        .advice-stance {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.35rem;
+        }
+        .advice-do { font-size: 0.8125rem; line-height: 1.5; margin-bottom: 0.35rem; }
+        .advice-meta { font-size: 0.6875rem; color: var(--text-muted); line-height: 1.45; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -420,6 +448,99 @@
         return '<div class="bar-track w-20 inline-block align-middle mr-2"><div class="bar-fill ' + kind + '" style="width:' + v + '%"></div></div><span class="font-mono text-[11px]">' + v.toFixed(0) + '</span>';
     }
 
+    function chipAdvice(agg, phase) {
+        if (!agg) {
+            return {
+                box: 'adv-vol',
+                stance: '建议：先刷新持仓',
+                doText: '点「刷新持仓」建立基线；没有链上快照时不给方向建议。',
+                meta: '原文主信号来自头部地址余额变化，不是价格。',
+            };
+        }
+        const signal = String(agg.signal || '');
+        const map = {
+            baseline: {
+                box: 'adv-vol',
+                stance: '建议：再刷一次持仓',
+                doText: '当前只有基线。再点一次「刷新持仓」，对比余额变动后才出多空建议。',
+                meta: '首次快照无法判断同动/抛压。',
+            },
+            error: {
+                box: 'adv-vol',
+                stance: '建议：检查数据源后重试',
+                doText: '链上拉取失败，暂不依据本页交易。确认 ETH/BSC 密钥后重刷。',
+                meta: String(agg.action || ''),
+            },
+            airdrop_dump: {
+                box: 'adv-bear',
+                stance: '建议：跑 / 减仓优先',
+                doText: '第二类（空投）地址放量流出且抛压偏大 → 优先进场离场或大幅减仓，勿追涨。',
+                meta: '对齐原文：「动的幅度就是抛压，大就跑」',
+            },
+            multi_whale_outflow: {
+                box: 'adv-bear',
+                stance: '建议：减仓 / 观望',
+                doText: '多巨鲸同动 → 流通放大、偏空。控制仓位，等头部安静再看。',
+                meta: '对齐原文：「很多巨鲸地址开始动…基本上就会跌」',
+            },
+            alpha_only_move: {
+                box: 'adv-bull',
+                stance: '建议：偏多 / 可做波短',
+                doText: '仅 Alpha/头部候选在动，空投与交易所未放量 → 流通受限，短线可偏多，仍设止损。',
+                meta: '对齐原文：「只有 alpha 地址在交易…基本上就会涨」',
+            },
+            airdrop_watch: {
+                box: 'adv-vol',
+                stance: '建议：盯抛压，准备跑',
+                doText: '空投地址已开始动但未达跑出门槛。提高刷新频率，抛压放大立即减仓。',
+                meta: '抛压 ' + (agg.airdrop_pressure_pp != null ? Number(agg.airdrop_pressure_pp).toFixed(2) : fmtNum(agg.pressure_pp, 2)) + ' pp',
+            },
+            early_buy_window: {
+                box: 'adv-bull',
+                stance: '建议：早期窗口偏多观察',
+                doText: '开盘前 5–10 分钟且大户未动 → 卖盘偏薄。可轻仓参与买盘侧，一旦多鲸同动立刻收紧。',
+                meta: '对齐原文：「初期几乎是没有卖盘的，只有买盘」',
+            },
+            light_outflow: {
+                box: Number(agg.pressure_pp) >= 1 ? 'adv-bear' : 'adv-vol',
+                stance: Number(agg.pressure_pp) >= 1 ? '建议：谨慎，继续观察' : '建议：观望，继续刷',
+                doText: '有轻度流出但未达多鲸/空投阈值。对照释放时间线，勿重仓。',
+                meta: '同动 ' + (agg.simultaneous_movers ?? '—') + ' · 抛压 ' + fmtNum(agg.pressure_pp, 2) + ' pp',
+            },
+            quiet: {
+                box: phase === 'early_window' ? 'adv-bull' : 'adv-vol',
+                stance: phase === 'upcoming' ? '建议：准备开盘盯盘' : '建议：继续盯头部是否动',
+                doText: phase === 'upcoming'
+                    ? '临近开盘：准备好刷新节奏，开盘后立刻对比余额变化。'
+                    : '头部相对稳定、流通未明显放大。保持监控，空投进场或是变盘点。',
+                meta: '对齐原文：「地址动的越少越好分析」',
+            },
+            no_data: {
+                box: 'adv-vol',
+                stance: '建议：暂无链上建议',
+                doText: '尚无可用合约或持仓数据。确认日历 contracts / 密钥后刷新。',
+                meta: String(agg.action || ''),
+            },
+        };
+        const hit = map[signal] || {
+            box: biasClass(agg.bias) === 'bias-bear' ? 'adv-bear' : biasClass(agg.bias) === 'bias-bull' ? 'adv-bull' : 'adv-vol',
+            stance: '建议：' + (agg.signal_label || '按链上信号执行'),
+            doText: String(agg.action || '按决策树执行'),
+            meta: agg.quote ? '「' + agg.quote + '」' : '',
+        };
+        return hit;
+    }
+
+    function renderAdviceBox(agg, phase) {
+        const a = chipAdvice(agg, phase);
+        return `
+            <div class="advice-box ${a.box}">
+                <div class="advice-stance ${a.box === 'adv-bear' ? 'bias-bear' : a.box === 'adv-bull' ? 'bias-bull' : 'bias-vol'}">${esc(a.stance)}</div>
+                <div class="advice-do">${esc(a.doText)}</div>
+                ${a.meta ? `<div class="advice-meta">${esc(a.meta)}</div>` : ''}
+            </div>`;
+    }
+
     function renderFocus(focus) {
         const el = document.getElementById('focus-body');
         if (!focus) {
@@ -442,15 +563,16 @@
                 <span class="text-text-secondary text-sm">${esc(focus.name || '')}</span>
                 <span class="phase-pill phase-${esc(focus.phase)}">${esc(phaseLabel(focus.phase))}</span>
             </div>
-            <p class="text-text-secondary text-sm mb-3 leading-relaxed">${esc(focus.window_hint || focus.note || '')}</p>
-            <div class="flex flex-wrap gap-2 mb-3">
+            <p class="text-text-secondary text-sm mb-2 leading-relaxed">${esc(focus.window_hint || focus.note || '')}</p>
+            <div class="flex flex-wrap gap-2 mb-2">
                 <span class="metric-chip">开盘 ${esc(minutesLabel(focus.minutes_to_start))}</span>
                 <span class="metric-chip">事件 ${esc(focus.event || '—')}</span>
                 ${focus.points_threshold != null ? '<span class="metric-chip">积分 ≥ ' + esc(focus.points_threshold) + '</span>' : ''}
                 <span class="metric-chip ${biasC}">链上 ${esc(bias)}</span>
                 ${chainBits}
             </div>
-            ${agg ? `<p class="text-sm mb-1 ${biasC}">${esc(agg.action || '')}</p>
+            ${renderAdviceBox(agg, focus.phase)}
+            ${agg ? `
             ${agg.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(agg.quote)}」</p>` : ''}
             ${Array.isArray(agg.playbook_steps) && agg.playbook_steps.length ? `<div class="text-[11px] text-text-muted mb-2 space-y-0.5">${agg.playbook_steps.map(s => `<div>· ${esc(s.text || '')}</div>`).join('')}</div>` : ''}
             <div class="flex flex-wrap gap-2 mb-3">
@@ -644,6 +766,7 @@
                     <span class="text-text-muted text-xs">${esc(w.name || '')}</span>
                     <span class="metric-chip ${biasClass(agg.bias)}">${esc(agg.signal_label || '—')}</span>
                 </div>
+                ${renderAdviceBox(agg, (chains[0] && chains[0].analysis && chains[0].analysis.phase) || null)}
                 ${chainBlocks || '<p class="state-muted text-xs">该币暂无支持链持仓</p>'}
                 ${(w.errors || []).length ? '<p class="text-neon-red text-[11px]">部分链失败：' + esc((w.errors || []).join(' | ')) + '</p>' : ''}
             </div>`;

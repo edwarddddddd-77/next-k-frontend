@@ -204,12 +204,11 @@
             <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
                     <div class="panel-kicker">Focus Window</div>
-                    <h2 class="panel-title text-lg mt-1">今日焦点 · 筹码优先</h2>
-                    <p class="panel-sub mt-1">主信号看链上地址变动；价格仅为辅助</p>
+                    <h2 class="panel-title text-lg mt-1">今日焦点 · 筹码监控</h2>
+                    <p class="panel-sub mt-1">只盯链上地址变动；默认不拉 CoinGecko 行情</p>
                 </div>
                 <div class="flex gap-2">
                     <button type="button" id="btn-holders-top" class="btn-ghost">刷新持仓</button>
-                    <button type="button" id="btn-refresh" class="btn-ghost">更新行情（辅助）</button>
                 </div>
             </div>
             <div id="focus-body" class="state-muted animate-pulse">正在载入 Alpha 焦点…</div>
@@ -238,48 +237,6 @@
                 <div id="count-pills" class="panel-toolbar flex flex-wrap gap-1.5"></div>
             </div>
             <div id="calendar-body" class="panel-body overflow-x-auto pt-0">
-                <div class="state-muted animate-pulse py-4">载入中…</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="mb-7 grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="信号排行">
-        <div class="dash-card card-hover">
-            <div class="panel-head">
-                <div>
-                    <div class="panel-kicker">Sell Pressure</div>
-                    <h2 class="panel-title">抛压代理榜</h2>
-                    <p class="panel-sub">高位回落 + 放量下跌（市场代理，非链上标签）</p>
-                </div>
-            </div>
-            <div id="rank-sell-body" class="panel-body pt-0 overflow-x-auto">
-                <div class="state-muted animate-pulse py-3">载入中…</div>
-            </div>
-        </div>
-        <div class="dash-card card-hover">
-            <div class="panel-head">
-                <div>
-                    <div class="panel-kicker">Float Tight</div>
-                    <h2 class="panel-title">流通受限代理榜</h2>
-                    <p class="panel-sub">上涨且换手偏低 ≈ 早期筹码主导代理</p>
-                </div>
-            </div>
-            <div id="rank-tight-body" class="panel-body pt-0 overflow-x-auto">
-                <div class="state-muted animate-pulse py-3">载入中…</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="mb-7" aria-label="Alpha 全表">
-        <div class="dash-card card-hover">
-            <div class="panel-head">
-                <div>
-                    <div class="panel-kicker">Alpha Spotlight</div>
-                    <h2 class="panel-title">币安 Alpha 市场看板</h2>
-                    <p class="panel-sub">CoinGecko · binance-alpha-spotlight · 按信号排序</p>
-                </div>
-            </div>
-            <div id="board-body" class="panel-body overflow-x-auto pt-0">
                 <div class="state-muted animate-pulse py-4">载入中…</div>
             </div>
         </div>
@@ -423,11 +380,9 @@
         if (!el || !providers) return;
         const eth = providers.ethplorer || {};
         const bnb = providers.binplorer || {};
-        const cg = providers.coingecko || {};
         el.innerHTML = [
             providerChip('ETH', eth.keyed, eth.mode),
             providerChip('BSC', bnb.keyed, bnb.mode),
-            providerChip('行情', cg.keyed, cg.mode),
         ].join('');
     }
 
@@ -551,8 +506,8 @@
         const m = focus.market;
         const chip = focus.chip;
         const agg = chip && chip.aggregate;
-        const bias = agg ? agg.signal_label : (m ? m.bias_label : '等待开盘');
-        const biasC = agg ? biasClass(agg.bias) : (m ? biasClass(m.bias) : 'bias-neu');
+        const bias = agg ? agg.signal_label : '等待链上快照';
+        const biasC = agg ? biasClass(agg.bias) : 'bias-neu';
         const chainBits = (chip && chip.chains || []).map(c =>
             `<span class="metric-chip">${esc(c.chain_label || c.chain)} Top10 ${fmtNum(c.top10_share_pct, 1)}%</span>`
         ).join('');
@@ -575,22 +530,11 @@
             ${agg ? `
             ${agg.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(agg.quote)}」</p>` : ''}
             ${Array.isArray(agg.playbook_steps) && agg.playbook_steps.length ? `<div class="text-[11px] text-text-muted mb-2 space-y-0.5">${agg.playbook_steps.map(s => `<div>· ${esc(s.text || '')}</div>`).join('')}</div>` : ''}
-            <div class="flex flex-wrap gap-2 mb-3">
+            <div class="flex flex-wrap gap-2 mb-1">
             ${(agg.simultaneous_movers != null) ? `<span class="metric-chip">同动地址 ${esc(agg.simultaneous_movers)}</span>` : ''}
             ${(agg.pressure_pp != null) ? `<span class="metric-chip">抛压 ${fmtNum(agg.pressure_pp, 2)} pp</span>` : ''}
             </div>
             ` : ''}
-            ${m ? `
-            <div class="mt-3 pt-3 border-t border-border/50">
-                <div class="text-[11px] text-text-muted mb-2 tracking-wide uppercase">行情辅助（非原文主信号）</div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><div class="text-text-muted text-[11px] mb-0.5">价格</div><div class="font-mono">$${fmtNum(m.price, 6)}</div></div>
-                <div><div class="text-text-muted text-[11px] mb-0.5">1h</div><div class="font-mono ${pctClass(m.chg_1h)}">${fmtPct(m.chg_1h)}</div></div>
-                <div><div class="text-text-muted text-[11px] mb-0.5">价量抛压</div><div>${scoreBar(m.sell_pressure, 'sell')}</div></div>
-                <div><div class="text-text-muted text-[11px] mb-0.5">价量受限</div><div>${scoreBar(m.float_tight, 'tight')}</div></div>
-                </div>
-            </div>
-            ` : '<p class="text-text-muted text-xs mt-2">无行情辅助数据（不影响链上筹码监控）。</p>'}
         `;
     }
 
@@ -632,18 +576,15 @@
         el.innerHTML = `
             <table class="data-table">
                 <thead><tr>
-                    <th>标的</th><th>阶段</th><th>时间 (CST)</th><th>备注</th><th>1h</th><th>信号</th>
+                    <th>标的</th><th>阶段</th><th>时间 (CST)</th><th>备注</th>
                 </tr></thead>
                 <tbody>
                 ${items.map(it => {
-                    const m = it.market;
                     return `<tr>
                         <td><span class="font-semibold">${esc(it.symbol)}</span> <span class="text-text-muted">${esc(it.name || '')}</span></td>
                         <td><span class="phase-pill phase-${esc(it.phase)}">${esc(phaseLabel(it.phase))}</span></td>
                         <td class="font-mono text-[11px] whitespace-nowrap">${esc(String(it.start_at_cst || '').replace('+08:00',''))}<div class="text-text-muted">${esc(minutesLabel(it.minutes_to_start))}</div></td>
                         <td class="text-text-secondary max-w-xs">${esc(it.note || '')}</td>
-                        <td class="font-mono ${m ? pctClass(m.chg_1h) : ''}">${m ? fmtPct(m.chg_1h) : '—'}</td>
-                        <td class="${m ? biasClass(m.bias) : 'text-text-muted'}">${m ? esc(m.bias_label) : '—'}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>
@@ -860,13 +801,9 @@
 
     async function loadBoard(force, opts) {
         const skipHolders = opts && opts.skipHolders;
-        const btn = document.getElementById('btn-refresh');
-        if (btn) { btn.disabled = true; btn.textContent = '更新中…'; }
         try {
-            const url = force
-                ? `${API_BASE}/api/alpha/refresh`
-                : `${API_BASE}/api/alpha/board`;
-            const res = await fetch(url, { method: force ? 'POST' : 'GET' });
+            const url = `${API_BASE}/api/alpha/board`;
+            const res = await fetch(url, { method: 'GET' });
             if (!res.ok) {
                 const detail = await res.text();
                 throw new Error(detail || ('HTTP ' + res.status));
@@ -880,10 +817,6 @@
             renderRules(data.strategy);
             renderAddr((data.strategy && data.strategy.address_types) || []);
             renderCalendar(data.calendar || []);
-            renderRank('rank-sell-body', data.rank_sell_pressure || [], 'sell_pressure', 'sell');
-            renderRank('rank-tight-body', data.rank_float_tight || [], 'float_tight', 'tight');
-            renderBoard(data.board || []);
-            renderCounts(data.counts);
             if (data.providers) renderProviders(data.providers);
             else loadProviders();
             // 仅在未刚刷持仓时用看板里的 chip_watch；且不得用更旧快照覆盖
@@ -907,11 +840,10 @@
                 '<p class="text-neon-red text-sm">加载失败：' + esc(e.message || e) + '</p>' +
                 '<p class="text-text-muted text-xs mt-2">确认 API 可访问；本地可设 localStorage NEXT_K_API_BASE</p>';
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '更新行情（辅助）'; }
+            /* no market refresh button */
         }
     }
 
-    document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
     document.getElementById('btn-holders').addEventListener('click', () => loadHolders(true));
     document.getElementById('btn-holders-top').addEventListener('click', () => loadHolders(true));
     document.getElementById('btn-history').addEventListener('click', () => loadHistory());

@@ -399,10 +399,12 @@
                 ${chainBits}
             </div>
             ${agg ? `<p class="text-sm mb-1 ${biasC}">${esc(agg.action || '')}</p>
-            ${agg.quote ? `<p class="text-[11px] text-gold/90 mb-3 border-l border-gold/30 pl-2">「${esc(agg.quote)}」</p>` : ''}
-            ${Array.isArray(agg.playbook_steps) && agg.playbook_steps.length ? `<div class="text-[11px] text-text-muted mb-3 space-y-0.5">${agg.playbook_steps.map(s => `<div>· ${esc(s.text || '')}</div>`).join('')}</div>` : ''}
+            ${agg.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(agg.quote)}」</p>` : ''}
+            ${Array.isArray(agg.playbook_steps) && agg.playbook_steps.length ? `<div class="text-[11px] text-text-muted mb-2 space-y-0.5">${agg.playbook_steps.map(s => `<div>· ${esc(s.text || '')}</div>`).join('')}</div>` : ''}
+            <div class="flex flex-wrap gap-2 mb-3">
             ${(agg.simultaneous_movers != null) ? `<span class="metric-chip">同动地址 ${esc(agg.simultaneous_movers)}</span>` : ''}
             ${(agg.pressure_pp != null) ? `<span class="metric-chip">抛压 ${fmtNum(agg.pressure_pp, 2)} pp</span>` : ''}
+            </div>
             ` : ''}
             ${m ? `
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
@@ -609,8 +611,8 @@
             }
             const data = await res.json();
             renderHolders(data);
-            // 同步焦点里的链上信号：重新拉 board 快照（不强制行情）
-            if (force) loadBoard(false);
+            // 持仓更新后重读看板（会挂上最新 chip_watch → 刷新焦点原文信号）
+            await loadBoard(false);
         } catch (e) {
             console.error(e);
             body.innerHTML = '<p class="text-neon-red text-sm py-3">持仓拉取失败：' + esc(e.message || e) + '</p>';

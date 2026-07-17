@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next K · Alpha 筹码</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="theme.css" />
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="api-base.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+                        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: 'var(--bg)',
+                        surface: 'var(--surface)',
+                        'surface-light': 'var(--surface-light)',
+                        border: 'var(--border)',
+                        accent: 'var(--accent)',
+                        gold: 'var(--gold)',
+                        'neon-green': 'var(--neon-green)',
+                        'neon-red': 'var(--neon-red)',
+                        'neon-blue': 'var(--neon-blue)',
+                        warn: 'var(--warn)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'text-muted': 'var(--text-muted)',
+                    },
+                    borderRadius: {
+                        sm: '0.125rem',
+                        DEFAULT: '0.1875rem',
+                        md: '0.1875rem',
+                        lg: '0.25rem',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .focus-hero {
+            border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+            border-radius: var(--radius-lg);
+            background:
+                radial-gradient(ellipse 80% 70% at 12% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 55%),
+                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 70%, var(--surface)) 0%, var(--surface) 100%);
+            padding: 1.25rem 1.35rem;
+        }
+        .metric-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+        }
+        .bias-bull { color: var(--neon-green); }
+        .bias-bear { color: var(--neon-red); }
+        .bias-vol { color: var(--gold); }
+        .bias-neu { color: var(--text-muted); }
+        .bar-track {
+            height: 0.35rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--border) 70%, transparent);
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--gold);
+        }
+        .bar-fill.sell { background: var(--neon-red); }
+        .bar-fill.tight { background: var(--neon-green); }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .data-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            padding: 0.55rem 0.65rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            text-align: left;
+            white-space: nowrap;
+            border-bottom: 1px solid var(--border);
+            background: color-mix(in srgb, var(--surface-light) 88%, var(--surface));
+        }
+        .data-table tbody td {
+            padding: 0.48rem 0.65rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+            vertical-align: middle;
+        }
+        .data-table tbody tr:hover td { background: var(--hover-bg); }
+        .rule-item {
+            padding: 0.7rem 0;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+        }
+        .rule-item:last-child { border-bottom: none; }
+        .phase-pill {
+            font-size: 0.625rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 0.15rem 0.45rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+        }
+        .phase-early_window {
+            color: var(--gold);
+            border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+            background: color-mix(in srgb, var(--gold) 10%, transparent);
+        }
+        .phase-upcoming {
+            color: var(--neon-blue);
+            border-color: color-mix(in srgb, var(--neon-blue) 35%, transparent);
+            background: color-mix(in srgb, var(--neon-blue) 8%, transparent);
+        }
+        .phase-live {
+            color: var(--neon-green);
+            border-color: color-mix(in srgb, var(--neon-green) 35%, transparent);
+            background: color-mix(in srgb, var(--neon-green) 8%, transparent);
+        }
+        .phase-scheduled { color: var(--text-muted); border-color: var(--border); }
+    </style>
+</head>
+<body class="min-h-screen">
+<header class="app-header sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-2.5">
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <div class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
+                        <div class="brand-subtitle hidden sm:block">Alpha Chip Desk</div>
+                    </div>
+                </div>
+                <nav class="hidden sm:flex items-center gap-1.5 ml-2">
+                    <a class="nav-pill" href="index.html">策略看板</a>
+                    <a class="nav-pill nav-pill-active" href="alpha.html">Alpha 筹码</a>
+                    <a class="nav-pill" href="grid.html">Next K 网格</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span id="board-ts" class="header-clock hidden md:inline">--</span>
+                <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
+                    <span class="status-dot"></span><span>接口连接中…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <section class="mb-7" aria-label="今日焦点">
+        <div class="focus-hero">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                <div>
+                    <div class="panel-kicker">Focus Window</div>
+                    <h2 class="panel-title text-lg mt-1">今日焦点</h2>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="btn-refresh" class="btn-ghost">更新行情</button>
+                    <button type="button" id="btn-holders-top" class="btn-ghost">刷新持仓</button>
+                </div>
+            </div>
+            <div id="focus-body" class="state-muted animate-pulse">正在载入 Alpha 焦点…</div>
+        </div>
+    </section>
+
+    <section class="mb-7 grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="策略与日历">
+        <div class="dash-card card-hover lg:col-span-1">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">CJ Playbook</div>
+                    <h2 class="panel-title">原文决策树</h2>
+                    <p class="panel-sub">对齐 @gch_enbsbxbs：地址余额 · 多鲸同动 · 仅 Alpha · 空投抛压 · 早期窗口</p>
+                </div>
+            </div>
+            <div id="rules-body" class="panel-body pt-1">
+                <div class="state-muted animate-pulse">载入中…</div>
+            </div>
+        </div>
+        <div class="dash-card card-hover lg:col-span-2">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Calendar</div>
+                    <h2 class="panel-title">上新 / 空投时间线</h2>
+                </div>
+                <div id="count-pills" class="panel-toolbar flex flex-wrap gap-1.5"></div>
+            </div>
+            <div id="calendar-body" class="panel-body overflow-x-auto pt-0">
+                <div class="state-muted animate-pulse py-4">载入中…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-7 grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="信号排行">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Sell Pressure</div>
+                    <h2 class="panel-title">抛压代理榜</h2>
+                    <p class="panel-sub">高位回落 + 放量下跌（市场代理，非链上标签）</p>
+                </div>
+            </div>
+            <div id="rank-sell-body" class="panel-body pt-0 overflow-x-auto">
+                <div class="state-muted animate-pulse py-3">载入中…</div>
+            </div>
+        </div>
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Float Tight</div>
+                    <h2 class="panel-title">流通受限代理榜</h2>
+                    <p class="panel-sub">上涨且换手偏低 ≈ 早期筹码主导代理</p>
+                </div>
+            </div>
+            <div id="rank-tight-body" class="panel-body pt-0 overflow-x-auto">
+                <div class="state-muted animate-pulse py-3">载入中…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-7" aria-label="Alpha 全表">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Alpha Spotlight</div>
+                    <h2 class="panel-title">币安 Alpha 市场看板</h2>
+                    <p class="panel-sub">CoinGecko · binance-alpha-spotlight · 按信号排序</p>
+                </div>
+            </div>
+            <div id="board-body" class="panel-body overflow-x-auto pt-0">
+                <div class="state-muted animate-pulse py-4">载入中…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-7" aria-label="链上持仓">
+        <div class="dash-card card-hover">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">On-chain Holders</div>
+                    <h2 class="panel-title">多链 Top 持仓监控</h2>
+                    <p class="panel-sub">ETH / BSC / Base / Arbitrum / Solana · 对比上次快照看流出 · 刷新约需 30–90 秒</p>
+                </div>
+                <div class="panel-toolbar">
+                    <span id="holders-ts" class="panel-ts">--</span>
+                    <button type="button" id="btn-holders" class="btn-ghost">刷新持仓</button>
+                </div>
+            </div>
+            <div id="holders-body" class="panel-body pt-0">
+                <div class="state-muted animate-pulse py-4">载入链上持仓…</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4" aria-label="地址类型">
+        <div class="dash-card">
+            <div class="panel-head">
+                <div>
+                    <div class="panel-kicker">Labels</div>
+                    <h2 class="panel-title">地址分类</h2>
+                    <p class="panel-sub">内置 burn / Binance 热钱包；其余 Top 先标 whale，可用 ALPHA_ADDRESS_LABELS_JSON 标成 alpha / airdrop / mm</p>
+                </div>
+            </div>
+            <div id="addr-body" class="panel-body pt-0"></div>
+        </div>
+    </section>
+
+    <p id="disclaimer" class="text-text-muted text-[11px] leading-relaxed mb-8"></p>
+</main>
+
+<script>
+    const API_BASE = resolveApiBase();
+
+    function esc(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function fmtNum(v, d = 2) {
+        if (v == null || Number.isNaN(Number(v))) return '—';
+        const n = Number(v);
+        if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+        if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+        if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+        return n.toFixed(d);
+    }
+
+    function fmtPct(v) {
+        if (v == null || Number.isNaN(Number(v))) return '—';
+        const n = Number(v);
+        const sign = n > 0 ? '+' : '';
+        return sign + n.toFixed(2) + '%';
+    }
+
+    function pctClass(v) {
+        if (v == null || Number.isNaN(Number(v))) return 'text-text-muted';
+        const n = Number(v);
+        if (n > 0) return 'bias-bull';
+        if (n < 0) return 'bias-bear';
+        return 'text-text-muted';
+    }
+
+    function biasClass(bias) {
+        if (bias === 'bullish') return 'bias-bull';
+        if (bias === 'bearish') return 'bias-bear';
+        if (bias === 'volatile') return 'bias-vol';
+        return 'bias-neu';
+    }
+
+    function phaseLabel(p) {
+        return ({
+            early_window: '早期窗口',
+            upcoming: '临近',
+            live: '已开盘',
+            scheduled: '日程',
+        })[p] || p || '—';
+    }
+
+    function minutesLabel(m) {
+        if (m == null || Number.isNaN(Number(m))) return '—';
+        const n = Number(m);
+        if (n >= 0) {
+            if (n < 60) return Math.round(n) + ' 分钟后';
+            if (n < 24 * 60) return (n / 60).toFixed(1) + ' 小时后';
+            return (n / (60 * 24)).toFixed(1) + ' 天后';
+        }
+        const a = Math.abs(n);
+        if (a < 60) return '已开 ' + Math.round(a) + ' 分钟';
+        if (a < 24 * 60) return '已开 ' + (a / 60).toFixed(1) + ' 小时';
+        return '已开 ' + (a / (60 * 24)).toFixed(1) + ' 天';
+    }
+
+    function setStatus(ok, text) {
+        const el = document.getElementById('connection-status');
+        el.className = 'status-pill ' + (ok
+            ? 'status-pill-ok bg-neon-green/[0.07] text-neon-green border-neon-green/18'
+            : 'status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18');
+        el.innerHTML = '<span class="status-dot"></span><span>' + esc(text) + '</span>';
+    }
+
+    function scoreBar(val, kind) {
+        const v = Math.max(0, Math.min(100, Number(val) || 0));
+        return '<div class="bar-track w-20 inline-block align-middle mr-2"><div class="bar-fill ' + kind + '" style="width:' + v + '%"></div></div><span class="font-mono text-[11px]">' + v.toFixed(0) + '</span>';
+    }
+
+    function renderFocus(focus) {
+        const el = document.getElementById('focus-body');
+        if (!focus) {
+            el.innerHTML = '<p class="text-text-muted text-sm">暂无排期焦点。可用环境变量 <code class="text-accent">ALPHA_CALENDAR_JSON</code> 追加上新。</p>';
+            el.className = '';
+            return;
+        }
+        const m = focus.market;
+        const chip = focus.chip;
+        const agg = chip && chip.aggregate;
+        const bias = agg ? agg.signal_label : (m ? m.bias_label : '等待开盘');
+        const biasC = agg ? biasClass(agg.bias) : (m ? biasClass(m.bias) : 'bias-neu');
+        const chainBits = (chip && chip.chains || []).map(c =>
+            `<span class="metric-chip">${esc(c.chain_label || c.chain)} Top10 ${fmtNum(c.top10_share_pct, 1)}%</span>`
+        ).join('');
+        el.className = '';
+        el.innerHTML = `
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+                <span class="font-serif text-2xl tracking-wide text-text-primary">${esc(focus.symbol)}</span>
+                <span class="text-text-secondary text-sm">${esc(focus.name || '')}</span>
+                <span class="phase-pill phase-${esc(focus.phase)}">${esc(phaseLabel(focus.phase))}</span>
+            </div>
+            <p class="text-text-secondary text-sm mb-3 leading-relaxed">${esc(focus.window_hint || focus.note || '')}</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <span class="metric-chip">开盘 ${esc(minutesLabel(focus.minutes_to_start))}</span>
+                <span class="metric-chip">事件 ${esc(focus.event || '—')}</span>
+                ${focus.points_threshold != null ? '<span class="metric-chip">积分 ≥ ' + esc(focus.points_threshold) + '</span>' : ''}
+                <span class="metric-chip ${biasC}">链上 ${esc(bias)}</span>
+                ${chainBits}
+            </div>
+            ${agg ? `<p class="text-sm mb-1 ${biasC}">${esc(agg.action || '')}</p>
+            ${agg.quote ? `<p class="text-[11px] text-gold/90 mb-3 border-l border-gold/30 pl-2">「${esc(agg.quote)}」</p>` : ''}
+            ${Array.isArray(agg.playbook_steps) && agg.playbook_steps.length ? `<div class="text-[11px] text-text-muted mb-3 space-y-0.5">${agg.playbook_steps.map(s => `<div>· ${esc(s.text || '')}</div>`).join('')}</div>` : ''}
+            ${(agg.simultaneous_movers != null) ? `<span class="metric-chip">同动地址 ${esc(agg.simultaneous_movers)}</span>` : ''}
+            ${(agg.pressure_pp != null) ? `<span class="metric-chip">抛压 ${fmtNum(agg.pressure_pp, 2)} pp</span>` : ''}
+            ` : ''}
+            ${m ? `
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div><div class="text-text-muted text-[11px] mb-0.5">价格</div><div class="font-mono">$${fmtNum(m.price, 6)}</div></div>
+                <div><div class="text-text-muted text-[11px] mb-0.5">1h</div><div class="font-mono ${pctClass(m.chg_1h)}">${fmtPct(m.chg_1h)}</div></div>
+                <div><div class="text-text-muted text-[11px] mb-0.5">价量抛压</div><div>${scoreBar(m.sell_pressure, 'sell')}</div></div>
+                <div><div class="text-text-muted text-[11px] mb-0.5">价量受限</div><div>${scoreBar(m.float_tight, 'tight')}</div></div>
+            </div>
+            ` : '<p class="text-text-muted text-xs">市场数据尚未覆盖该标的。</p>'}
+        `;
+    }
+
+    function shortAddr(a) {
+        const s = String(a || '');
+        if (s.length <= 12) return s;
+        return s.slice(0, 6) + '…' + s.slice(-4);
+    }
+
+    function renderRules(strategy) {
+        const el = document.getElementById('rules-body');
+        const rules = (strategy && strategy.rules) || [];
+        el.innerHTML = rules.map((r, i) => `
+            <div class="rule-item">
+                <div class="text-xs font-semibold text-text-primary mb-1">${i + 1}. ${esc(r.title)}</div>
+                <div class="text-[12px] text-text-secondary leading-relaxed mb-1">${esc(r.body)}</div>
+                ${r.quote ? `<div class="text-[11px] text-gold/90 leading-relaxed border-l border-gold/30 pl-2">「${esc(r.quote)}」</div>` : ''}
+            </div>
+        `).join('') || '<p class="state-muted">无规则</p>';
+    }
+
+    function renderAddr(types) {
+        const el = document.getElementById('addr-body');
+        const rows = types || [];
+        el.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${rows.map(t => `
+            <div class="border border-border/70 rounded-md p-3 bg-surface-light/20">
+                <div class="text-xs font-semibold text-text-primary mb-1">${esc(t.label)}</div>
+                <div class="text-[11px] text-text-muted font-mono">${esc(t.id)} · ${esc(t.bias)}</div>
+            </div>
+        `).join('')}</div>`;
+    }
+
+    function renderCalendar(items) {
+        const el = document.getElementById('calendar-body');
+        if (!items || !items.length) {
+            el.innerHTML = '<p class="state-muted py-3">暂无日历</p>';
+            return;
+        }
+        el.innerHTML = `
+            <table class="data-table">
+                <thead><tr>
+                    <th>标的</th><th>阶段</th><th>时间 (CST)</th><th>备注</th><th>1h</th><th>信号</th>
+                </tr></thead>
+                <tbody>
+                ${items.map(it => {
+                    const m = it.market;
+                    return `<tr>
+                        <td><span class="font-semibold">${esc(it.symbol)}</span> <span class="text-text-muted">${esc(it.name || '')}</span></td>
+                        <td><span class="phase-pill phase-${esc(it.phase)}">${esc(phaseLabel(it.phase))}</span></td>
+                        <td class="font-mono text-[11px] whitespace-nowrap">${esc(String(it.start_at_cst || '').replace('+08:00',''))}<div class="text-text-muted">${esc(minutesLabel(it.minutes_to_start))}</div></td>
+                        <td class="text-text-secondary max-w-xs">${esc(it.note || '')}</td>
+                        <td class="font-mono ${m ? pctClass(m.chg_1h) : ''}">${m ? fmtPct(m.chg_1h) : '—'}</td>
+                        <td class="${m ? biasClass(m.bias) : 'text-text-muted'}">${m ? esc(m.bias_label) : '—'}</td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function renderRank(elId, rows, key, kind) {
+        const el = document.getElementById(elId);
+        if (!rows || !rows.length) {
+            el.innerHTML = '<p class="state-muted py-3">暂无数据</p>';
+            return;
+        }
+        el.innerHTML = `
+            <table class="data-table">
+                <thead><tr><th>#</th><th>标的</th><th>得分</th><th>1h</th><th>换手</th></tr></thead>
+                <tbody>
+                ${rows.map((r, i) => `<tr>
+                    <td class="text-text-muted">${i + 1}</td>
+                    <td><span class="font-semibold">${esc(r.symbol)}</span></td>
+                    <td>${scoreBar(r[key], kind)}</td>
+                    <td class="font-mono ${pctClass(r.chg_1h)}">${fmtPct(r.chg_1h)}</td>
+                    <td class="font-mono text-[11px]">${fmtNum(r.turnover_pct, 1)}%</td>
+                </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function renderBoard(rows) {
+        const el = document.getElementById('board-body');
+        if (!rows || !rows.length) {
+            el.innerHTML = '<p class="state-muted py-4">暂无 Alpha 市场数据（可能被 CoinGecko 限流）。</p>';
+            return;
+        }
+        el.innerHTML = `
+            <table class="data-table">
+                <thead><tr>
+                    <th>标的</th><th>价格</th><th>1h</th><th>24h</th><th>抛压</th><th>流通受限</th><th>窗口热度</th><th>动作</th>
+                </tr></thead>
+                <tbody>
+                ${rows.map(r => `<tr>
+                    <td>
+                        <div class="font-semibold">${esc(r.symbol)}</div>
+                        <div class="text-text-muted text-[11px]">${esc(r.name || '')}</div>
+                    </td>
+                    <td class="font-mono">$${fmtNum(r.price, 6)}</td>
+                    <td class="font-mono ${pctClass(r.chg_1h)}">${fmtPct(r.chg_1h)}</td>
+                    <td class="font-mono ${pctClass(r.chg_24h)}">${fmtPct(r.chg_24h)}</td>
+                    <td>${scoreBar(r.sell_pressure, 'sell')}</td>
+                    <td>${scoreBar(r.float_tight, 'tight')}</td>
+                    <td class="font-mono text-[11px]">${fmtNum(r.early_heat, 0)}</td>
+                    <td class="text-[11px] ${biasClass(r.bias)}">${esc(r.action || r.bias_label)}</td>
+                </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function renderCounts(counts) {
+        const el = document.getElementById('count-pills');
+        if (!counts) { el.innerHTML = ''; return; }
+        el.innerHTML = [
+            ['偏空', counts.bearish, 'bias-bear'],
+            ['偏多', counts.bullish, 'bias-bull'],
+            ['波动', counts.volatile, 'bias-vol'],
+            ['中性', counts.neutral, 'bias-neu'],
+        ].map(([lab, n, c]) => `<span class="metric-chip ${c}">${lab} ${n ?? 0}</span>`).join('');
+    }
+
+    function renderHolders(chip) {
+        const el = document.getElementById('holders-body');
+        const ts = document.getElementById('holders-ts');
+        if (!chip || !chip.ok || !(chip.watches || []).length) {
+            el.innerHTML = '<p class="state-muted py-4">尚无链上快照。点击「刷新持仓」拉取 ETH/BSC/Base/Arbitrum/Solana Top 地址（约 30–90 秒）。</p>';
+            if (ts) ts.textContent = '--';
+            return;
+        }
+        if (ts) ts.textContent = (chip.generated_at_cst || '').replace('+08:00', ' CST') || '--';
+        el.innerHTML = (chip.watches || []).map(w => {
+            const agg = w.aggregate || {};
+            const chains = w.chains || [];
+            const chainBlocks = chains.map(c => {
+                const a = c.analysis || {};
+                const holders = (c.holders || []).slice(0, 8);
+                const movers = (a.movers || []).slice(0, 5);
+                return `
+                <div class="border border-border/60 rounded-md p-3 mb-3 bg-surface-light/15">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="font-semibold text-sm">${esc(c.chain_label || c.chain)}</span>
+                        <span class="metric-chip ${biasClass(a.bias)}">${esc(a.signal_label || '—')}</span>
+                        <span class="metric-chip">Top10 ${fmtNum(c.top10_share_pct, 1)}%</span>
+                        <span class="metric-chip">流出 ${fmtNum(a.outflow_share_pct, 2)} pp</span>
+                        <span class="text-text-muted text-[11px] font-mono truncate max-w-[14rem]" title="${esc(c.contract)}">${esc(shortAddr(c.contract))}</span>
+                    </div>
+                    <p class="text-[11px] text-text-muted mb-1">${esc(a.action || '')}${a.has_baseline ? '' : ' · 首次基线，再刷一次才有变动'}</p>
+                    ${a.quote ? `<p class="text-[11px] text-gold/90 mb-2 border-l border-gold/30 pl-2">「${esc(a.quote)}」</p>` : ''}
+                    ${(a.simultaneous_movers != null) ? `<span class="metric-chip mb-2 mr-1">同动 ${esc(a.simultaneous_movers)}</span>` : ''}
+                    ${(a.pressure_pp != null) ? `<span class="metric-chip mb-2">抛压 ${fmtNum(a.pressure_pp, 2)} pp</span>` : ''}
+                    <table class="data-table mb-2">
+                        <thead><tr><th>#</th><th>地址</th><th>类型</th><th>占比</th><th>变动</th></tr></thead>
+                        <tbody>
+                        ${holders.map(h => {
+                            const d = h.delta_share_pct;
+                            const move = h.move || '';
+                            return `<tr>
+                                <td class="text-text-muted">${esc(h.rank)}</td>
+                                <td class="font-mono text-[11px]"><a class="hover:text-gold" href="${esc(h.explorer_url || '#')}" target="_blank" rel="noopener">${esc(shortAddr(h.address))}</a></td>
+                                <td><span class="text-[11px]">${esc(h.label || h.type)}</span></td>
+                                <td class="font-mono">${fmtNum(h.share_pct, 2)}%</td>
+                                <td class="font-mono ${d == null ? '' : pctClass(d)}">${d == null ? (move === 'new_in_top' ? '新进' : '—') : fmtPct(d)}</td>
+                            </tr>`;
+                        }).join('')}
+                        </tbody>
+                    </table>
+                    ${movers.length ? `<div class="text-[11px] text-text-secondary">异动：${movers.map(m => esc(shortAddr(m.address)) + ' ' + esc(m.move) + ' ' + (m.delta_share_pct == null ? '' : fmtPct(m.delta_share_pct))).join(' · ')}</div>` : ''}
+                </div>`;
+            }).join('');
+            return `
+            <div class="mb-5">
+                <div class="flex flex-wrap items-baseline gap-2 mb-2">
+                    <span class="font-serif text-base">${esc(w.symbol)}</span>
+                    <span class="text-text-muted text-xs">${esc(w.name || '')}</span>
+                    <span class="metric-chip ${biasClass(agg.bias)}">${esc(agg.signal_label || '—')}</span>
+                </div>
+                ${chainBlocks || '<p class="state-muted text-xs">该币暂无支持链持仓</p>'}
+                ${(w.errors || []).length ? '<p class="text-neon-red text-[11px]">部分链失败：' + esc((w.errors || []).join(' | ')) + '</p>' : ''}
+            </div>`;
+        }).join('');
+    }
+
+    async function loadHolders(force) {
+        const btns = [document.getElementById('btn-holders'), document.getElementById('btn-holders-top')].filter(Boolean);
+        btns.forEach(b => { b.disabled = true; b.textContent = '拉取中…'; });
+        const body = document.getElementById('holders-body');
+        if (force) body.innerHTML = '<div class="state-muted animate-pulse py-4">正在拉取多链 Top 持仓，请稍候…</div>';
+        try {
+            const url = force
+                ? `${API_BASE}/api/alpha/holders/refresh`
+                : `${API_BASE}/api/alpha/holders`;
+            const res = await fetch(url, { method: force ? 'POST' : 'GET' });
+            if (!res.ok) {
+                const detail = await res.text();
+                throw new Error(detail || ('HTTP ' + res.status));
+            }
+            const data = await res.json();
+            renderHolders(data);
+            // 同步焦点里的链上信号：重新拉 board 快照（不强制行情）
+            if (force) loadBoard(false);
+        } catch (e) {
+            console.error(e);
+            body.innerHTML = '<p class="text-neon-red text-sm py-3">持仓拉取失败：' + esc(e.message || e) + '</p>';
+        } finally {
+            btns.forEach(b => { b.disabled = false; b.textContent = '刷新持仓'; });
+        }
+    }
+
+    async function loadBoard(force) {
+        const btn = document.getElementById('btn-refresh');
+        if (btn) { btn.disabled = true; btn.textContent = '更新中…'; }
+        try {
+            const url = force
+                ? `${API_BASE}/api/alpha/refresh`
+                : `${API_BASE}/api/alpha/board`;
+            const res = await fetch(url, { method: force ? 'POST' : 'GET' });
+            if (!res.ok) {
+                const detail = await res.text();
+                throw new Error(detail || ('HTTP ' + res.status));
+            }
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.message || data.error || 'board_failed');
+
+            setStatus(true, 'Alpha 已连接');
+            document.getElementById('board-ts').textContent = (data.generated_at_cst || '').replace('+08:00', ' CST') || '--';
+            renderFocus(data.focus);
+            renderRules(data.strategy);
+            renderAddr((data.strategy && data.strategy.address_types) || []);
+            renderCalendar(data.calendar || []);
+            renderRank('rank-sell-body', data.rank_sell_pressure || [], 'sell_pressure', 'sell');
+            renderRank('rank-tight-body', data.rank_float_tight || [], 'float_tight', 'tight');
+            renderBoard(data.board || []);
+            renderCounts(data.counts);
+            if (data.chip_watch) renderHolders(data.chip_watch);
+            document.getElementById('disclaimer').textContent =
+                (data.strategy && data.strategy.disclaimer) || '';
+            if (data.errors && data.errors.length) {
+                setStatus(true, '部分数据源失败');
+            }
+        } catch (e) {
+            console.error(e);
+            setStatus(false, '接口失败');
+            document.getElementById('focus-body').className = '';
+            document.getElementById('focus-body').innerHTML =
+                '<p class="text-neon-red text-sm">加载失败：' + esc(e.message || e) + '</p>' +
+                '<p class="text-text-muted text-xs mt-2">确认 API 可访问；本地可设 localStorage NEXT_K_API_BASE</p>';
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '更新行情'; }
+        }
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
+    document.getElementById('btn-holders').addEventListener('click', () => loadHolders(true));
+    document.getElementById('btn-holders-top').addEventListener('click', () => loadHolders(true));
+    loadBoard(false).then(() => loadHolders(false));
+    setInterval(() => loadBoard(false), 120000);
+</script>
+</body>
+</html>

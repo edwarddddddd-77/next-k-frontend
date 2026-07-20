@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next K · 板块因子</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="theme.css" />
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="api-base.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+                        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: 'var(--bg)',
+                        surface: 'var(--surface)',
+                        'surface-light': 'var(--surface-light)',
+                        border: 'var(--border)',
+                        accent: 'var(--accent)',
+                        gold: 'var(--gold)',
+                        'neon-green': 'var(--neon-green)',
+                        'neon-red': 'var(--neon-red)',
+                        'neon-blue': 'var(--neon-blue)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'text-muted': 'var(--text-muted)',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .focus-hero {
+            border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+            border-radius: var(--radius-lg);
+            background:
+                radial-gradient(ellipse 80% 70% at 12% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 55%),
+                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 70%, var(--surface)) 0%, var(--surface) 100%);
+            padding: 1.35rem 1.5rem;
+        }
+        .metric-chip {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.2rem 0.55rem; border-radius: var(--radius-sm);
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+            font-size: 0.6875rem; color: var(--text-secondary);
+        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .data-table thead th {
+            padding: 0.55rem 0.65rem; font-size: 0.625rem; font-weight: 600;
+            letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
+            text-align: left; border-bottom: 1px solid var(--border);
+        }
+        .data-table tbody td {
+            padding: 0.48rem 0.65rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+        }
+        .pos { color: var(--neon-green); }
+        .neg { color: var(--neon-red); }
+        .spark {
+            display: flex; align-items: flex-end; gap: 2px; height: 36px;
+        }
+        .spark span {
+            flex: 1; min-width: 2px; border-radius: 1px 1px 0 0;
+            background: color-mix(in srgb, var(--accent) 55%, var(--border));
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+<header class="app-header sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-2.5">
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <div class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
+                        <div class="brand-subtitle hidden sm:block">板块因子</div>
+                    </div>
+                </div>
+                <nav class="hidden sm:flex items-center gap-1.5 ml-2">
+                    <a class="nav-pill" href="index.html">策略看板</a>
+                    <a class="nav-pill" href="alpha.html">Alpha 筹码</a>
+                    <a class="nav-pill" href="trading-os.html">Trading OS</a>
+                    <a class="nav-pill nav-pill-active" href="factor-sector.html">板块因子</a>
+                    <a class="nav-pill" href="clawby-quant.html">Clawby Quant</a>
+                    <a class="nav-pill" href="grid.html">Next K 网格</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span id="board-ts" class="header-clock hidden md:inline">--</span>
+                <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">强制刷新</button>
+                <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
+                    <span class="status-dot"></span><span>接口连接中…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <section class="mb-8" aria-label="策略结论">
+        <div class="focus-hero">
+            <div class="text-[0.65rem] tracking-[0.14em] uppercase text-text-muted mb-2">Next K · Sector Factor</div>
+            <h2 class="font-serif text-2xl md:text-3xl text-text-primary mb-2">板块因子轮动</h2>
+            <p id="thesis" class="text-text-secondary text-sm md:text-base max-w-3xl leading-relaxed">加载 Barra 横截面因子…</p>
+            <div class="flex flex-wrap gap-2 mt-4">
+                <span class="metric-chip" id="chip-long">多 --</span>
+                <span class="metric-chip" id="chip-short">空 --</span>
+                <span class="metric-chip" id="chip-days">样本 --</span>
+                <span class="metric-chip" id="chip-n">宇宙 --</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-8" aria-label="板块动量">
+        <h3 class="font-serif text-lg text-text-primary mb-1">板块因子动量排名</h3>
+        <p class="text-text-muted text-xs mb-3">对每日估出的板块因子收益做 7d / 14d 累积；主信号用 14d（参考 crypto 短周期动量）。</p>
+        <div class="dash-card overflow-x-auto">
+            <table class="data-table" id="tbl-rank">
+                <thead>
+                    <tr>
+                        <th>#</th><th>板块</th><th>最新日 f</th><th>7d cum</th><th>14d cum</th><th>近况</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="mb-8 grid md:grid-cols-2 gap-4" aria-label="组合与残差">
+        <div>
+            <h3 class="font-serif text-lg text-text-primary mb-1">因子模拟篮子</h3>
+            <p class="text-text-muted text-xs mb-3">多强板块 − 空弱板块的 mimicking 权重（和约为 0，偏中性）。</p>
+            <div class="dash-card overflow-x-auto">
+                <table class="data-table" id="tbl-basket">
+                    <thead><tr><th>币</th><th>板块</th><th>方向</th><th>权重</th><th>1d</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            <h3 class="font-serif text-lg text-text-primary mb-1">特异质残差</h3>
+            <p class="text-text-muted text-xs mb-3">扣掉市场+板块后仍强/弱的个币（非开仓信号，仅诊断）。</p>
+            <div class="dash-card overflow-x-auto mb-3">
+                <table class="data-table" id="tbl-idio-pos">
+                    <thead><tr><th>领涨残差</th><th>板块</th><th>ε</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="dash-card overflow-x-auto">
+                <table class="data-table" id="tbl-idio-neg">
+                    <thead><tr><th>领跌残差</th><th>板块</th><th>ε</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-8" aria-label="方法">
+        <div class="dash-card p-4 text-xs text-text-secondary leading-relaxed">
+            <div class="font-medium text-text-primary mb-1">方法说明</div>
+            <div id="method">Barra 类别暴露 + 约束 WLS；流动性权重 √30d 成交额；板块因子相对市场正交。</div>
+        </div>
+    </section>
+</main>
+
+<script>
+const API_BASE = (typeof resolveApiBase === 'function' ? resolveApiBase() : 'http://127.0.0.1:8000').replace(/\/$/, '');
+
+function setStatus(ok, text) {
+    const el = document.getElementById('connection-status');
+    el.className = ok
+        ? 'status-pill status-pill-ok bg-neon-green/[0.07] text-neon-green border-neon-green/18'
+        : 'status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18';
+    el.innerHTML = `<span class="status-dot"></span><span>${text}</span>`;
+}
+
+function pct(v) {
+    if (v == null || Number.isNaN(v)) return '—';
+    const n = Number(v) * 100;
+    const s = (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+    return `<span class="${n >= 0 ? 'pos' : 'neg'}">${s}</span>`;
+}
+
+function spark(levels) {
+    if (!levels || !levels.length) return '';
+    const vals = levels.map((x) => x.level);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = (max - min) || 1e-9;
+    const last = levels.slice(-24);
+    return `<div class="spark">${last.map((p) => {
+        const h = 8 + ((p.level - min) / span) * 28;
+        return `<span style="height:${h}px"></span>`;
+    }).join('')}</div>`;
+}
+
+function render(data) {
+    const sig = data.signal || {};
+    document.getElementById('thesis').textContent = sig.thesis || data.message || '暂无信号';
+    document.getElementById('chip-long').textContent = '多 ' + (sig.long_sector || '—');
+    document.getElementById('chip-short').textContent = '空 ' + (sig.short_sector || '—');
+    document.getElementById('chip-days').textContent = '样本 ' + (data.history_days || '—') + 'd';
+    document.getElementById('chip-n').textContent = '宇宙 ' + (data.universe_n || '—');
+    document.getElementById('board-ts').textContent = data.fetched_at_cst
+        ? String(data.fetched_at_cst).replace('T', ' ').slice(0, 19)
+        : '--';
+
+    const synth = data.synthetic_index || {};
+    const tbRank = document.querySelector('#tbl-rank tbody');
+    tbRank.innerHTML = (data.rankings || []).map((r) => {
+        const curve = synth[r.sector] || [];
+        return `<tr>
+            <td>${r.rank}</td>
+            <td class="font-medium text-text-primary">${r.sector}</td>
+            <td>${pct(r.latest)}</td>
+            <td>${pct(r.mom_7d)}</td>
+            <td>${pct(r.mom_14d)}</td>
+            <td>${spark(curve)}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="6">无数据</td></tr>';
+
+    const tbBasket = document.querySelector('#tbl-basket tbody');
+    tbBasket.innerHTML = (sig.basket || []).map((b) => `<tr>
+        <td class="font-medium">${b.symbol.replace('USDT','')}</td>
+        <td>${b.sector}</td>
+        <td class="${b.side === 'long' ? 'pos' : 'neg'}">${b.side}</td>
+        <td>${(b.weight * 100).toFixed(2)}%</td>
+        <td>${pct(b.ret_1d)}</td>
+    </tr>`).join('') || '<tr><td colspan="5">无篮子</td></tr>';
+
+    const fillIdio = (id, rows) => {
+        document.querySelector(id + ' tbody').innerHTML = (rows || []).map((r) => `<tr>
+            <td>${r.symbol.replace('USDT','')}</td>
+            <td>${r.sector}</td>
+            <td>${pct(r.residual_1d)}</td>
+        </tr>`).join('') || '<tr><td colspan="3">—</td></tr>';
+    };
+    fillIdio('#tbl-idio-pos', data.idio_leaders);
+    fillIdio('#tbl-idio-neg', data.idio_laggards);
+
+    const m = data.method || {};
+    document.getElementById('method').textContent =
+        [m.model, m.weights, m.constraint, m.signal].filter(Boolean).join(' · ');
+}
+
+async function loadBoard(force) {
+    try {
+        const url = `${API_BASE}/api/factor-sector/board${force ? '?refresh=true' : ''}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(force ? 120000 : 30000) });
+        if (res.status === 429) {
+            setStatus(false, '刷新冷却中');
+            return;
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.ok) {
+            setStatus(false, data.message || data.error || '无快照');
+            document.getElementById('thesis').textContent = data.message || '点击强制刷新生成首份快照';
+            return;
+        }
+        render(data);
+        setStatus(true, data.cached ? (data.stale ? '缓存(过期)' : `缓存 ${Math.round(data.age_sec || 0)}s`) : '已刷新');
+    } catch (e) {
+        setStatus(false, '连接失败');
+        document.getElementById('thesis').textContent = '无法连接 next-k-api：' + e.message;
+    }
+}
+
+document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(true));
+loadBoard(false);
+setInterval(() => loadBoard(false), 120000);
+</script>
+</body>
+</html>

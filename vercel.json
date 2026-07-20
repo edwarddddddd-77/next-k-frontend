@@ -7,7 +7,8 @@
     { "source": "/wangge", "destination": "/grid.html", "permanent": true },
     { "source": "/wangge.html", "destination": "/grid.html", "permanent": true },
     { "source": "/trading-os", "destination": "/trading-os.html", "permanent": false },
-    { "source": "/clawby-quant", "destination": "/clawby-quant.html", "permanent": false }
+    { "source": "/clawby-quant", "destination": "/clawby-quant.html", "permanent": false },
+    { "source": "/factor-sector", "destination": "/factor-sector.html", "permanent": false }
   ],
   "headers": [
     {

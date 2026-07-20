@@ -100,6 +100,7 @@
                     <a class="nav-pill" href="index.html">策略看板</a>
                     <a class="nav-pill" href="alpha.html">Alpha 筹码</a>
                     <a class="nav-pill nav-pill-active" href="trading-os.html">Trading OS</a>
+                    <a class="nav-pill" href="clawby-quant.html">Clawby Quant</a>
                     <a class="nav-pill" href="grid.html">Next K 网格</a>
                 </nav>
             </div>
@@ -203,17 +204,19 @@
                 <div>
                     <div class="panel-kicker">Alts Radar</div>
                     <h3 class="panel-title text-base">山寨盘口吸筹</h3>
-                    <p class="panel-sub mt-1">买盘偏重 + 未疯涨 + 有量 → 标记</p>
+                    <p class="panel-sub mt-1">默认自动扫币安高成交量山寨 Top25；买盘偏重+未疯涨+有量 → 标记</p>
                 </div>
             </div>
             <div class="flex flex-wrap gap-2 items-end mb-3">
                 <label class="text-xs text-text-muted grow">
-                    币对（逗号分隔）
-                    <input id="alts-input" type="text" placeholder="PEPE,WIF,BONK"
+                    手动锁定币对（可选，逗号分隔）
+                    <input id="alts-input" type="text" placeholder="空着=自动 · 或填 PEPE,WIF,…"
                         class="mt-1 block w-full px-2 py-1.5 text-sm bg-surface-light border border-border rounded text-text-primary" />
                 </label>
-                <button id="btn-alts-save" type="button" class="metric-chip hover:border-gold/40 cursor-pointer px-3 py-1.5">保存</button>
+                <button id="btn-alts-save" type="button" class="metric-chip hover:border-gold/40 cursor-pointer px-3 py-1.5">锁定列表</button>
+                <button id="btn-alts-auto" type="button" class="metric-chip hover:border-neon-blue/40 cursor-pointer px-3 py-1.5">恢复自动</button>
             </div>
+            <p id="alts-mode" class="text-xs text-text-muted mb-2"></p>
             <div id="alts-body" class="overflow-x-auto text-sm">--</div>
         </div>
     </section>
@@ -452,6 +455,12 @@ function renderDesk(desk) {
         listAltsCache = alts.symbols;
         document.getElementById('alts-input').value = listAltsCache.join(',');
     }
+    const modeEl = document.getElementById('alts-mode');
+    if (modeEl) {
+        modeEl.textContent = (alts.mode === 'manual')
+            ? `模式：手动锁定 ${alts.symbols ? alts.symbols.length : rows.length} 个`
+            : `模式：自动 · 扫描 ${alts.symbols ? alts.symbols.length : rows.length} 个高成交量山寨 · 标记 ${(alts.flagged || []).length} 个`;
+    }
     if (!rows.length) document.getElementById('alts-body').innerHTML = '<p class="text-text-muted">无扫描结果</p>';
     else {
         document.getElementById('alts-body').innerHTML = `
@@ -614,21 +623,35 @@ document.getElementById('btn-alts-save').addEventListener('click', async () => {
         const res = await fetch(`${API_BASE}/api/trading-os/alts`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbols }),
+            body: JSON.stringify({ symbols, mode: symbols.length ? 'manual' : 'auto' }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || res.status);
         listAltsCache = data.symbols || symbols;
         const deskRes = await fetchJson(`${API_BASE}/api/trading-os/alts/status?refresh=true`);
         if (deskRes.ok) {
-            const snap = await deskRes.json();
-            renderDesk({ ok: true, wallets: {}, alts: snap, risk: null, strategy: { lanes: {} }, alerts: {} });
-            // re-load full desk so other panels stay
+            const full = await fetchJson(`${API_BASE}/api/trading-os/desk`);
+            if (full.ok) renderDesk(await full.json());
+            else renderDesk({ ok: true, wallets: {}, alts: await deskRes.json(), risk: null, strategy: { lanes: {} }, alerts: {} });
+        }
+    } catch (e) {
+        document.getElementById('alts-body').textContent = '保存失败: ' + e.message;
+    }
+});
+document.getElementById('btn-alts-auto').addEventListener('click', async () => {
+    try {
+        const res = await fetch(`${API_BASE}/api/trading-os/alts/auto`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.status);
+        listAltsCache = data.symbols || [];
+        document.getElementById('alts-input').value = listAltsCache.join(',');
+        const deskRes = await fetchJson(`${API_BASE}/api/trading-os/alts/status?refresh=true`);
+        if (deskRes.ok) {
             const full = await fetchJson(`${API_BASE}/api/trading-os/desk`);
             if (full.ok) renderDesk(await full.json());
         }
     } catch (e) {
-        document.getElementById('alts-body').textContent = '保存失败: ' + e.message;
+        document.getElementById('alts-body').textContent = '自动失败: ' + e.message;
     }
 });
 document.getElementById('btn-risk').addEventListener('click', async () => {

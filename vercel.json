@@ -6,7 +6,8 @@
   "redirects": [
     { "source": "/wangge", "destination": "/grid.html", "permanent": true },
     { "source": "/wangge.html", "destination": "/grid.html", "permanent": true },
-    { "source": "/trading-os", "destination": "/trading-os.html", "permanent": false }
+    { "source": "/trading-os", "destination": "/trading-os.html", "permanent": false },
+    { "source": "/clawby-quant", "destination": "/clawby-quant.html", "permanent": false }
   ],
   "headers": [
     {

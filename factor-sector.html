@@ -225,7 +225,6 @@ function render(data) {
         : '--';
 
     const bt = data.backtest || {};
-    const alt = data.backtest_alt || {};
     const cards = document.getElementById('bt-cards');
     if (bt.ok) {
         const cell = (label, val, cls) =>

@@ -124,6 +124,13 @@
         </div>
     </section>
 
+    <section class="mb-8" aria-label="回测">
+        <h3 class="font-serif text-lg text-text-primary mb-1">走步回测（因子空间）</h3>
+        <p class="text-text-muted text-xs mb-3">信号用当日及以前动量，赚次日 long_f − short_f；换板块扣 10bps。短样本，仅供验证方向。</p>
+        <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-3 mb-3" id="bt-cards"></div>
+        <div class="dash-card p-3 text-xs text-text-secondary" id="bt-note"></div>
+    </section>
+
     <section class="mb-8" aria-label="板块动量">
         <h3 class="font-serif text-lg text-text-primary mb-1">板块因子动量排名</h3>
         <p class="text-text-muted text-xs mb-3">对每日估出的板块因子收益做 7d / 14d 累积；主信号用 14d（参考 crypto 短周期动量）。</p>
@@ -216,6 +223,28 @@ function render(data) {
     document.getElementById('board-ts').textContent = data.fetched_at_cst
         ? String(data.fetched_at_cst).replace('T', ' ').slice(0, 19)
         : '--';
+
+    const bt = data.backtest || {};
+    const alt = data.backtest_alt || {};
+    const cards = document.getElementById('bt-cards');
+    if (bt.ok) {
+        const cell = (label, val, cls) =>
+            `<div class="dash-card p-3"><div class="text-[0.65rem] uppercase tracking-wide text-text-muted">${label}</div>` +
+            `<div class="font-serif text-xl mt-1 ${cls || ''}">${val}</div></div>`;
+        const p = (x) => x == null ? '—' : ((x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%');
+        cards.innerHTML = [
+            cell(`主信号 ${bt.mom_win}d 累计`, p(bt.total_return), bt.total_return >= 0 ? 'pos' : 'neg'),
+            cell('Sharpe (年化)', (bt.sharpe ?? 0).toFixed(2), bt.sharpe >= 0 ? 'pos' : 'neg'),
+            cell('最大回撤', p(bt.max_dd), 'neg'),
+            cell('相对市场超额', p(bt.excess_vs_market), bt.excess_vs_market >= 0 ? 'pos' : 'neg'),
+        ].join('');
+        document.getElementById('bt-note').textContent =
+            `${bt.start} → ${bt.end} · ${bt.days} 日 · 胜率 ${(bt.win_rate * 100).toFixed(0)}% · 换仓 ${bt.switches} 次 · ` +
+            `对照 14d：累计 ${p(alt.total_return)} / Sharpe ${alt.sharpe ?? '—'}。${bt.note || ''}`;
+    } else {
+        cards.innerHTML = '';
+        document.getElementById('bt-note').textContent = '回测未就绪，请强制刷新。';
+    }
 
     const synth = data.synthetic_index || {};
     const tbRank = document.querySelector('#tbl-rank tbody');

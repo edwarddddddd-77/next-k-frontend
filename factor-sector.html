@@ -133,12 +133,12 @@
 
     <section class="mb-8" aria-label="板块动量">
         <h3 class="font-serif text-lg text-text-primary mb-1">板块趋势（合成因子指数）</h3>
-        <p class="text-text-muted text-xs mb-3">对齐原文：复利板块因子 → 尾部收益符号；看涨做多模拟组合，看跌做空。</p>
+            <p class="text-text-muted text-xs mb-3">先过 20d 趋势符号，再过 7d 同向确认；两侧都通过才开多空。</p>
         <div class="dash-card overflow-x-auto">
             <table class="data-table" id="tbl-rank">
                 <thead>
                     <tr>
-                        <th>#</th><th>板块</th><th>趋势</th><th>20d 尾部</th><th>指数</th><th>近况</th>
+                        <th>#</th><th>板块</th><th>结论</th><th>20d</th><th>7d</th><th>指数</th><th>近况</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -253,11 +253,12 @@ function render(data) {
             <td>${r.rank}</td>
             <td class="font-medium text-text-primary">${r.sector}</td>
             <td class="${r.trend > 0 ? 'pos' : (r.trend < 0 ? 'neg' : '')}">${lab}</td>
-            <td>${pct(r.trail_ret)}</td>
+            <td>${pct(r.trail_ret_20 ?? r.trail_ret)}</td>
+            <td>${pct(r.trail_ret_7)}</td>
             <td>${(r.level ?? 0).toFixed(4)}</td>
             <td>${spark(curve)}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="6">无数据</td></tr>';
+    }).join('') || '<tr><td colspan="7">无数据</td></tr>';
 
     const tbBasket = document.querySelector('#tbl-basket tbody');
     tbBasket.innerHTML = (sig.basket || []).map((b) => `<tr>

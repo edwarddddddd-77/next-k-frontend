@@ -114,10 +114,10 @@
         <div class="focus-hero">
             <div class="text-[0.65rem] tracking-[0.14em] uppercase text-text-muted mb-2">Next K · Sector Factor</div>
             <h2 class="font-serif text-2xl md:text-3xl text-text-primary mb-2">板块因子轮动</h2>
-            <p id="thesis" class="text-text-secondary text-sm md:text-base max-w-3xl leading-relaxed">加载 Barra 横截面因子…</p>
+            <p id="thesis" class="text-text-secondary text-sm md:text-base max-w-3xl leading-relaxed">加载 HangukQuant Barra 因子…</p>
             <div class="flex flex-wrap gap-2 mt-4">
-                <span class="metric-chip" id="chip-long">多 --</span>
-                <span class="metric-chip" id="chip-short">空 --</span>
+                <span class="metric-chip" id="chip-long">看涨 --</span>
+                <span class="metric-chip" id="chip-short">看跌 --</span>
                 <span class="metric-chip" id="chip-days">样本 --</span>
                 <span class="metric-chip" id="chip-n">宇宙 --</span>
             </div>
@@ -132,13 +132,13 @@
     </section>
 
     <section class="mb-8" aria-label="板块动量">
-        <h3 class="font-serif text-lg text-text-primary mb-1">板块因子动量排名</h3>
-        <p class="text-text-muted text-xs mb-3">对每日估出的板块因子收益做 7d / 14d 累积；主信号用 14d（参考 crypto 短周期动量）。</p>
+        <h3 class="font-serif text-lg text-text-primary mb-1">板块趋势（合成因子指数）</h3>
+        <p class="text-text-muted text-xs mb-3">对齐原文：复利板块因子 → 尾部收益符号；看涨做多模拟组合，看跌做空。</p>
         <div class="dash-card overflow-x-auto">
             <table class="data-table" id="tbl-rank">
                 <thead>
                     <tr>
-                        <th>#</th><th>板块</th><th>最新日 f</th><th>7d cum</th><th>14d cum</th><th>近况</th>
+                        <th>#</th><th>板块</th><th>趋势</th><th>20d 尾部</th><th>指数</th><th>近况</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -216,8 +216,8 @@ function spark(levels) {
 function render(data) {
     const sig = data.signal || {};
     document.getElementById('thesis').textContent = sig.thesis || data.message || '暂无信号';
-    document.getElementById('chip-long').textContent = '多 ' + (sig.long_sector || '—');
-    document.getElementById('chip-short').textContent = '空 ' + (sig.short_sector || '—');
+    document.getElementById('chip-long').textContent = '看涨 ' + (sig.long_sector || (sig.bulls || []).join(',') || '—');
+    document.getElementById('chip-short').textContent = '看跌 ' + (sig.short_sector || (sig.bears || []).join(',') || '—');
     document.getElementById('chip-days').textContent = '样本 ' + (data.history_days || '—') + 'd';
     document.getElementById('chip-n').textContent = '宇宙 ' + (data.universe_n || '—');
     document.getElementById('board-ts').textContent = data.fetched_at_cst
@@ -233,14 +233,13 @@ function render(data) {
             `<div class="font-serif text-xl mt-1 ${cls || ''}">${val}</div></div>`;
         const p = (x) => x == null ? '—' : ((x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%');
         cards.innerHTML = [
-            cell(`主信号 ${bt.mom_win}d 累计`, p(bt.total_return), bt.total_return >= 0 ? 'pos' : 'neg'),
+            cell(`趋势LS 累计`, p(bt.total_return), bt.total_return >= 0 ? 'pos' : 'neg'),
             cell('Sharpe (年化)', (bt.sharpe ?? 0).toFixed(2), bt.sharpe >= 0 ? 'pos' : 'neg'),
             cell('最大回撤', p(bt.max_dd), 'neg'),
             cell('相对市场超额', p(bt.excess_vs_market), bt.excess_vs_market >= 0 ? 'pos' : 'neg'),
         ].join('');
         document.getElementById('bt-note').textContent =
-            `${bt.start} → ${bt.end} · ${bt.days} 日 · 胜率 ${(bt.win_rate * 100).toFixed(0)}% · 换仓 ${bt.switches} 次 · ` +
-            `对照 14d：累计 ${p(alt.total_return)} / Sharpe ${alt.sharpe ?? '—'}。${bt.note || ''}`;
+            `${bt.start} → ${bt.end} · ${bt.days} 日 · 有仓 ${bt.active_days ?? '—'} · 胜率 ${((bt.win_rate || 0) * 100).toFixed(0)}% · 换仓 ${bt.switches} 次。${bt.note || bt.rule || ''}`;
     } else {
         cards.innerHTML = '';
         document.getElementById('bt-note').textContent = '回测未就绪，请强制刷新。';
@@ -250,12 +249,13 @@ function render(data) {
     const tbRank = document.querySelector('#tbl-rank tbody');
     tbRank.innerHTML = (data.rankings || []).map((r) => {
         const curve = synth[r.sector] || [];
+        const lab = r.label || (r.trend > 0 ? 'bullish' : (r.trend < 0 ? 'bearish' : 'flat'));
         return `<tr>
             <td>${r.rank}</td>
             <td class="font-medium text-text-primary">${r.sector}</td>
-            <td>${pct(r.latest)}</td>
-            <td>${pct(r.mom_7d)}</td>
-            <td>${pct(r.mom_14d)}</td>
+            <td class="${r.trend > 0 ? 'pos' : (r.trend < 0 ? 'neg' : '')}">${lab}</td>
+            <td>${pct(r.trail_ret)}</td>
+            <td>${(r.level ?? 0).toFixed(4)}</td>
             <td>${spark(curve)}</td>
         </tr>`;
     }).join('') || '<tr><td colspan="6">无数据</td></tr>';

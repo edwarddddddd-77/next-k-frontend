@@ -228,7 +228,7 @@
         }
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
         .data-table thead th {
-            padding: 0.4rem 0.55rem;
+            padding: 0.45rem 0.75rem;
             font-size: 0.6rem;
             font-weight: 600;
             letter-spacing: 0.05em;
@@ -239,7 +239,7 @@
             white-space: nowrap;
         }
         .data-table tbody td {
-            padding: 0.38rem 0.55rem;
+            padding: 0.42rem 0.75rem;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
             vertical-align: middle;
             white-space: nowrap;
@@ -266,12 +266,11 @@
         .tbl-fills col.c-sz { width: 18%; }
         .tbl-fills col.c-lev { width: 12%; }
         .tbl-fills col.c-pnl { width: 22%; }
-        .tbl-fills.hide-bot col.c-bot { width: 0; }
-        .tbl-fills.hide-bot .col-bot { display: none; }
+        /* 单策略：无策略列，宽度铺满 */
         .tbl-fills.hide-bot col.c-ts { width: 16%; }
         .tbl-fills.hide-bot col.c-act { width: 14%; }
-        .tbl-fills.hide-bot col.c-coin { width: 14%; }
-        .tbl-fills.hide-bot col.c-sz { width: 20%; }
+        .tbl-fills.hide-bot col.c-coin { width: 12%; }
+        .tbl-fills.hide-bot col.c-sz { width: 22%; }
         .tbl-fills.hide-bot col.c-lev { width: 14%; }
         .tbl-fills.hide-bot col.c-pnl { width: 22%; }
         .pos { color: var(--neon-green); }
@@ -359,23 +358,12 @@
         <div class="fills-shell">
             <div class="fills-scroll">
                 <table id="tbl-fills" class="data-table tbl-fills">
-                    <colgroup>
-                        <col class="c-bot" /><col class="c-ts" /><col class="c-act" /><col class="c-coin" />
-                        <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
-                    </colgroup>
+                    <colgroup id="fills-cols"></colgroup>
                     <thead>
-                        <tr>
-                            <th class="col-bot">策略</th>
-                            <th>时间</th>
-                            <th>动作</th>
-                            <th>币</th>
-                            <th class="num">名义(U)</th>
-                            <th class="num">杠杆</th>
-                            <th class="num">盈亏</th>
-                        </tr>
+                        <tr id="fills-head"></tr>
                     </thead>
                     <tbody id="fills-tbody">
-                        <tr><td colspan="7" class="text-text-muted">载入中…</td></tr>
+                        <tr><td class="text-text-muted">载入中…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -562,9 +550,10 @@ function posRowsHtml(positions) {
     }).join('');
 }
 
-function fillRowsHtml(fills) {
+function fillRowsHtml(fills, showBot) {
+    const cols = showBot ? 7 : 6;
     if (!fills.length) {
-        return '<tr><td colspan="7" class="text-text-muted">暂无成交</td></tr>';
+        return `<tr><td colspan="${cols}" class="text-text-muted">暂无成交</td></tr>`;
     }
     return fills.map((f) => {
         const ts = fmtBjTime(f.ts);
@@ -581,8 +570,9 @@ function fillRowsHtml(fills) {
         const pnlCell = isOpen
             ? '<span class="text-text-muted">—</span>'
             : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
+        const botCell = showBot ? `<td>${botLabel(f._bot)}</td>` : '';
         return `<tr>
-            <td class="col-bot">${botLabel(f._bot)}</td>
+            ${botCell}
             <td class="mono">${ts || '—'}</td>
             <td>${act}</td>
             <td class="coin">${f.coin || '—'}</td>
@@ -609,7 +599,16 @@ function renderFills(paper) {
     const fills = collectFills(paper, fillFilter);
     const table = document.getElementById('tbl-fills');
     table.classList.toggle('hide-bot', !showBot);
-    document.getElementById('fills-tbody').innerHTML = fillRowsHtml(fills);
+
+    document.getElementById('fills-cols').innerHTML = showBot
+        ? '<col class="c-bot" /><col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />'
+        : '<col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />';
+
+    document.getElementById('fills-head').innerHTML = showBot
+        ? '<th>策略</th><th>时间</th><th>动作</th><th>币</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>'
+        : '<th>时间</th><th>动作</th><th>币</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>';
+
+    document.getElementById('fills-tbody').innerHTML = fillRowsHtml(fills, showBot);
     const sub = document.getElementById('fills-sub');
     const cap = fillFilter === 'all' ? FILL_LIMIT_ALL : FILL_LIMIT;
     const who = fillFilter === 'all' ? '全部策略' : botLabel(fillFilter);

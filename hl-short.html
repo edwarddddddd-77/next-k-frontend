@@ -38,7 +38,7 @@
         };
     </script>
     <style>
-        .desk-main { max-width: 72rem; margin: 0 auto; padding: 0.65rem 1rem 1.25rem; }
+        .desk-main { max-width: 80rem; margin: 0 auto; padding: 0.75rem 1.25rem 1.5rem; }
         .desk-stack { display: flex; flex-direction: column; gap: 0.75rem; }
         .focus-hero {
             border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--border));
@@ -74,11 +74,12 @@
             border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
             border-radius: var(--radius-md);
             background: color-mix(in srgb, var(--surface) 92%, var(--surface-light));
-            padding: 0.55rem 0.7rem;
+            padding: 0.7rem 0.8rem 0.65rem;
             cursor: pointer;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
             text-align: left;
             width: 100%;
+            min-width: 0;
         }
         .bot-card:hover { border-color: color-mix(in srgb, var(--gold) 35%, var(--border)); }
         .bot-card.is-active {
@@ -87,30 +88,47 @@
         }
         .bot-card-top {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: space-between;
             gap: 0.5rem;
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.55rem;
+            padding-bottom: 0.45rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
         }
-        .bot-card-name { font-family: "Noto Serif SC", Georgia, serif; font-size: 0.9rem; font-weight: 600; }
-        .bot-card-meta { font-size: 0.65rem; color: var(--text-muted); }
+        .bot-card-name { font-family: "Noto Serif SC", Georgia, serif; font-size: 0.95rem; font-weight: 600; }
+        .bot-card-meta { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; }
         .bot-stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 0.35rem 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .bot-stat {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
         }
         .stat-label {
-            font-size: 0.58rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.04em;
             color: var(--text-muted);
+            flex-shrink: 0;
         }
         .stat-value {
-            font-family: "Noto Serif SC", Georgia, serif;
-            font-size: 0.95rem;
-            line-height: 1.15;
-            margin-top: 0.05rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.82rem;
+            line-height: 1.2;
             font-variant-numeric: tabular-nums;
+            text-align: right;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .stat-value.equity {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 1.05rem;
+            font-weight: 600;
         }
         .section-head {
             display: flex;
@@ -241,26 +259,32 @@
         .tbl-pos col.c-sz { width: 32%; }
         .tbl-pos col.c-lev { width: 18%; }
         .tbl-pos col.c-pnl { width: 30%; }
-        .tbl-fills col.c-bot { width: 12%; }
-        .tbl-fills col.c-ts { width: 14%; }
+        .tbl-fills col.c-bot { width: 11%; }
+        .tbl-fills col.c-ts { width: 13%; }
         .tbl-fills col.c-act { width: 12%; }
         .tbl-fills col.c-coin { width: 12%; }
         .tbl-fills col.c-sz { width: 18%; }
         .tbl-fills col.c-lev { width: 12%; }
-        .tbl-fills col.c-pnl { width: 20%; }
+        .tbl-fills col.c-pnl { width: 22%; }
         .tbl-fills.hide-bot col.c-bot { width: 0; }
         .tbl-fills.hide-bot .col-bot { display: none; }
+        .tbl-fills.hide-bot col.c-ts { width: 16%; }
+        .tbl-fills.hide-bot col.c-act { width: 14%; }
+        .tbl-fills.hide-bot col.c-coin { width: 14%; }
+        .tbl-fills.hide-bot col.c-sz { width: 20%; }
+        .tbl-fills.hide-bot col.c-lev { width: 14%; }
+        .tbl-fills.hide-bot col.c-pnl { width: 22%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
         #bots-strip {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.5rem;
-            margin-top: 0.7rem;
+            gap: 0.65rem;
+            margin-top: 0.85rem;
         }
         @media (min-width: 900px) {
-            #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+            #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.75rem; }
         }
         @media (min-width: 640px) and (max-width: 899px) {
             #bots-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -538,9 +562,9 @@ function posRowsHtml(positions) {
     }).join('');
 }
 
-function fillRowsHtml(fills, showBot) {
+function fillRowsHtml(fills) {
     if (!fills.length) {
-        return `<tr><td colspan="${showBot ? 7 : 6}" class="text-text-muted">暂无成交</td></tr>`;
+        return '<tr><td colspan="7" class="text-text-muted">暂无成交</td></tr>';
     }
     return fills.map((f) => {
         const ts = fmtBjTime(f.ts);
@@ -557,9 +581,8 @@ function fillRowsHtml(fills, showBot) {
         const pnlCell = isOpen
             ? '<span class="text-text-muted">—</span>'
             : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
-        const botCell = showBot ? `<td class="col-bot">${botLabel(f._bot)}</td>` : '';
         return `<tr>
-            ${botCell}
+            <td class="col-bot">${botLabel(f._bot)}</td>
             <td class="mono">${ts || '—'}</td>
             <td>${act}</td>
             <td class="coin">${f.coin || '—'}</td>
@@ -586,7 +609,7 @@ function renderFills(paper) {
     const fills = collectFills(paper, fillFilter);
     const table = document.getElementById('tbl-fills');
     table.classList.toggle('hide-bot', !showBot);
-    document.getElementById('fills-tbody').innerHTML = fillRowsHtml(fills, showBot);
+    document.getElementById('fills-tbody').innerHTML = fillRowsHtml(fills);
     const sub = document.getElementById('fills-sub');
     const cap = fillFilter === 'all' ? FILL_LIMIT_ALL : FILL_LIMIT;
     const who = fillFilter === 'all' ? '全部策略' : botLabel(fillFilter);
@@ -609,15 +632,22 @@ function renderPaper(paper) {
         const active = b.id === fillFilter ? ' is-active' : '';
         return `<button type="button" class="bot-card${active}" data-bot-id="${b.id}">
             <div class="bot-card-top">
-                <div>
-                    <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
-                    <div class="bot-card-meta">${nPos} 仓</div>
-                </div>
+                <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
+                <div class="bot-card-meta">${nPos} 仓</div>
             </div>
             <div class="bot-stats">
-                <div><div class="stat-label">权益</div><div class="stat-value">${fmtUsd(b.equity)}</div></div>
-                <div><div class="stat-label">浮盈</div><div class="stat-value ${upnl2 >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnl2)}</div></div>
-                <div><div class="stat-label">已实现</div><div class="stat-value">${fmtUsd(b.realized_pnl)}</div></div>
+                <div class="bot-stat">
+                    <span class="stat-label">权益</span>
+                    <span class="stat-value equity">${fmtUsd(b.equity)}</span>
+                </div>
+                <div class="bot-stat">
+                    <span class="stat-label">浮盈</span>
+                    <span class="stat-value ${upnl2 >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnl2)}</span>
+                </div>
+                <div class="bot-stat">
+                    <span class="stat-label">已实现</span>
+                    <span class="stat-value">${fmtUsd(b.realized_pnl)}</span>
+                </div>
             </div>
         </button>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';

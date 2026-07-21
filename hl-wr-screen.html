@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next K · 胜率筛</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="theme.css" />
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="api-base.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+                        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: 'var(--bg)',
+                        surface: 'var(--surface)',
+                        'surface-light': 'var(--surface-light)',
+                        border: 'var(--border)',
+                        accent: 'var(--accent)',
+                        gold: 'var(--gold)',
+                        'neon-green': 'var(--neon-green)',
+                        'neon-red': 'var(--neon-red)',
+                        'neon-blue': 'var(--neon-blue)',
+                        warn: 'var(--warn)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'text-muted': 'var(--text-muted)',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .desk-main { max-width: 80rem; margin: 0 auto; padding: 0.75rem 1.25rem 1.5rem; }
+        .desk-stack { display: flex; flex-direction: column; gap: 0.75rem; }
+        .focus-hero {
+            border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--border));
+            border-radius: var(--radius-lg);
+            background:
+                radial-gradient(ellipse 70% 80% at 0% 0%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 50%),
+                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 55%, var(--surface)) 0%, var(--surface) 100%);
+            padding: 0.85rem 1rem;
+        }
+        .hero-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem 1rem;
+        }
+        .panel-kicker { font-size: 0.625rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+        .panel-title { font-family: "Noto Serif SC", Georgia, serif; font-size: 1.15rem; font-weight: 600; line-height: 1.25; margin-top: 0.1rem; }
+        .panel-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem; }
+        .metric-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+            line-height: 1.2;
+            cursor: pointer;
+        }
+        .metric-chip:hover { border-color: color-mix(in srgb, var(--gold) 40%, var(--border)); }
+        .criteria-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.7rem;
+        }
+        .section-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem 0.75rem;
+            margin-bottom: 0.45rem;
+        }
+        .section-title {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+        .section-sub { font-size: 0.7rem; color: var(--text-muted); }
+        .board-shell {
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            overflow: hidden;
+        }
+        .board-scroll {
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            max-height: min(70vh, 40rem);
+        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; }
+        .data-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--surface);
+            padding: 0.5rem 0.7rem;
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .data-table tbody td {
+            padding: 0.48rem 0.7rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+        .data-table .num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.75rem;
+        }
+        .data-table thead th.num { text-align: right; }
+        .data-table .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.72rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .data-table a.addr {
+            color: var(--text-primary);
+            text-decoration: none;
+            border-bottom: 1px dotted color-mix(in srgb, var(--border) 80%, transparent);
+        }
+        .data-table a.addr:hover { color: var(--accent); }
+        .lane-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .lane-tab {
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 35%, transparent);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            padding: 0.22rem 0.65rem;
+            font-size: 0.72rem;
+            cursor: pointer;
+        }
+        .lane-tab:hover { border-color: color-mix(in srgb, var(--gold) 35%, var(--border)); }
+        .lane-tab.is-active {
+            border-color: color-mix(in srgb, var(--gold) 50%, var(--border));
+            color: var(--text-primary);
+            background: color-mix(in srgb, var(--gold) 12%, var(--surface));
+        }
+        col.c-rank { width: 5%; }
+        col.c-addr { width: 14%; }
+        col.c-wr { width: 9%; }
+        col.c-sample { width: 11%; }
+        col.c-pace { width: 9%; }
+        col.c-av { width: 11%; }
+        col.c-pnl { width: 11%; }
+        col.c-extra { width: 10%; }
+        col.c-coins { width: 12%; }
+        col.c-pos { width: 8%; }
+        .pos { color: var(--neon-green); }
+        .neg { color: var(--neon-red); }
+        .wr-hi { color: var(--neon-green); font-weight: 600; }
+    </style>
+</head>
+<body class="min-h-screen">
+<header class="app-header sticky top-0 z-50">
+    <div class="desk-main" style="padding-top:0.55rem;padding-bottom:0.55rem;">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
+                        <div class="brand-subtitle hidden sm:block">胜率筛</div>
+                    </div>
+                </div>
+                <nav class="hidden sm:flex items-center gap-1 ml-1">
+                    <a class="nav-pill" href="index.html">观盘台</a>
+                    <a class="nav-pill" href="hl-short.html">映仓台</a>
+                    <a class="nav-pill nav-pill-active" href="hl-wr-screen.html">胜率筛</a>
+                    <a class="nav-pill" href="grid.html">Next K 网格</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span id="header-bj-clock" class="header-clock hidden sm:inline" title="北京时间">--:-- 北京</span>
+                <button id="btn-refresh" type="button" class="metric-chip">刷新缓存</button>
+                <button id="btn-rerun" type="button" class="metric-chip" title="强制重跑（约 10 分钟冷却）">重跑日筛</button>
+                <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
+                    <span class="status-dot"></span><span>连接中…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="desk-main desk-stack">
+    <section class="focus-hero" aria-label="筛选说明">
+        <div class="hero-top">
+            <div>
+                <div class="panel-kicker">Daily · Hyperliquid · 两套并行</div>
+                <h2 class="panel-title">短线高胜率筛选</h2>
+                <p id="status-line" class="panel-sub">载入中…</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5 items-center">
+                <span id="gen-badge" class="metric-chip">生成 —</span>
+                <span id="count-badge" class="metric-chip">0 入选</span>
+            </div>
+        </div>
+        <div id="criteria-row" class="criteria-row"></div>
+    </section>
+
+    <section aria-label="入选列表">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title" id="lane-title">今日入选</h3>
+                <p class="section-sub" id="lane-sub">已排除映仓台名单</p>
+            </div>
+            <div id="lane-tabs" class="lane-tabs" role="tablist">
+                <button type="button" class="lane-tab is-active" data-lane="turnover">高换手</button>
+                <button type="button" class="lane-tab" data-lane="midsize">中盘7D</button>
+            </div>
+        </div>
+        <div class="board-shell">
+            <div class="board-scroll">
+                <table class="data-table">
+                    <colgroup>
+                        <col class="c-rank" /><col class="c-addr" /><col class="c-wr" />
+                        <col class="c-sample" /><col class="c-pace" /><col class="c-av" />
+                        <col class="c-pnl" /><col class="c-extra" /><col class="c-coins" /><col class="c-pos" />
+                    </colgroup>
+                    <thead>
+                        <tr id="picks-head"></tr>
+                    </thead>
+                    <tbody id="picks-tbody">
+                        <tr><td colspan="10" class="text-text-muted">载入中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+const API = resolveApiBase();
+let lastBoard = null;
+let activeLane = 'turnover';
+
+function setStatus(ok, text) {
+    const el = document.getElementById('connection-status');
+    el.className = ok
+        ? 'status-pill status-pill-ok bg-neon-green/[0.07] text-neon-green border-neon-green/18'
+        : 'status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18';
+    el.innerHTML = `<span class="status-dot"></span><span>${text}</span>`;
+}
+
+function fmtUsd(n, digits) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    const v = Number(n);
+    const d = digits == null ? 0 : digits;
+    const abs = Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: d });
+    return (v < 0 ? '-$' : '$') + abs;
+}
+
+function fmtPct(n) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    return (Number(n) * 100).toFixed(1) + '%';
+}
+
+function shortAddr(addr) {
+    const a = String(addr || '');
+    if (a.length < 12) return a || '—';
+    return a.slice(0, 6) + '…' + a.slice(-4);
+}
+
+function fmtBj(iso) {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return String(iso).slice(0, 19);
+        return new Intl.DateTimeFormat('zh-CN', {
+            timeZone: 'Asia/Shanghai',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).format(d);
+    } catch (e) {
+        return String(iso).slice(0, 16);
+    }
+}
+
+function tickBjClock() {
+    const el = document.getElementById('header-bj-clock');
+    if (!el) return;
+    try {
+        const t = new Intl.DateTimeFormat('zh-CN', {
+            timeZone: 'Asia/Shanghai',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        }).format(new Date());
+        el.textContent = t + ' 北京';
+    } catch (e) {
+        el.textContent = '--:-- 北京';
+    }
+}
+
+function getLane(board, id) {
+    const lanes = (board && board.lanes) || {};
+    if (lanes[id]) return lanes[id];
+    if (id === 'midsize') {
+        return {
+            id: 'midsize',
+            label: '中盘7D',
+            criteria: board.criteria,
+            candidate_count: board.candidate_count || 0,
+            scanned_count: board.scanned_count || 0,
+            pick_count: (board.picks || []).length,
+            picks: board.picks || [],
+        };
+    }
+    return { id, label: id, criteria: null, picks: [], candidate_count: 0, scanned_count: 0, pick_count: 0 };
+}
+
+function renderCriteria(laneId, c) {
+    const row = document.getElementById('criteria-row');
+    if (!c) { row.innerHTML = ''; return; }
+    let chips;
+    if (laneId === 'turnover') {
+        chips = [
+            `权益 ${fmtUsd(c.av_band && c.av_band[0])}–${fmtUsd(c.av_band && c.av_band[1])}`,
+            `周换手 ≥ ${c.turn_w_min}× 或 月 ≥ ${c.turn_m_min}×`,
+            `周盈亏 > 0 · 周 ROI ≤ ${(c.week_roi_max * 100).toFixed(0)}%`,
+            `近期平仓胜率 ≥ ${fmtPct(c.wr_min)}`,
+            `平仓样本 ≥ ${c.closed_min}`,
+        ];
+    } else {
+        chips = [
+            `权益 ${fmtUsd(c.av_band && c.av_band[0])}–${fmtUsd(c.av_band && c.av_band[1])}`,
+            `周成交额 ≥ ${fmtUsd(c.week_vlm_min)}`,
+            `7D 胜率 ≥ ${fmtPct(c.wr_min)}`,
+            `成交 ≥ ${c.fills7_min} · 平仓 ≥ ${c.closed7_min}`,
+            `频次 ≤ ${c.fph24_max}/时`,
+        ];
+    }
+    row.innerHTML = chips.map((t) => `<span class="metric-chip" style="cursor:default">${t}</span>`).join('');
+}
+
+function renderLane(board) {
+    const lane = getLane(board, activeLane);
+    const picks = lane.picks || [];
+    const isTo = activeLane === 'turnover';
+
+    document.querySelectorAll('.lane-tab').forEach((el) => {
+        el.classList.toggle('is-active', el.dataset.lane === activeLane);
+    });
+
+    document.getElementById('gen-badge').textContent = board.generated_at
+        ? `生成 ${fmtBj(board.generated_at)}`
+        : '尚未生成';
+    document.getElementById('count-badge').textContent = `${picks.length} 入选`;
+
+    const to = getLane(board, 'turnover');
+    const ms = getLane(board, 'midsize');
+    let line = board.note || '';
+    if (board.generated_at) {
+        line = `高换手 ${to.pick_count || 0} · 中盘7D ${ms.pick_count || 0} · 深筛 ${board.deep_unique || '—'} · 跳过已知 ${board.skipped_known || 0}`;
+        if (board.refresh_skipped) line += ' · 冷却中读缓存';
+        if (board.elapsed_sec != null) line += ` · ${board.elapsed_sec}s`;
+    } else if (!line) {
+        line = '每日 09:00（北京）两套一起跑 · 也可手动重跑';
+    }
+    document.getElementById('status-line').textContent = line;
+
+    document.getElementById('lane-title').textContent = (lane.label || '') + ' · 今日入选';
+    document.getElementById('lane-sub').textContent = isTo
+        ? `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按胜率·换手排序`
+        : `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按 7D 胜率·周盈亏排序`;
+    renderCriteria(activeLane, lane.criteria);
+
+    document.getElementById('picks-head').innerHTML = isTo
+        ? '<th>#</th><th>地址</th><th class="num">胜率</th><th class="num">平仓样本</th><th class="num">笔/时</th><th class="num">权益</th><th class="num">周盈亏</th><th class="num">周换手</th><th>活跃币</th><th>持仓</th>'
+        : '<th>#</th><th>地址</th><th class="num">7D 胜率</th><th class="num">成交/平仓</th><th class="num">频次/时</th><th class="num">权益</th><th class="num">周盈亏</th><th class="num">周成交</th><th>活跃币</th><th>持仓</th>';
+
+    const body = document.getElementById('picks-tbody');
+    if (!picks.length) {
+        body.innerHTML = `<tr><td colspan="10" class="text-text-muted">${board.generated_at ? '本车道今日无入选' : '尚无日筛结果'}</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = picks.map((p, i) => {
+        const wr = p.wr;
+        const wrCls = wr != null && wr >= 0.7 ? 'wr-hi' : (wr != null && wr >= 0.55 ? 'pos' : '');
+        const wp = Number(p.week_pnl);
+        const coins = (p.top_coins || []).slice(0, 3).map((x) => x.coin || x[0]).filter(Boolean).join(' · ') || '—';
+        const pos = (p.coins_pos || []).slice(0, 3).join(' · ') || '—';
+        const href = p.hl_url || `https://app.hyperliquid.xyz/explorer/address/${p.addr}`;
+        const sample = isTo
+            ? (p.closed_n ?? '—')
+            : `${p.fills7 ?? '—'}/${p.closed7 ?? '—'}`;
+        const pace = isTo
+            ? (p.tph != null ? Number(p.tph).toFixed(1) : '—')
+            : (p.fph24 != null ? Number(p.fph24).toFixed(1) : '—');
+        const extra = isTo
+            ? (p.turn_w != null ? Number(p.turn_w).toFixed(0) + '×' : '—')
+            : fmtUsd(p.week_vlm);
+        return `<tr>
+            <td class="mono">${i + 1}</td>
+            <td class="mono"><a class="addr" href="${href}" target="_blank" rel="noopener">${shortAddr(p.addr)}</a></td>
+            <td class="num ${wrCls}">${fmtPct(wr)}</td>
+            <td class="num">${sample}</td>
+            <td class="num">${pace}</td>
+            <td class="num">${fmtUsd(p.live_av != null ? p.live_av : p.av)}</td>
+            <td class="num ${wp >= 0 ? 'pos' : 'neg'}">${fmtUsd(wp)}</td>
+            <td class="num">${extra}</td>
+            <td>${coins}</td>
+            <td>${pos}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderBoard(board) {
+    lastBoard = board;
+    renderLane(board);
+}
+
+async function loadBoard(refresh) {
+    try {
+        const q = refresh ? '?refresh=true' : '';
+        const res = await fetch(`${API}/api/hl-short/screen${q}`);
+        if (!res.ok) throw new Error('screen ' + res.status);
+        const board = await res.json();
+        renderBoard(board);
+        setStatus(true, refresh ? '已重跑' : '已连接');
+    } catch (err) {
+        console.error(err);
+        setStatus(false, '连接失败');
+        document.getElementById('status-line').textContent = String(err.message || err);
+    }
+}
+
+document.getElementById('lane-tabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.lane-tab');
+    if (!tab || !lastBoard) return;
+    activeLane = tab.dataset.lane;
+    renderLane(lastBoard);
+});
+
+document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(false));
+document.getElementById('btn-rerun').addEventListener('click', async () => {
+    if (!confirm('强制重跑两套日筛？耗时约 2–3 分钟，且有冷却。')) return;
+    setStatus(true, '筛查中…');
+    document.getElementById('status-line').textContent = '正在深筛中（高换手 + 中盘7D），请稍候…';
+    await loadBoard(true);
+});
+
+loadBoard(false);
+tickBjClock();
+setInterval(tickBjClock, 1000);
+</script>
+</body>
+</html>

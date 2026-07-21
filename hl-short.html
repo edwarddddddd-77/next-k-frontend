@@ -96,6 +96,41 @@
             font-weight: 600;
         }
         .section-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+        .strategy-block {
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            border-radius: var(--radius-md, 8px);
+            background: color-mix(in srgb, var(--surface-light) 35%, var(--surface));
+            padding: 0.85rem 1rem 0.75rem;
+        }
+        .strategy-block + .strategy-block { margin-top: 0.85rem; }
+        .strategy-block-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.55rem;
+        }
+        .strategy-block-title {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        .strategy-block-meta {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+        }
+        .scroll-panel {
+            max-height: 16.5rem;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+        }
+        .scroll-panel .data-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -149,28 +184,14 @@
 
     <section aria-label="仓位">
         <h3 class="section-title">策略仓位</h3>
-        <p class="section-sub">各投 1000U · 独立账本</p>
-        <div class="mt-3 overflow-x-auto">
-            <table class="data-table" id="tbl-paper-pos">
-                <thead>
-                    <tr><th>策略</th><th>币</th><th>仓位(U)</th><th>杠杆</th><th>浮盈</th></tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+        <p class="section-sub">按策略分列 · 各投 1000U</p>
+        <div id="pos-by-strategy" class="mt-3 space-y-0"></div>
     </section>
 
     <section aria-label="记录">
         <h3 class="section-title">成交记录</h3>
-        <p class="section-sub">开平日志 · 北京时间</p>
-        <div class="mt-3 overflow-x-auto">
-            <table class="data-table" id="tbl-paper-fills">
-                <thead>
-                    <tr><th>时间(北京)</th><th>策略</th><th>动作</th><th>币</th><th>名义(U)</th><th>杠杆</th><th>盈亏</th></tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+        <p class="section-sub">按策略分列 · 各最多 20 条 · 北京时间</p>
+        <div id="fills-by-strategy" class="mt-3 space-y-0"></div>
     </section>
 
     <section aria-label="策略">
@@ -273,20 +294,92 @@ function botLabel(id) {
     return map[id] || id || '策略';
 }
 
-function renderPaper(paper) {
+const BOT_ORDER = ['wr94_hype', 'wr72_multi', 'wr88_btc_ada', 'wr63_alts', 'wr75_btc_eth'];
+const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'flip']);
+const FILL_LIMIT = 20;
+
+function sortedBots(paper) {
     const bots = Object.values(paper.bots || {});
+    return bots.sort((a, b) => {
+        const ia = BOT_ORDER.indexOf(a.id);
+        const ib = BOT_ORDER.indexOf(b.id);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+}
+
+function botPositions(paper, bot) {
+    const nested = bot.positions && typeof bot.positions === 'object' && !Array.isArray(bot.positions)
+        ? Object.values(bot.positions)
+        : [];
+    if (nested.length) return nested;
+    return Object.values(paper.positions || {}).filter((p) => p.source === bot.id);
+}
+
+function botFills(paper, bot) {
+    const local = Array.isArray(bot.fills) ? bot.fills : [];
+    const fromAgg = (paper.fills || []).filter((f) => f.source === bot.id);
+    const pool = local.length ? local : fromAgg;
+    return pool.filter((f) => {
+        if (f.skipped) return false;
+        const act = String(f.action || '').replace(/^sync_/, '');
+        return FILL_REAL.has(act);
+    }).slice(0, FILL_LIMIT);
+}
+
+function posRowsHtml(positions) {
+    if (!positions.length) {
+        return '<tr><td colspan="4" class="text-text-muted">空仓</td></tr>';
+    }
+    return positions.map((p) => {
+        const mark = p.mark_px != null ? p.mark_px : p.entry_px;
+        const up = Number(p.u_pnl);
+        const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
+        return `<tr>
+            <td class="font-medium">${p.coin}</td>
+            <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
+            <td>${lev}</td>
+            <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
+        </tr>`;
+    }).join('');
+}
+
+function fillRowsHtml(fills) {
+    if (!fills.length) {
+        return '<tr><td colspan="6" class="text-text-muted">暂无成交</td></tr>';
+    }
+    return fills.map((f) => {
+        const ts = fmtBjTime(f.ts);
+        const act = String(f.action || '').replace(/^sync_/, '');
+        const isOpen = act === 'open' || act === 'increase';
+        const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
+        const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
+        const sell = f.side === 'sell' || act === 'close' || act === 'reduce';
+        const notionLabel = !notion
+            ? '—'
+            : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
+        const pnlCell = isOpen
+            ? '<span class="text-text-muted">—</span>'
+            : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
+        return `<tr>
+            <td class="mono">${ts || '—'}</td>
+            <td>${act || f.side || '—'}</td>
+            <td>${f.coin || '—'}</td>
+            <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
+            <td>${lev}</td>
+            <td>${pnlCell}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderPaper(paper) {
+    const bots = sortedBots(paper);
     const strip = document.getElementById('bots-strip');
     strip.innerHTML = bots.map((b) => {
         const halted = b.risk_halted ? ' · 熔断' : '';
-        const nested = b.positions && typeof b.positions === 'object' && !Array.isArray(b.positions)
-            ? Object.values(b.positions)
-            : [];
-        const upnl2 = nested.length
-            ? nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0)
-            : (Object.values(paper.positions || {}).filter((p) => p.source === b.id)
-                .reduce((s, p) => s + (Number(p.u_pnl) || 0), 0));
-        const nPos = nested.length
-            || Object.values(paper.positions || {}).filter((p) => p.source === b.id).length;
+        const nested = botPositions(paper, b);
+        const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
+        const nPos = nested.length;
         return `<div class="rounded border border-border bg-surface/80 p-3">
             <div class="flex justify-between gap-2 items-start">
                 <div>
@@ -303,50 +396,37 @@ function renderPaper(paper) {
         </div>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
 
-    const positions = Object.values(paper.positions || {});
-    document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => {
-        const mark = p.mark_px != null ? p.mark_px : p.entry_px;
-        const up = Number(p.u_pnl);
-        const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
-        return `<tr>
-            <td>${botLabel(p.source)}</td>
-            <td class="font-medium">${p.coin}</td>
-            <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
-            <td>${lev}</td>
-            <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
-        </tr>`;
-    }).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
+    document.getElementById('pos-by-strategy').innerHTML = bots.map((b) => {
+        const positions = botPositions(paper, b);
+        return `<div class="strategy-block">
+            <div class="strategy-block-head">
+                <div class="strategy-block-title">${botLabel(b.id)}</div>
+                <div class="strategy-block-meta">${positions.length} 仓</div>
+            </div>
+            <div class="scroll-panel overflow-x-auto">
+                <table class="data-table">
+                    <thead><tr><th>币</th><th>仓位(U)</th><th>杠杆</th><th>浮盈</th></tr></thead>
+                    <tbody>${posRowsHtml(positions)}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('') || '<p class="text-text-muted text-sm">暂无仓位</p>';
 
-    const REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'flip']);
-    const fills = (paper.fills || []).filter((f) => {
-        if (f.skipped) return false;
-        const act = String(f.action || '').replace(/^sync_/, '');
-        return REAL.has(act);
-    }).slice(0, 30);
-    document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
-        const ts = fmtBjTime(f.ts);
-        const act = String(f.action || '').replace(/^sync_/, '');
-        const isOpen = act === 'open' || act === 'increase';
-        const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
-        const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        const sell = f.side === 'sell' || act === 'close' || act === 'reduce';
-        const notionLabel = !notion
-            ? '—'
-            : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
-        const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
-        const pnlCell = isOpen
-            ? '<span class="text-text-muted">—</span>'
-            : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
-        return `<tr>
-            <td class="mono">${ts || '—'}</td>
-            <td>${botLabel(f.source)}</td>
-            <td>${act || f.side || '—'}</td>
-            <td>${f.coin || '—'}</td>
-            <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
-            <td>${lev}</td>
-            <td>${pnlCell}</td>
-        </tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-text-muted">暂无成交</td></tr>';
+    document.getElementById('fills-by-strategy').innerHTML = bots.map((b) => {
+        const fills = botFills(paper, b);
+        return `<div class="strategy-block">
+            <div class="strategy-block-head">
+                <div class="strategy-block-title">${botLabel(b.id)}</div>
+                <div class="strategy-block-meta">近 ${fills.length} / ${FILL_LIMIT}</div>
+            </div>
+            <div class="scroll-panel overflow-x-auto">
+                <table class="data-table">
+                    <thead><tr><th>时间(北京)</th><th>动作</th><th>币</th><th>名义(U)</th><th>杠杆</th><th>盈亏</th></tr></thead>
+                    <tbody>${fillRowsHtml(fills)}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('') || '<p class="text-text-muted text-sm">暂无成交</p>';
 }
 
 function renderTargets(board, paper) {

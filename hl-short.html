@@ -135,11 +135,11 @@
 </header>
 
 <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
-    <section class="focus-hero" aria-label="模拟跟单">
+    <section class="focus-hero" aria-label="模拟仓">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <div class="panel-kicker">Paper Copy · Next K</div>
-                <h2 class="panel-title text-xl mt-1">双机器人完美跟单</h2>
+                <div class="panel-kicker">Paper · Hyperliquid</div>
+                <h2 class="panel-title text-xl mt-1">双机器人 · 比例镜像</h2>
                 <p id="status-line" class="panel-sub mt-1">载入中…</p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
@@ -152,7 +152,7 @@
 
     <section aria-label="仓位">
         <h3 class="section-title">机器人仓位</h3>
-        <p class="section-sub">各投 1000U · 比例仓 + 同杠杆（开源 Copy Trader 同款模型，跑在 next-k-api）</p>
+        <p class="section-sub">各投 1000U · 完全镜像对方仓位 × 余额比例</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-paper-pos">
                 <thead>
@@ -164,7 +164,7 @@
     </section>
 
     <section aria-label="记录">
-        <h3 class="section-title">跟单记录</h3>
+        <h3 class="section-title">成交记录</h3>
         <p class="section-sub">开平同步日志</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-paper-fills">
@@ -176,7 +176,7 @@
         </div>
     </section>
 
-    <section aria-label="跟谁">
+    <section aria-label="绑定">
         <h3 class="section-title">绑定地址</h3>
         <p class="section-sub">一机器人一地址</p>
         <div class="mt-3 overflow-x-auto">
@@ -226,7 +226,6 @@ function sideClass(szi) {
     return '';
 }
 
-/** Signed notional in U (USDT). Long +, short -. */
 function notionalU(sz, px) {
     const s = Number(sz);
     const p = Number(px);
@@ -247,8 +246,6 @@ function renderPaper(paper) {
     strip.innerHTML = bots.map((b) => {
         const halted = b.risk_halted ? ' · 熔断' : '';
         const ratio = b.copy_ratio != null ? (Number(b.copy_ratio) * 100).toFixed(4) + '%' : '—';
-        const upnl = Object.values(b.positions || {}).reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
-        // when bots come from aggregate API without nested positions, compute from flat list
         const nested = b.positions && typeof b.positions === 'object' && !Array.isArray(b.positions)
             ? Object.values(b.positions)
             : [];
@@ -286,13 +283,14 @@ function renderPaper(paper) {
         </tr>`;
     }).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
 
-    const fills = (paper.fills || []).filter((f) => !f.skipped && f.action !== 'signal').slice(0, 30);
+    const REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close']);
+    const fills = (paper.fills || []).filter((f) => !f.skipped && REAL.has(String(f.action || ''))).slice(0, 30);
     document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
         const ts = (f.ts || '').replace('T', ' ').slice(11, 19);
-        const isOpen = String(f.action || '').includes('open');
+        const isOpen = f.action === 'open' || f.action === 'increase';
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        const sell = f.side === 'sell' || String(f.action || '').includes('close');
+        const sell = f.side === 'sell' || f.action === 'close' || f.action === 'reduce';
         const notionLabel = !notion
             ? '—'
             : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -309,7 +307,7 @@ function renderPaper(paper) {
             <td>${lev}</td>
             <td>${pnlCell}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-text-muted">等待同步</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="text-text-muted">等待真实成交</td></tr>';
 }
 
 function renderTargets(board) {
@@ -324,7 +322,7 @@ function renderTargets(board) {
         }).join(' · ') || '空仓';
         return `<tr>
             <td>
-                <div class="font-medium">机器人 → ${m.id || shortAddr(m.address)}</div>
+                <div class="font-medium">${m.id || shortAddr(m.address)}</div>
                 <div class="mono text-text-muted">${shortAddr(m.address)}</div>
             </td>
             <td class="pos">${fmtPct(m.est_winrate)}</td>
@@ -343,7 +341,7 @@ function renderCopyStatus(st) {
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
     const n = (st.paper && st.paper.bot_count) || ((st.paper && st.paper.bots) || []).length || 2;
-    let line = `${n} 个机器人各 1000U，一对一绑定，比例仓 + 同杠杆（next-k-api 内模拟）。`;
+    let line = `${n} 个机器人各 1000U，一对一绑定，比例仓 + 同杠杆。`;
     const halted = ((st.paper && st.paper.bots) || []).filter((b) => b.risk_halted);
     if (halted.length) {
         line = `风控熔断：${halted.map((b) => b.id).join(', ')} 已平仓观望`;

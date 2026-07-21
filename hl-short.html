@@ -170,11 +170,11 @@
     <section class="grid md:grid-cols-2 gap-8" aria-label="账本">
         <div>
             <h3 class="section-title">我的仓位</h3>
-            <p class="section-sub">纸面仓，按目标比例缩放</p>
+            <p class="section-sub">纸面仓 = 目标仓 × (我的余额 / 目标净值) × 杠杆系数</p>
             <div class="mt-3 overflow-x-auto">
                 <table class="data-table" id="tbl-paper-pos">
                     <thead>
-                        <tr><th>来源</th><th>币</th><th>仓位(U)</th><th>开仓</th><th>浮盈</th></tr>
+                        <tr><th>来源</th><th>币</th><th>仓位(U)</th><th>比例</th><th>浮盈</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -277,11 +277,12 @@ function renderPaper(paper) {
     document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => {
         const mark = p.mark_px != null ? p.mark_px : p.entry_px;
         const up = Number(p.u_pnl);
+        const ratio = p.copy_ratio != null ? (Number(p.copy_ratio) * 100).toFixed(3) + '%' : '—';
         return `<tr>
         <td>${p.source || '—'}</td>
         <td class="font-medium">${p.coin}</td>
         <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
-        <td>${p.entry_px}</td>
+        <td class="mono">${ratio}</td>
         <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
     </tr>`;
     }).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
@@ -338,7 +339,10 @@ function renderCopyStatus(st) {
         return;
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
-    let line = 'WS 盯目标成交，按比例记入纸面账本。不下真单。';
+    let line = '仓位按比例镜像目标：我的余额 / 目标净值 × 杠杆系数。不下真单。';
+    if (st.config && st.config.leverage_adjustment != null) {
+        line = `跟单比例系数 ${st.config.leverage_adjustment} · 余额基准同步目标仓位。不下真单。`;
+    }
     if (st.last_fill_at) {
         line = `最近跟到 ${String(st.last_fill_at).replace('T', ' ').slice(0, 19)} UTC`
             + (st.last_wallet ? ` · ${st.last_wallet}` : '');

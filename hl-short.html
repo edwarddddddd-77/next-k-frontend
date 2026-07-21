@@ -38,46 +38,148 @@
         };
     </script>
     <style>
+        .desk-main { max-width: 72rem; margin: 0 auto; padding: 0.65rem 1rem 1.25rem; }
+        .desk-stack { display: flex; flex-direction: column; gap: 0.7rem; }
         .focus-hero {
-            border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+            border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--border));
             border-radius: var(--radius-lg);
             background:
-                radial-gradient(ellipse 80% 70% at 12% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 55%),
-                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 70%, var(--surface)) 0%, var(--surface) 100%);
-            padding: 1.35rem 1.5rem;
+                radial-gradient(ellipse 70% 80% at 0% 0%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 50%),
+                linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 55%, var(--surface)) 0%, var(--surface) 100%);
+            padding: 0.85rem 1rem;
         }
+        .hero-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem 1rem;
+        }
+        .panel-kicker { font-size: 0.625rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+        .panel-title { font-family: "Noto Serif SC", Georgia, serif; font-size: 1.15rem; font-weight: 600; line-height: 1.25; margin-top: 0.1rem; }
+        .panel-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem; }
         .metric-chip {
             display: inline-flex;
             align-items: center;
-            gap: 0.35rem;
-            padding: 0.2rem 0.55rem;
+            gap: 0.3rem;
+            padding: 0.15rem 0.45rem;
             border-radius: var(--radius-sm);
             border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
             background: color-mix(in srgb, var(--surface-light) 40%, transparent);
             font-size: 0.6875rem;
             color: var(--text-secondary);
+            line-height: 1.2;
         }
-        .stat {
-            min-width: 7rem;
+        .bot-card {
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            border-radius: var(--radius-md);
+            background: color-mix(in srgb, var(--surface) 92%, var(--surface-light));
+            padding: 0.55rem 0.7rem;
+        }
+        .bot-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+        .bot-card-name { font-family: "Noto Serif SC", Georgia, serif; font-size: 0.9rem; font-weight: 600; }
+        .bot-card-meta { font-size: 0.65rem; color: var(--text-muted); }
+        .bot-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.35rem 0.5rem;
         }
         .stat-label {
-            font-size: 0.625rem;
-            letter-spacing: 0.06em;
+            font-size: 0.58rem;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
             color: var(--text-muted);
         }
         .stat-value {
             font-family: "Noto Serif SC", Georgia, serif;
-            font-size: 1.35rem;
-            line-height: 1.2;
-            margin-top: 0.2rem;
+            font-size: 0.95rem;
+            line-height: 1.15;
+            margin-top: 0.05rem;
+            font-variant-numeric: tabular-nums;
         }
-        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
-        .data-table thead th {
-            padding: 0.5rem 0.55rem;
-            font-size: 0.625rem;
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.45rem;
+        }
+        .section-title {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 0.92rem;
             font-weight: 600;
+        }
+        .section-sub { font-size: 0.7rem; color: var(--text-muted); }
+        .block-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+        @media (min-width: 720px) {
+            .block-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (min-width: 1100px) {
+            .block-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (min-width: 1400px) {
+            .desk-main { max-width: 84rem; }
+            .block-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        }
+        .strategy-block {
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            padding: 0.4rem 0.45rem 0.3rem;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .strategy-block-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.4rem;
+            padding: 0 0.1rem;
+        }
+        .strategy-block-title {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .strategy-block-meta { font-size: 0.62rem; color: var(--text-muted); }
+        .panel-label {
+            font-size: 0.58rem;
             letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 0.1rem 0.15rem;
+        }
+        .scroll-panel {
+            max-height: 9.5rem;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+        }
+        .scroll-panel.fills { max-height: 10.5rem; }
+        .scroll-panel .data-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 1;
+        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; table-layout: fixed; }
+        .data-table thead th {
+            padding: 0.35rem 0.4rem;
+            font-size: 0.58rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
             color: var(--text-muted);
             text-align: left;
@@ -85,21 +187,22 @@
             white-space: nowrap;
         }
         .data-table tbody td {
-            padding: 0.45rem 0.55rem;
-            border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+            padding: 0.32rem 0.4rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
             vertical-align: middle;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        .data-table tbody tr:last-child td { border-bottom: none; }
         .data-table .num {
             text-align: right;
             font-variant-numeric: tabular-nums;
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 0.7rem;
+            font-size: 0.68rem;
         }
         .data-table thead th.num { text-align: right; }
-        .data-table .coin { width: 18%; font-weight: 500; }
+        .data-table .coin { font-weight: 500; }
         .tbl-pos col.c-coin { width: 18%; }
         .tbl-pos col.c-sz { width: 34%; }
         .tbl-pos col.c-lev { width: 18%; }
@@ -112,56 +215,27 @@
         .tbl-fills col.c-pnl { width: 18%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
-        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.7rem; font-variant-numeric: tabular-nums; }
-        .section-title {
-            font-family: "Noto Serif SC", Georgia, serif;
-            font-size: 1rem;
-            font-weight: 600;
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+        #bots-strip {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.7rem;
         }
-        .section-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
-        .strategy-block {
-            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-            border-radius: var(--radius-md, 8px);
-            background: color-mix(in srgb, var(--surface-light) 35%, var(--surface));
-            padding: 0.85rem 1rem 0.75rem;
+        @media (min-width: 900px) {
+            #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
         }
-        .strategy-block + .strategy-block { margin-top: 0.85rem; }
-        .strategy-block-head {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 0.75rem;
-            margin-bottom: 0.55rem;
-        }
-        .strategy-block-title {
-            font-family: "Noto Serif SC", Georgia, serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-        .strategy-block-meta {
-            font-size: 0.6875rem;
-            color: var(--text-muted);
-        }
-        .scroll-panel {
-            max-height: 16.5rem;
-            overflow: auto;
-            -webkit-overflow-scrolling: touch;
-            border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-        }
-        .scroll-panel .data-table thead th {
-            position: sticky;
-            top: 0;
-            background: var(--surface);
-            z-index: 1;
+        @media (min-width: 640px) and (max-width: 899px) {
+            #bots-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
     </style>
 </head>
 <body class="min-h-screen">
 <header class="app-header sticky top-0 z-50">
-    <div class="max-w-5xl mx-auto px-4 py-2.5">
-        <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-4 min-w-0">
-                <div class="flex items-center gap-2.5 shrink-0">
+    <div class="desk-main" style="padding-top:0.55rem;padding-bottom:0.55rem;">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="flex items-center gap-2 shrink-0">
                     <div class="brand-mark" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -172,13 +246,13 @@
                         <div class="brand-subtitle hidden sm:block">映仓台</div>
                     </div>
                 </div>
-                <nav class="hidden sm:flex items-center gap-1.5 ml-2">
+                <nav class="hidden sm:flex items-center gap-1 ml-1">
                     <a class="nav-pill" href="index.html">观盘台</a>
                     <a class="nav-pill nav-pill-active" href="hl-short.html">映仓台</a>
                     <a class="nav-pill" href="grid.html">Next K 网格</a>
                 </nav>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-1.5 shrink-0">
                 <span id="header-bj-clock" class="header-clock hidden sm:inline" title="北京时间">--:-- 北京</span>
                 <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">刷新</button>
                 <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
@@ -189,45 +263,28 @@
     </div>
 </header>
 
-<main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+<main class="desk-main desk-stack">
     <section class="focus-hero" aria-label="策略桌面">
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="hero-top">
             <div>
                 <div class="panel-kicker">Paper · Hyperliquid</div>
-                <h2 class="panel-title text-xl mt-1">纸面策略桌面</h2>
-                <p id="status-line" class="panel-sub mt-1">载入中…</p>
+                <h2 class="panel-title">纸面策略桌面</h2>
+                <p id="status-line" class="panel-sub">载入中…</p>
             </div>
-            <div class="flex flex-wrap gap-2 items-center">
+            <div class="flex flex-wrap gap-1.5 items-center">
                 <span id="ws-badge" class="metric-chip">WS —</span>
                 <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置</button>
             </div>
         </div>
-        <div id="bots-strip" class="mt-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="bots-strip"></div>
     </section>
 
-    <section aria-label="仓位">
-        <h3 class="section-title">策略仓位</h3>
-        <p class="section-sub">按策略分列 · 各投 1000U</p>
-        <div id="pos-by-strategy" class="mt-3 space-y-0"></div>
-    </section>
-
-    <section aria-label="记录">
-        <h3 class="section-title">成交记录</h3>
-        <p class="section-sub">按策略分列 · 各最多 20 条 · 北京时间</p>
-        <div id="fills-by-strategy" class="mt-3 space-y-0"></div>
-    </section>
-
-    <section aria-label="策略">
-        <h3 class="section-title">策略列表</h3>
-        <p class="section-sub">纸面运行单元</p>
-        <div class="mt-3 overflow-x-auto">
-            <table class="data-table" id="tbl-targets">
-                <thead>
-                    <tr><th>策略</th><th>状态</th><th>纸面权益</th></tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+    <section aria-label="策略明细">
+        <div class="section-head">
+            <h3 class="section-title">策略明细</h3>
+            <p class="section-sub">仓位 + 成交 · 各最多 20 条</p>
         </div>
+        <div id="strategy-desk" class="block-grid"></div>
     </section>
 </main>
 
@@ -403,82 +460,61 @@ function renderPaper(paper) {
         const nested = botPositions(paper, b);
         const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
         const nPos = nested.length;
-        return `<div class="rounded border border-border bg-surface/80 p-3">
-            <div class="flex justify-between gap-2 items-start">
+        return `<div class="bot-card">
+            <div class="bot-card-top">
                 <div>
-                    <div class="font-serif text-base">${botLabel(b.id)}${halted}</div>
-                    <div class="text-text-muted text-xs mt-0.5">${nPos} 个持仓</div>
+                    <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
+                    <div class="bot-card-meta">${nPos} 仓</div>
                 </div>
-                <span class="metric-chip">纸面</span>
             </div>
-            <div class="mt-3 flex flex-wrap gap-5">
-                <div class="stat"><div class="stat-label">权益</div><div class="stat-value text-lg">${fmtUsd(b.equity)}</div></div>
-                <div class="stat"><div class="stat-label">浮盈</div><div class="stat-value text-lg ${upnl2 >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnl2)}</div></div>
-                <div class="stat"><div class="stat-label">已实现</div><div class="stat-value text-lg">${fmtUsd(b.realized_pnl)}</div></div>
+            <div class="bot-stats">
+                <div><div class="stat-label">权益</div><div class="stat-value">${fmtUsd(b.equity)}</div></div>
+                <div><div class="stat-label">浮盈</div><div class="stat-value ${upnl2 >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnl2)}</div></div>
+                <div><div class="stat-label">已实现</div><div class="stat-value">${fmtUsd(b.realized_pnl)}</div></div>
             </div>
         </div>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
 
-    document.getElementById('pos-by-strategy').innerHTML = bots.map((b) => {
+    document.getElementById('strategy-desk').innerHTML = bots.map((b) => {
         const positions = botPositions(paper, b);
-        return `<div class="strategy-block">
-            <div class="strategy-block-head">
-                <div class="strategy-block-title">${botLabel(b.id)}</div>
-                <div class="strategy-block-meta">${positions.length} 仓</div>
-            </div>
-            <div class="scroll-panel">
-                <table class="data-table tbl-pos">
-                    <colgroup>
-                        <col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
-                    </colgroup>
-                    <thead><tr>
-                        <th>币</th><th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
-                    </tr></thead>
-                    <tbody>${posRowsHtml(positions)}</tbody>
-                </table>
-            </div>
-        </div>`;
-    }).join('') || '<p class="text-text-muted text-sm">暂无仓位</p>';
-
-    document.getElementById('fills-by-strategy').innerHTML = bots.map((b) => {
         const fills = botFills(paper, b);
         return `<div class="strategy-block">
             <div class="strategy-block-head">
                 <div class="strategy-block-title">${botLabel(b.id)}</div>
-                <div class="strategy-block-meta">近 ${fills.length} / ${FILL_LIMIT}</div>
+                <div class="strategy-block-meta">${positions.length} 仓 · ${fills.length} 笔</div>
             </div>
-            <div class="scroll-panel">
-                <table class="data-table tbl-fills">
-                    <colgroup>
-                        <col class="c-ts" /><col class="c-act" /><col class="c-coin" />
-                        <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
-                    </colgroup>
-                    <thead><tr>
-                        <th>时间</th><th>动作</th><th>币</th>
-                        <th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>
-                    </tr></thead>
-                    <tbody>${fillRowsHtml(fills)}</tbody>
-                </table>
+            <div>
+                <div class="panel-label">仓位</div>
+                <div class="scroll-panel">
+                    <table class="data-table tbl-pos">
+                        <colgroup>
+                            <col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                        </colgroup>
+                        <thead><tr>
+                            <th>币</th><th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
+                        </tr></thead>
+                        <tbody>${posRowsHtml(positions)}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div>
+                <div class="panel-label">成交</div>
+                <div class="scroll-panel fills">
+                    <table class="data-table tbl-fills">
+                        <colgroup>
+                            <col class="c-ts" /><col class="c-act" /><col class="c-coin" />
+                            <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                        </colgroup>
+                        <thead><tr>
+                            <th>时间</th><th>动作</th><th>币</th>
+                            <th class="num">名义</th><th class="num">杠杆</th><th class="num">盈亏</th>
+                        </tr></thead>
+                        <tbody>${fillRowsHtml(fills)}</tbody>
+                    </table>
+                </div>
             </div>
         </div>`;
-    }).join('') || '<p class="text-text-muted text-sm">暂无成交</p>';
-}
-
-function renderTargets(board, paper) {
-    const wallets = board.wallets || [];
-    const bots = (paper && paper.bots) || {};
-    document.querySelector('#tbl-targets tbody').innerHTML = wallets.map((row) => {
-        const m = row.meta || {};
-        const bid = m.id;
-        const bot = bots[bid] || Object.values(bots).find((b) => b.id === bid) || {};
-        const nPos = Object.keys(bot.positions || {}).length;
-        const live = nPos > 0 ? '持仓中' : '待命';
-        return `<tr>
-            <td class="font-medium">${botLabel(bid)}</td>
-            <td>${live}</td>
-            <td>${fmtUsd(bot.equity != null ? bot.equity : 1000)}</td>
-        </tr>`;
-    }).join('') || '<tr><td colspan="3" class="text-text-muted">无策略</td></tr>';
+    }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
 }
 
 function renderCopyStatus(st) {
@@ -489,18 +525,12 @@ function renderCopyStatus(st) {
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0}` : 'WS 离线';
     const n = (st.paper && st.paper.bot_count) || ((st.paper && st.paper.bots) || []).length || 0;
-    let line = `${n} 个纸面策略 · 各 1000U`;
+    let line = `${n} 策略 · 各 1000U`;
     const halted = ((st.paper && st.paper.bots) || []).filter((b) => b.risk_halted);
     if (halted.length) {
-        line = `风控熔断：${halted.map((b) => botLabel(b.id)).join(', ')}`;
+        line = `熔断：${halted.map((b) => botLabel(b.id)).join(', ')}`;
     }
     document.getElementById('status-line').textContent = line;
-}
-
-async function fetchBoard(refresh) {
-    const res = await fetch(`${API}/api/hl-short/board${refresh ? '?refresh=true' : ''}`);
-    if (!res.ok) throw new Error('board ' + res.status);
-    return res.json();
 }
 
 async function fetchPaper(mark) {
@@ -523,13 +553,11 @@ async function loadAll(refresh) {
         pollTick += 1;
         // Mark mids at most every 3rd poll (~45s) or on manual refresh
         const wantMark = !!refresh || (pollTick % 3 === 0);
-        const [board, paper, st] = await Promise.all([
-            fetchBoard(!!refresh),
+        const [paper, st] = await Promise.all([
             fetchPaper(wantMark),
             fetchCopyStatus(),
         ]);
         renderPaper(paper);
-        renderTargets(board, paper);
         renderCopyStatus(st);
         setStatus(true, '已连接');
     } catch (err) {

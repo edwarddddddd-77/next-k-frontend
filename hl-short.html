@@ -139,7 +139,7 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <div class="panel-kicker">Paper Copy · Hyperliquid</div>
-                <h2 class="panel-title text-xl mt-1">模拟跟单</h2>
+                <h2 class="panel-title text-xl mt-1">双机器人完美跟单</h2>
                 <p id="status-line" class="panel-sub mt-1">载入中…</p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
@@ -147,56 +147,38 @@
                 <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置</button>
             </div>
         </div>
-        <div class="mt-5 flex flex-wrap gap-8">
-            <div class="stat">
-                <div class="stat-label">权益</div>
-                <div id="paper-equity" class="stat-value">—</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">浮盈</div>
-                <div id="paper-upnl" class="stat-value">—</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">已实现</div>
-                <div id="paper-pnl" class="stat-value">—</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">持仓数</div>
-                <div id="paper-n" class="stat-value">—</div>
-            </div>
+        <div id="bots-strip" class="mt-5 grid sm:grid-cols-2 gap-4"></div>
+    </section>
+
+    <section aria-label="仓位">
+        <h3 class="section-title">机器人仓位</h3>
+        <p class="section-sub">各投 1000U · 地址开多少比例 / 多少杠杆，机器人就开多少</p>
+        <div class="mt-3 overflow-x-auto">
+            <table class="data-table" id="tbl-paper-pos">
+                <thead>
+                    <tr><th>机器人</th><th>币</th><th>仓位(U)</th><th>杠杆</th><th>浮盈</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </section>
 
-    <section class="grid md:grid-cols-2 gap-8" aria-label="账本">
-        <div>
-            <h3 class="section-title">我的仓位</h3>
-            <p class="section-sub">完全跟单：我的仓位 / 我的余额 = 目标仓位 / 目标净值（再套风控上限）</p>
-            <div class="mt-3 overflow-x-auto">
-                <table class="data-table" id="tbl-paper-pos">
-                    <thead>
-                        <tr><th>来源</th><th>币</th><th>仓位(U)</th><th>比例</th><th>浮盈</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-        <div>
-            <h3 class="section-title">跟单记录</h3>
-            <p class="section-sub">最近模拟成交</p>
-            <div class="mt-3 overflow-x-auto">
-                <table class="data-table" id="tbl-paper-fills">
-                    <thead>
-                        <tr><th>时间</th><th>动作</th><th>币</th><th>名义(U)</th><th>盈亏</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+    <section aria-label="记录">
+        <h3 class="section-title">跟单记录</h3>
+        <p class="section-sub">开平同步日志</p>
+        <div class="mt-3 overflow-x-auto">
+            <table class="data-table" id="tbl-paper-fills">
+                <thead>
+                    <tr><th>时间</th><th>机器人</th><th>动作</th><th>币</th><th>名义(U)</th><th>杠杆</th><th>盈亏</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </section>
 
     <section aria-label="跟谁">
-        <h3 class="section-title">跟单目标</h3>
-        <p class="section-sub">只读监控，有成交才记入上方账本</p>
+        <h3 class="section-title">绑定地址</h3>
+        <p class="section-sub">一机器人一地址</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-targets">
                 <thead>
@@ -260,54 +242,74 @@ function fmtPosU(sz, px) {
 }
 
 function renderPaper(paper) {
-    const equity = paper.equity;
-    const pnl = paper.realized_pnl != null ? Number(paper.realized_pnl) : null;
+    const bots = Object.values(paper.bots || {});
+    const strip = document.getElementById('bots-strip');
+    strip.innerHTML = bots.map((b) => {
+        const halted = b.risk_halted ? ' · 熔断' : '';
+        const ratio = b.copy_ratio != null ? (Number(b.copy_ratio) * 100).toFixed(4) + '%' : '—';
+        const upnl = Object.values(b.positions || {}).reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
+        // when bots come from aggregate API without nested positions, compute from flat list
+        const nested = b.positions && typeof b.positions === 'object' && !Array.isArray(b.positions)
+            ? Object.values(b.positions)
+            : [];
+        const upnl2 = nested.length
+            ? nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0)
+            : (Object.values(paper.positions || {}).filter((p) => p.source === b.id)
+                .reduce((s, p) => s + (Number(p.u_pnl) || 0), 0));
+        return `<div class="rounded border border-border bg-surface/80 p-3">
+            <div class="flex justify-between gap-2 items-start">
+                <div>
+                    <div class="font-serif text-base">${b.id || 'bot'}${halted}</div>
+                    <div class="mono text-text-muted mt-0.5">${shortAddr(b.address)}</div>
+                </div>
+                <span class="metric-chip">比例 ${ratio}</span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-5">
+                <div class="stat"><div class="stat-label">权益</div><div class="stat-value text-lg">${fmtUsd(b.equity)}</div></div>
+                <div class="stat"><div class="stat-label">浮盈</div><div class="stat-value text-lg ${upnl2 >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnl2)}</div></div>
+                <div class="stat"><div class="stat-label">已实现</div><div class="stat-value text-lg">${fmtUsd(b.realized_pnl)}</div></div>
+            </div>
+        </div>`;
+    }).join('') || '<p class="text-text-muted text-sm">暂无机器人</p>';
+
     const positions = Object.values(paper.positions || {});
-    const upnl = positions.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
-
-    document.getElementById('paper-equity').textContent = fmtUsd(equity);
-    const upnlEl = document.getElementById('paper-upnl');
-    upnlEl.textContent = fmtUsd(upnl);
-    upnlEl.className = 'stat-value ' + (upnl >= 0 ? 'pos' : 'neg');
-    const pnlEl = document.getElementById('paper-pnl');
-    pnlEl.textContent = fmtUsd(pnl);
-    pnlEl.className = 'stat-value ' + (pnl == null ? '' : (pnl >= 0 ? 'pos' : 'neg'));
-    document.getElementById('paper-n').textContent = String(positions.length);
-
     document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => {
         const mark = p.mark_px != null ? p.mark_px : p.entry_px;
         const up = Number(p.u_pnl);
-        const ratio = p.copy_ratio != null ? (Number(p.copy_ratio) * 100).toFixed(3) + '%' : '—';
+        const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
         return `<tr>
-        <td>${p.source || '—'}</td>
-        <td class="font-medium">${p.coin}</td>
-        <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
-        <td class="mono">${ratio}</td>
-        <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
-    </tr>`;
+            <td>${p.source || '—'}</td>
+            <td class="font-medium">${p.coin}</td>
+            <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
+            <td>${lev}</td>
+            <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
+        </tr>`;
     }).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
 
-    const fills = (paper.fills || []).filter((f) => !f.skipped).slice(0, 20);
+    const fills = (paper.fills || []).filter((f) => !f.skipped && f.action !== 'signal').slice(0, 30);
     document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
         const ts = (f.ts || '').replace('T', ' ').slice(11, 19);
-        const isOpen = f.action === 'open' || f.action === 'add';
+        const isOpen = String(f.action || '').includes('open');
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        const sell = f.side === 'sell';
+        const sell = f.side === 'sell' || String(f.action || '').includes('close');
         const notionLabel = !notion
             ? '—'
             : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
         const pnlCell = isOpen
             ? '<span class="text-text-muted">—</span>'
             : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
         return `<tr>
             <td class="mono">${ts || '—'}</td>
+            <td>${f.source || '—'}</td>
             <td>${f.action || f.side || '—'}</td>
-            <td>${f.coin}</td>
+            <td>${f.coin || '—'}</td>
             <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
+            <td>${lev}</td>
             <td>${pnlCell}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="5" class="text-text-muted">等待成交</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="text-text-muted">等待同步</td></tr>';
 }
 
 function renderTargets(board) {
@@ -317,11 +319,12 @@ function renderTargets(board) {
         const s = row.snapshot || {};
         const url = m.hl_url || `https://app.hyperliquid.xyz/explorer/address/${m.address}`;
         const pos = (s.positions || []).map((p) => {
-            return `${p.coin} <span class="${sideClass(p.szi)}">${fmtPosU(p.szi, p.entry)}</span>`;
+            const lev = p.lev != null ? ` ${p.lev}x` : '';
+            return `${p.coin} <span class="${sideClass(p.szi)}">${fmtPosU(p.szi, p.entry)}</span>${lev}`;
         }).join(' · ') || '空仓';
         return `<tr>
             <td>
-                <div class="font-medium">${m.id || shortAddr(m.address)}</div>
+                <div class="font-medium">机器人 → ${m.id || shortAddr(m.address)}</div>
                 <div class="mono text-text-muted">${shortAddr(m.address)}</div>
             </td>
             <td class="pos">${fmtPct(m.est_winrate)}</td>
@@ -339,20 +342,11 @@ function renderCopyStatus(st) {
         return;
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
-    let line = '完全按比例跟单：对方开仓占其净值多少，我们按自己余额开同样比例。';
-    if (st.config) {
-        const scale = st.config.copy_scale ?? st.config.leverage_adjustment ?? 1;
-        const gross = st.config.max_gross_lev ?? '—';
-        line = `跟单系数 ${scale} · 总敞口≤${gross}x · 单笔≤${st.config.max_pos_pct ?? '—'}x · 日亏熔断 ${((st.config.daily_loss_pct || 0) * 100).toFixed(0)}%`;
-    }
-    if (st.paper && st.paper.risk_halted) {
-        line = '风控熔断：已平仓观望（日亏损超限）';
-    }
-    if (st.last_fill_at) {
-        line = `最近跟到 ${String(st.last_fill_at).replace('T', ' ').slice(0, 19)} UTC`
-            + (st.last_wallet ? ` · ${st.last_wallet}` : '');
-    } else if (st.running) {
-        line = '已连接，等待目标成交…';
+    const n = (st.paper && st.paper.bot_count) || ((st.paper && st.paper.bots) || []).length || 2;
+    let line = `${n} 个机器人各 1000U，一对一绑定地址，仓位比例与杠杆完全跟随。`;
+    const halted = ((st.paper && st.paper.bots) || []).filter((b) => b.risk_halted);
+    if (halted.length) {
+        line = `风控熔断：${halted.map((b) => b.id).join(', ')} 已平仓观望`;
     }
     document.getElementById('status-line').textContent = line;
 }

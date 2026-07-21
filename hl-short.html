@@ -135,11 +135,11 @@
 </header>
 
 <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
-    <section class="focus-hero" aria-label="模拟仓">
+    <section class="focus-hero" aria-label="策略桌面">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <div class="panel-kicker">Paper · Hyperliquid</div>
-                <h2 class="panel-title text-xl mt-1">双机器人 · 比例镜像</h2>
+                <h2 class="panel-title text-xl mt-1">双机器人桌面</h2>
                 <p id="status-line" class="panel-sub mt-1">载入中…</p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
@@ -152,7 +152,7 @@
 
     <section aria-label="仓位">
         <h3 class="section-title">机器人仓位</h3>
-        <p class="section-sub">各投 1000U · 完全镜像对方仓位 × 余额比例</p>
+        <p class="section-sub">各投 1000U · 独立账本</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-paper-pos">
                 <thead>
@@ -165,7 +165,7 @@
 
     <section aria-label="记录">
         <h3 class="section-title">成交记录</h3>
-        <p class="section-sub">开平同步日志</p>
+        <p class="section-sub">开平日志</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-paper-fills">
                 <thead>
@@ -176,13 +176,13 @@
         </div>
     </section>
 
-    <section aria-label="绑定">
-        <h3 class="section-title">绑定地址</h3>
-        <p class="section-sub">一机器人一地址</p>
+    <section aria-label="策略">
+        <h3 class="section-title">策略列表</h3>
+        <p class="section-sub">纸面运行单元</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-targets">
                 <thead>
-                    <tr><th>目标</th><th>胜率</th><th>账户</th><th>持仓(U)</th><th></th></tr>
+                    <tr><th>策略</th><th>状态</th><th>纸面权益</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -209,16 +209,6 @@ function fmtUsd(n) {
     return (v < 0 ? '-$' : '$') + abs;
 }
 
-function fmtPct(n) {
-    if (n == null || Number.isNaN(Number(n))) return '—';
-    return (Number(n) * 100).toFixed(0) + '%';
-}
-
-function shortAddr(a) {
-    if (!a) return '—';
-    return a.slice(0, 6) + '…' + a.slice(-4);
-}
-
 function sideClass(szi) {
     const n = Number(szi);
     if (n > 0) return 'pos';
@@ -240,12 +230,16 @@ function fmtPosU(sz, px) {
     return sign + '$' + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
+function botLabel(id) {
+    const map = { wr94_hype: '策略 A', wr72_multi: '策略 B' };
+    return map[id] || id || '策略';
+}
+
 function renderPaper(paper) {
     const bots = Object.values(paper.bots || {});
     const strip = document.getElementById('bots-strip');
     strip.innerHTML = bots.map((b) => {
         const halted = b.risk_halted ? ' · 熔断' : '';
-        const ratio = b.copy_ratio != null ? (Number(b.copy_ratio) * 100).toFixed(4) + '%' : '—';
         const nested = b.positions && typeof b.positions === 'object' && !Array.isArray(b.positions)
             ? Object.values(b.positions)
             : [];
@@ -253,13 +247,15 @@ function renderPaper(paper) {
             ? nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0)
             : (Object.values(paper.positions || {}).filter((p) => p.source === b.id)
                 .reduce((s, p) => s + (Number(p.u_pnl) || 0), 0));
+        const nPos = nested.length
+            || Object.values(paper.positions || {}).filter((p) => p.source === b.id).length;
         return `<div class="rounded border border-border bg-surface/80 p-3">
             <div class="flex justify-between gap-2 items-start">
                 <div>
-                    <div class="font-serif text-base">${b.id || 'bot'}${halted}</div>
-                    <div class="mono text-text-muted mt-0.5">${shortAddr(b.address)}</div>
+                    <div class="font-serif text-base">${botLabel(b.id)}${halted}</div>
+                    <div class="text-text-muted text-xs mt-0.5">${nPos} 个持仓</div>
                 </div>
-                <span class="metric-chip">比例 ${ratio}</span>
+                <span class="metric-chip">纸面</span>
             </div>
             <div class="mt-3 flex flex-wrap gap-5">
                 <div class="stat"><div class="stat-label">权益</div><div class="stat-value text-lg">${fmtUsd(b.equity)}</div></div>
@@ -267,7 +263,7 @@ function renderPaper(paper) {
                 <div class="stat"><div class="stat-label">已实现</div><div class="stat-value text-lg">${fmtUsd(b.realized_pnl)}</div></div>
             </div>
         </div>`;
-    }).join('') || '<p class="text-text-muted text-sm">暂无机器人</p>';
+    }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
 
     const positions = Object.values(paper.positions || {});
     document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => {
@@ -275,7 +271,7 @@ function renderPaper(paper) {
         const up = Number(p.u_pnl);
         const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
         return `<tr>
-            <td>${p.source || '—'}</td>
+            <td>${botLabel(p.source)}</td>
             <td class="font-medium">${p.coin}</td>
             <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
             <td>${lev}</td>
@@ -300,37 +296,31 @@ function renderPaper(paper) {
             : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
         return `<tr>
             <td class="mono">${ts || '—'}</td>
-            <td>${f.source || '—'}</td>
+            <td>${botLabel(f.source)}</td>
             <td>${f.action || f.side || '—'}</td>
             <td>${f.coin || '—'}</td>
             <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
             <td>${lev}</td>
             <td>${pnlCell}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-text-muted">等待真实成交</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="text-text-muted">暂无成交</td></tr>';
 }
 
-function renderTargets(board) {
+function renderTargets(board, paper) {
     const wallets = board.wallets || [];
+    const bots = (paper && paper.bots) || {};
     document.querySelector('#tbl-targets tbody').innerHTML = wallets.map((row) => {
         const m = row.meta || {};
-        const s = row.snapshot || {};
-        const url = m.hl_url || `https://app.hyperliquid.xyz/explorer/address/${m.address}`;
-        const pos = (s.positions || []).map((p) => {
-            const lev = p.lev != null ? ` ${p.lev}x` : '';
-            return `${p.coin} <span class="${sideClass(p.szi)}">${fmtPosU(p.szi, p.entry)}</span>${lev}`;
-        }).join(' · ') || '空仓';
+        const bid = m.id;
+        const bot = bots[bid] || Object.values(bots).find((b) => b.id === bid) || {};
+        const nPos = Object.keys(bot.positions || {}).length;
+        const live = nPos > 0 ? '持仓中' : '待命';
         return `<tr>
-            <td>
-                <div class="font-medium">${m.id || shortAddr(m.address)}</div>
-                <div class="mono text-text-muted">${shortAddr(m.address)}</div>
-            </td>
-            <td class="pos">${fmtPct(m.est_winrate)}</td>
-            <td>${fmtUsd(s.account_value)}</td>
-            <td class="text-text-secondary">${pos}</td>
-            <td><a class="metric-chip hover:border-gold/40" href="${url}" target="_blank" rel="noopener">查看</a></td>
+            <td class="font-medium">${botLabel(bid)}</td>
+            <td>${live}</td>
+            <td>${fmtUsd(bot.equity != null ? bot.equity : 1000)}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="5" class="text-text-muted">无目标</td></tr>';
+    }).join('') || '<tr><td colspan="3" class="text-text-muted">无策略</td></tr>';
 }
 
 function renderCopyStatus(st) {
@@ -339,12 +329,12 @@ function renderCopyStatus(st) {
         ws.textContent = 'WS —';
         return;
     }
-    ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
+    ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0}` : 'WS 离线';
     const n = (st.paper && st.paper.bot_count) || ((st.paper && st.paper.bots) || []).length || 2;
-    let line = `${n} 个机器人各 1000U，一对一绑定，比例仓 + 同杠杆。`;
+    let line = `${n} 个纸面策略 · 各 1000U`;
     const halted = ((st.paper && st.paper.bots) || []).filter((b) => b.risk_halted);
     if (halted.length) {
-        line = `风控熔断：${halted.map((b) => b.id).join(', ')} 已平仓观望`;
+        line = `风控熔断：${halted.map((b) => botLabel(b.id)).join(', ')}`;
     }
     document.getElementById('status-line').textContent = line;
 }
@@ -355,8 +345,9 @@ async function fetchBoard(refresh) {
     return res.json();
 }
 
-async function fetchPaper() {
-    const res = await fetch(`${API}/api/hl-short/paper`);
+async function fetchPaper(mark) {
+    const q = mark ? '?mark=true' : '';
+    const res = await fetch(`${API}/api/hl-short/paper${q}`);
     if (!res.ok) throw new Error('paper ' + res.status);
     return res.json();
 }
@@ -367,15 +358,20 @@ async function fetchCopyStatus() {
     return res.json();
 }
 
+let pollTick = 0;
+
 async function loadAll(refresh) {
     try {
+        pollTick += 1;
+        // Mark mids at most every 3rd poll (~45s) or on manual refresh
+        const wantMark = !!refresh || (pollTick % 3 === 0);
         const [board, paper, st] = await Promise.all([
             fetchBoard(!!refresh),
-            fetchPaper(),
+            fetchPaper(wantMark),
             fetchCopyStatus(),
         ]);
         renderPaper(paper);
-        renderTargets(board);
+        renderTargets(board, paper);
         renderCopyStatus(st);
         setStatus(true, '已连接');
     } catch (err) {
@@ -398,7 +394,7 @@ document.getElementById('btn-paper-reset').addEventListener('click', async () =>
 });
 
 loadAll(true);
-pollTimer = setInterval(() => loadAll(false), 5000);
+pollTimer = setInterval(() => loadAll(false), 15000);
 </script>
 </body>
 </html>

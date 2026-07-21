@@ -170,7 +170,7 @@
             <div class="mt-3 overflow-x-auto">
                 <table class="data-table" id="tbl-paper-pos">
                     <thead>
-                        <tr><th>来源</th><th>币</th><th>仓位</th><th>开仓</th><th>浮盈</th></tr>
+                        <tr><th>来源</th><th>币</th><th>仓位(U)</th><th>开仓</th><th>浮盈</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -182,7 +182,7 @@
             <div class="mt-3 overflow-x-auto">
                 <table class="data-table" id="tbl-paper-fills">
                     <thead>
-                        <tr><th>时间</th><th>动作</th><th>币</th><th>数量</th><th>盈亏</th></tr>
+                        <tr><th>时间</th><th>动作</th><th>币</th><th>名义(U)</th><th>盈亏</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -196,7 +196,7 @@
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-targets">
                 <thead>
-                    <tr><th>目标</th><th>胜率</th><th>账户</th><th>持仓</th><th></th></tr>
+                    <tr><th>目标</th><th>胜率</th><th>账户</th><th>持仓(U)</th><th></th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -240,6 +240,21 @@ function sideClass(szi) {
     return '';
 }
 
+/** Signed notional in U (USDT). Long +, short -. */
+function notionalU(sz, px) {
+    const s = Number(sz);
+    const p = Number(px);
+    if (!Number.isFinite(s) || !Number.isFinite(p) || p <= 0) return null;
+    return s * p;
+}
+
+function fmtPosU(sz, px) {
+    const n = notionalU(sz, px);
+    if (n == null) return '—';
+    const sign = n > 0 ? '+' : (n < 0 ? '-' : '');
+    return sign + '$' + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
 function renderPaper(paper) {
     const equity = paper.equity;
     const pnl = paper.realized_pnl != null ? Number(paper.realized_pnl) : null;
@@ -254,7 +269,7 @@ function renderPaper(paper) {
     document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => `<tr>
         <td>${p.source || '—'}</td>
         <td class="font-medium">${p.coin}</td>
-        <td class="${sideClass(p.sz)}">${Number(p.sz).toPrecision(4)}</td>
+        <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, p.entry_px)}</td>
         <td>${p.entry_px}</td>
         <td class="${Number(p.u_pnl) >= 0 ? 'pos' : 'neg'}">${fmtUsd(p.u_pnl)}</td>
     </tr>`).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
@@ -263,11 +278,16 @@ function renderPaper(paper) {
     document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
         const ts = (f.ts || '').replace('T', ' ').slice(11, 19);
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
+        const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
+        const sell = f.side === 'sell';
+        const notionLabel = !notion
+            ? '—'
+            : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
         return `<tr>
             <td class="mono">${ts || '—'}</td>
             <td>${f.action || f.side || '—'}</td>
             <td>${f.coin}</td>
-            <td>${f.our_sz}</td>
+            <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
             <td class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</td>
         </tr>`;
     }).join('') || '<tr><td colspan="5" class="text-text-muted">等待成交</td></tr>';
@@ -280,9 +300,8 @@ function renderTargets(board) {
         const s = row.snapshot || {};
         const url = m.hl_url || `https://app.hyperliquid.xyz/explorer/address/${m.address}`;
         const pos = (s.positions || []).map((p) => {
-            const dir = Number(p.szi) >= 0 ? '+' : '';
-            return `${p.coin} ${dir}${Number(p.szi).toPrecision(3)}`;
-        }).join(', ') || '空仓';
+            return `${p.coin} <span class="${sideClass(p.szi)}">${fmtPosU(p.szi, p.entry)}</span>`;
+        }).join(' · ') || '空仓';
         return `<tr>
             <td>
                 <div class="font-medium">${m.id || shortAddr(m.address)}</div>

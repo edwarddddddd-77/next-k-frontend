@@ -153,6 +153,10 @@
                 <div id="paper-equity" class="stat-value">—</div>
             </div>
             <div class="stat">
+                <div class="stat-label">浮盈</div>
+                <div id="paper-upnl" class="stat-value">—</div>
+            </div>
+            <div class="stat">
                 <div class="stat-label">已实现</div>
                 <div id="paper-pnl" class="stat-value">—</div>
             </div>
@@ -259,36 +263,48 @@ function renderPaper(paper) {
     const equity = paper.equity;
     const pnl = paper.realized_pnl != null ? Number(paper.realized_pnl) : null;
     const positions = Object.values(paper.positions || {});
+    const upnl = positions.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
 
     document.getElementById('paper-equity').textContent = fmtUsd(equity);
+    const upnlEl = document.getElementById('paper-upnl');
+    upnlEl.textContent = fmtUsd(upnl);
+    upnlEl.className = 'stat-value ' + (upnl >= 0 ? 'pos' : 'neg');
     const pnlEl = document.getElementById('paper-pnl');
     pnlEl.textContent = fmtUsd(pnl);
     pnlEl.className = 'stat-value ' + (pnl == null ? '' : (pnl >= 0 ? 'pos' : 'neg'));
     document.getElementById('paper-n').textContent = String(positions.length);
 
-    document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => `<tr>
+    document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => {
+        const mark = p.mark_px != null ? p.mark_px : p.entry_px;
+        const up = Number(p.u_pnl);
+        return `<tr>
         <td>${p.source || '—'}</td>
         <td class="font-medium">${p.coin}</td>
-        <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, p.entry_px)}</td>
+        <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
         <td>${p.entry_px}</td>
-        <td class="${Number(p.u_pnl) >= 0 ? 'pos' : 'neg'}">${fmtUsd(p.u_pnl)}</td>
-    </tr>`).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
+        <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
+    </tr>`;
+    }).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
 
     const fills = (paper.fills || []).filter((f) => !f.skipped).slice(0, 20);
     document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
         const ts = (f.ts || '').replace('T', ' ').slice(11, 19);
+        const isOpen = f.action === 'open' || f.action === 'add';
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
         const sell = f.side === 'sell';
         const notionLabel = !notion
             ? '—'
             : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        const pnlCell = isOpen
+            ? '<span class="text-text-muted">—</span>'
+            : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
         return `<tr>
             <td class="mono">${ts || '—'}</td>
             <td>${f.action || f.side || '—'}</td>
             <td>${f.coin}</td>
             <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
-            <td class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</td>
+            <td>${pnlCell}</td>
         </tr>`;
     }).join('') || '<tr><td colspan="5" class="text-text-muted">等待成交</td></tr>';
 }

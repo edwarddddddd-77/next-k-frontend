@@ -72,7 +72,7 @@
             line-height: 1.2;
             margin-top: 0.2rem;
         }
-        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
         .data-table thead th {
             padding: 0.5rem 0.55rem;
             font-size: 0.625rem;
@@ -82,14 +82,37 @@
             color: var(--text-muted);
             text-align: left;
             border-bottom: 1px solid var(--border);
+            white-space: nowrap;
         }
         .data-table tbody td {
             padding: 0.45rem 0.55rem;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        .data-table .num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.7rem;
+        }
+        .data-table thead th.num { text-align: right; }
+        .data-table .coin { width: 18%; font-weight: 500; }
+        .tbl-pos col.c-coin { width: 18%; }
+        .tbl-pos col.c-sz { width: 34%; }
+        .tbl-pos col.c-lev { width: 18%; }
+        .tbl-pos col.c-pnl { width: 30%; }
+        .tbl-fills col.c-ts { width: 18%; }
+        .tbl-fills col.c-act { width: 16%; }
+        .tbl-fills col.c-coin { width: 14%; }
+        .tbl-fills col.c-sz { width: 22%; }
+        .tbl-fills col.c-lev { width: 12%; }
+        .tbl-fills col.c-pnl { width: 18%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
-        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.7rem; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.7rem; font-variant-numeric: tabular-nums; }
         .section-title {
             font-family: "Noto Serif SC", Georgia, serif;
             font-size: 1rem;
@@ -335,10 +358,10 @@ function posRowsHtml(positions) {
         const up = Number(p.u_pnl);
         const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
         return `<tr>
-            <td class="font-medium">${p.coin}</td>
-            <td class="${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
-            <td>${lev}</td>
-            <td class="${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
+            <td class="coin">${p.coin}</td>
+            <td class="num ${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
+            <td class="num">${lev}</td>
+            <td class="num ${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
         </tr>`;
     }).join('');
 }
@@ -364,10 +387,10 @@ function fillRowsHtml(fills) {
         return `<tr>
             <td class="mono">${ts || '—'}</td>
             <td>${act || f.side || '—'}</td>
-            <td>${f.coin || '—'}</td>
-            <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
-            <td>${lev}</td>
-            <td>${pnlCell}</td>
+            <td class="coin">${f.coin || '—'}</td>
+            <td class="num ${sell ? 'neg' : 'pos'}">${notionLabel}</td>
+            <td class="num">${lev}</td>
+            <td class="num">${pnlCell}</td>
         </tr>`;
     }).join('');
 }
@@ -403,9 +426,14 @@ function renderPaper(paper) {
                 <div class="strategy-block-title">${botLabel(b.id)}</div>
                 <div class="strategy-block-meta">${positions.length} 仓</div>
             </div>
-            <div class="scroll-panel overflow-x-auto">
-                <table class="data-table">
-                    <thead><tr><th>币</th><th>仓位(U)</th><th>杠杆</th><th>浮盈</th></tr></thead>
+            <div class="scroll-panel">
+                <table class="data-table tbl-pos">
+                    <colgroup>
+                        <col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                    </colgroup>
+                    <thead><tr>
+                        <th>币</th><th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
+                    </tr></thead>
                     <tbody>${posRowsHtml(positions)}</tbody>
                 </table>
             </div>
@@ -419,9 +447,16 @@ function renderPaper(paper) {
                 <div class="strategy-block-title">${botLabel(b.id)}</div>
                 <div class="strategy-block-meta">近 ${fills.length} / ${FILL_LIMIT}</div>
             </div>
-            <div class="scroll-panel overflow-x-auto">
-                <table class="data-table">
-                    <thead><tr><th>时间(北京)</th><th>动作</th><th>币</th><th>名义(U)</th><th>杠杆</th><th>盈亏</th></tr></thead>
+            <div class="scroll-panel">
+                <table class="data-table tbl-fills">
+                    <colgroup>
+                        <col class="c-ts" /><col class="c-act" /><col class="c-coin" />
+                        <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                    </colgroup>
+                    <thead><tr>
+                        <th>时间</th><th>动作</th><th>币</th>
+                        <th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>
+                    </tr></thead>
                     <tbody>${fillRowsHtml(fills)}</tbody>
                 </table>
             </div>

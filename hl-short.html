@@ -170,7 +170,7 @@
     <section class="grid md:grid-cols-2 gap-8" aria-label="账本">
         <div>
             <h3 class="section-title">我的仓位</h3>
-            <p class="section-sub">纸面仓 = 目标仓 × (我的余额 / 目标净值) × 杠杆系数</p>
+            <p class="section-sub">完全跟单：我的仓位 / 我的余额 = 目标仓位 / 目标净值（再套风控上限）</p>
             <div class="mt-3 overflow-x-auto">
                 <table class="data-table" id="tbl-paper-pos">
                     <thead>
@@ -339,9 +339,14 @@ function renderCopyStatus(st) {
         return;
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
-    let line = '仓位按比例镜像目标：我的余额 / 目标净值 × 杠杆系数。不下真单。';
-    if (st.config && st.config.leverage_adjustment != null) {
-        line = `跟单比例系数 ${st.config.leverage_adjustment} · 余额基准同步目标仓位。不下真单。`;
+    let line = '完全按比例跟单：对方开仓占其净值多少，我们按自己余额开同样比例。';
+    if (st.config) {
+        const scale = st.config.copy_scale ?? st.config.leverage_adjustment ?? 1;
+        const gross = st.config.max_gross_lev ?? '—';
+        line = `跟单系数 ${scale} · 总敞口≤${gross}x · 单笔≤${st.config.max_pos_pct ?? '—'}x · 日亏熔断 ${((st.config.daily_loss_pct || 0) * 100).toFixed(0)}%`;
+    }
+    if (st.paper && st.paper.risk_halted) {
+        line = '风控熔断：已平仓观望（日亏损超限）';
     }
     if (st.last_fill_at) {
         line = `最近跟到 ${String(st.last_fill_at).replace('T', ' ').slice(0, 19)} UTC`

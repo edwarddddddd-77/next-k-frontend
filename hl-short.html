@@ -135,24 +135,28 @@
 </header>
 
 <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
-    <section class="focus-hero" aria-label="模拟跟单">
+    <section class="focus-hero" aria-label="跟单说明">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <div class="panel-kicker">Paper Copy · Hyperliquid</div>
-                <h2 class="panel-title text-xl mt-1">双机器人完美跟单</h2>
+                <div class="panel-kicker">Copy · Hyperliquid_Copy_Trader</div>
+                <h2 class="panel-title text-xl mt-1">双机器人 · 用人家的开源跟单</h2>
                 <p id="status-line" class="panel-sub mt-1">载入中…</p>
+                <p class="panel-sub mt-2 text-sm opacity-80">
+                    执行层：<code class="text-gold/90">E:\OI mode\hl-copy-trader</code>
+                    · 各 1000U 模拟 · 比例仓 + 同杠杆 · <code>.\start_both.ps1</code>
+                </p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
                 <span id="ws-badge" class="metric-chip">WS —</span>
-                <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置</button>
+                <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer hidden" aria-hidden="true">重置</button>
             </div>
         </div>
         <div id="bots-strip" class="mt-5 grid sm:grid-cols-2 gap-4"></div>
     </section>
 
     <section aria-label="仓位">
-        <h3 class="section-title">机器人仓位</h3>
-        <p class="section-sub">各投 1000U · 地址开多少比例 / 多少杠杆，机器人就开多少</p>
+        <h3 class="section-title">看板仓位（目标钱包）</h3>
+        <p class="section-sub">本页只看目标仓；机器人模拟仓位看 hl-copy-trader 日志</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-paper-pos">
                 <thead>
@@ -164,8 +168,8 @@
     </section>
 
     <section aria-label="记录">
-        <h3 class="section-title">跟单记录</h3>
-        <p class="section-sub">开平同步日志</p>
+        <h3 class="section-title">看板事件</h3>
+        <p class="section-sub">目标钱包成交 / 仓位变化（非开源 bot 账本）</p>
         <div class="mt-3 overflow-x-auto">
             <table class="data-table" id="tbl-paper-fills">
                 <thead>
@@ -338,17 +342,13 @@ function renderTargets(board) {
 function renderCopyStatus(st) {
     const ws = document.getElementById('ws-badge');
     if (!st) {
-        ws.textContent = 'WS —';
+        ws.textContent = '看板 —';
         return;
     }
-    ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
-    const n = (st.paper && st.paper.bot_count) || ((st.paper && st.paper.bots) || []).length || 2;
-    let line = `${n} 个机器人各 1000U，一对一绑定地址，仓位比例与杠杆完全跟随。`;
-    const halted = ((st.paper && st.paper.bots) || []).filter((b) => b.risk_halted);
-    if (halted.length) {
-        line = `风控熔断：${halted.map((b) => b.id).join(', ')} 已平仓观望`;
-    }
-    document.getElementById('status-line').textContent = line;
+    const enabled = st.enabled !== false && st.running;
+    ws.textContent = enabled ? `看板 WS · ${st.fills_seen || 0}` : '跟单用 OSS bot';
+    document.getElementById('status-line').textContent =
+        '执行：hl-copy-trader 双进程（wr94 / wr72 · 各 1000U · lev=1）。本页只看目标钱包。';
 }
 
 async function fetchBoard(refresh) {

@@ -231,7 +231,13 @@ function fmtPosU(sz, px) {
 }
 
 function botLabel(id) {
-    const map = { wr94_hype: '策略 A', wr72_multi: '策略 B' };
+    const map = {
+        wr94_hype: '策略 A',
+        wr72_multi: '策略 B',
+        wr88_btc_ada: '策略 C',
+        wr63_alts: '策略 D',
+        wr75_btc_eth: '策略 E',
+    };
     return map[id] || id || '策略';
 }
 

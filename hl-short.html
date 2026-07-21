@@ -116,7 +116,6 @@
                 </div>
                 <nav class="hidden sm:flex items-center gap-1.5 ml-2">
                     <a class="nav-pill" href="index.html">策略看板</a>
-                    <a class="nav-pill" href="alpha.html">Alpha 筹码</a>
                     <a class="nav-pill nav-pill-active" href="hl-short.html">HL 短线</a>
                     <a class="nav-pill" href="grid.html">Next K 网格</a>
                 </nav>
@@ -318,14 +317,19 @@ function renderPaper(paper) {
         </tr>`;
     }).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
 
-    const REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close']);
-    const fills = (paper.fills || []).filter((f) => !f.skipped && REAL.has(String(f.action || ''))).slice(0, 30);
+    const REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'flip']);
+    const fills = (paper.fills || []).filter((f) => {
+        if (f.skipped) return false;
+        const act = String(f.action || '').replace(/^sync_/, '');
+        return REAL.has(act);
+    }).slice(0, 30);
     document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
         const ts = fmtBjTime(f.ts);
-        const isOpen = f.action === 'open' || f.action === 'increase';
+        const act = String(f.action || '').replace(/^sync_/, '');
+        const isOpen = act === 'open' || act === 'increase';
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        const sell = f.side === 'sell' || f.action === 'close' || f.action === 'reduce';
+        const sell = f.side === 'sell' || act === 'close' || act === 'reduce';
         const notionLabel = !notion
             ? '—'
             : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -336,7 +340,7 @@ function renderPaper(paper) {
         return `<tr>
             <td class="mono">${ts || '—'}</td>
             <td>${botLabel(f.source)}</td>
-            <td>${f.action || f.side || '—'}</td>
+            <td>${act || f.side || '—'}</td>
             <td>${f.coin || '—'}</td>
             <td class="${sell ? 'neg' : 'pos'}">${notionLabel}</td>
             <td>${lev}</td>
@@ -426,7 +430,7 @@ document.getElementById('btn-paper-reset').addEventListener('click', async () =>
     try {
         const res = await fetch(`${API}/api/hl-short/paper/reset`, { method: 'POST' });
         if (!res.ok) throw new Error('reset ' + res.status);
-        renderPaper(await res.json());
+        await loadAll(false);
     } catch (err) {
         alert(String(err.message || err));
     }

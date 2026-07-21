@@ -466,6 +466,19 @@ function renderCopyStatus(st) {
     }
 }
 
+async function fetchBoard(refresh) {
+    const url = `${API}/api/hl-short/board${refresh ? '?refresh=true' : ''}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('board HTTP ' + res.status);
+    return res.json();
+}
+
+async function fetchEvents() {
+    const res = await fetch(`${API}/api/hl-short/events?limit=80`);
+    if (!res.ok) throw new Error('events HTTP ' + res.status);
+    return res.json();
+}
+
 async function fetchPaper() {
     const res = await fetch(`${API}/api/hl-short/paper`);
     if (!res.ok) throw new Error('paper HTTP ' + res.status);

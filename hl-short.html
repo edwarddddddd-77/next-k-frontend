@@ -44,7 +44,7 @@
             background:
                 radial-gradient(ellipse 80% 70% at 12% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 55%),
                 linear-gradient(165deg, color-mix(in srgb, var(--surface-light) 70%, var(--surface)) 0%, var(--surface) 100%);
-            padding: 1.25rem 1.35rem;
+            padding: 1.35rem 1.5rem;
         }
         .metric-chip {
             display: inline-flex;
@@ -57,9 +57,24 @@
             font-size: 0.6875rem;
             color: var(--text-secondary);
         }
+        .stat {
+            min-width: 7rem;
+        }
+        .stat-label {
+            font-size: 0.625rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .stat-value {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 1.35rem;
+            line-height: 1.2;
+            margin-top: 0.2rem;
+        }
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
         .data-table thead th {
-            padding: 0.55rem 0.65rem;
+            padding: 0.5rem 0.55rem;
             font-size: 0.625rem;
             font-weight: 600;
             letter-spacing: 0.06em;
@@ -69,24 +84,23 @@
             border-bottom: 1px solid var(--border);
         }
         .data-table tbody td {
-            padding: 0.48rem 0.65rem;
+            padding: 0.45rem 0.55rem;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
-            vertical-align: top;
         }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.7rem; }
-        .wallet-card {
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            background: var(--surface);
-            padding: 1rem 1.1rem;
+        .section-title {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 1rem;
+            font-weight: 600;
         }
+        .section-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
     </style>
 </head>
 <body class="min-h-screen">
 <header class="app-header sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-2.5">
+    <div class="max-w-5xl mx-auto px-4 py-2.5">
         <div class="flex items-center justify-between gap-4">
             <div class="flex items-center gap-4 min-w-0">
                 <div class="flex items-center gap-2.5 shrink-0">
@@ -97,7 +111,7 @@
                     </div>
                     <div>
                         <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
-                        <div class="brand-subtitle hidden sm:block">HL Short Desk</div>
+                        <div class="brand-subtitle hidden sm:block">HL 短线</div>
                     </div>
                 </div>
                 <nav class="hidden sm:flex items-center gap-1.5 ml-2">
@@ -111,75 +125,64 @@
                 </nav>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                <span id="board-ts" class="header-clock hidden md:inline">--</span>
-                <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">强制刷新</button>
+                <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">刷新</button>
                 <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
-                    <span class="status-dot"></span><span>接口连接中…</span>
+                    <span class="status-dot"></span><span>连接中…</span>
                 </div>
             </div>
         </div>
     </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-4 py-8">
-    <section class="mb-7" aria-label="说明">
-        <div class="focus-hero">
-            <div class="flex flex-wrap items-start justify-between gap-3 mb-2">
-                <div>
-                    <div class="panel-kicker">Hyperliquid · Paper Copy</div>
-                    <h2 class="panel-title text-lg mt-1">短线模拟跟单</h2>
-                    <p class="panel-sub mt-1">WebSocket 盯目标成交 → 按比例记入纸面账本。无私钥、不下真单。</p>
-                </div>
-                <div class="flex flex-col items-end gap-1">
-                    <span id="mode-badge" class="metric-chip">模拟跟单</span>
-                    <span id="source-badge" class="metric-chip text-[0.625rem]">—</span>
-                    <span id="ws-badge" class="metric-chip text-[0.625rem]">WS —</span>
-                </div>
+<main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <section class="focus-hero" aria-label="模拟跟单">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <div class="panel-kicker">Paper Copy · Hyperliquid</div>
+                <h2 class="panel-title text-xl mt-1">模拟跟单</h2>
+                <p id="status-line" class="panel-sub mt-1">载入中…</p>
             </div>
-            <p id="focus-hint" class="text-sm text-text-secondary">正在载入…</p>
+            <div class="flex flex-wrap gap-2 items-center">
+                <span id="ws-badge" class="metric-chip">WS —</span>
+                <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置</button>
+            </div>
+        </div>
+        <div class="mt-5 flex flex-wrap gap-8">
+            <div class="stat">
+                <div class="stat-label">权益</div>
+                <div id="paper-equity" class="stat-value">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">已实现</div>
+                <div id="paper-pnl" class="stat-value">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">持仓数</div>
+                <div id="paper-n" class="stat-value">—</div>
+            </div>
         </div>
     </section>
 
-    <section class="mb-7" aria-label="纸面跟单">
-        <div class="dash-card card-hover p-4">
-            <div class="panel-head mb-3 flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <div class="panel-kicker">Paper Ledger</div>
-                    <h3 class="panel-title text-base">模拟账户</h3>
-                    <p class="panel-sub mt-1">仓位按目标净值比例缩放（HL_LEVERAGE_ADJUSTMENT）</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <span id="paper-equity" class="metric-chip">权益 —</span>
-                    <span id="paper-pnl" class="metric-chip">已实现 —</span>
-                    <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置账本</button>
-                </div>
-            </div>
-            <div class="overflow-x-auto mb-4">
+    <section class="grid md:grid-cols-2 gap-8" aria-label="账本">
+        <div>
+            <h3 class="section-title">我的仓位</h3>
+            <p class="section-sub">纸面仓，按目标比例缩放</p>
+            <div class="mt-3 overflow-x-auto">
                 <table class="data-table" id="tbl-paper-pos">
                     <thead>
-                        <tr>
-                            <th>来源</th>
-                            <th>币种</th>
-                            <th>仓位</th>
-                            <th>开仓价</th>
-                            <th>浮盈</th>
-                        </tr>
+                        <tr><th>来源</th><th>币</th><th>仓位</th><th>开仓</th><th>浮盈</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
-            <div class="overflow-x-auto">
+        </div>
+        <div>
+            <h3 class="section-title">跟单记录</h3>
+            <p class="section-sub">最近模拟成交</p>
+            <div class="mt-3 overflow-x-auto">
                 <table class="data-table" id="tbl-paper-fills">
                     <thead>
-                        <tr>
-                            <th>时间</th>
-                            <th>动作</th>
-                            <th>来源</th>
-                            <th>币种</th>
-                            <th>数量</th>
-                            <th>价格</th>
-                            <th>已实现</th>
-                        </tr>
+                        <tr><th>时间</th><th>动作</th><th>币</th><th>数量</th><th>盈亏</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -187,78 +190,16 @@
         </div>
     </section>
 
-    <section id="wallets-grid" class="mb-7 grid md:grid-cols-2 gap-4" aria-label="监控钱包"></section>
-
-    <section class="mb-7 grid md:grid-cols-2 gap-4">
-        <div class="dash-card card-hover p-4">
-            <div class="panel-head mb-3">
-                <div>
-                    <div class="panel-kicker">Positions</div>
-                    <h3 class="panel-title text-base">当前仓位</h3>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="data-table" id="tbl-pos">
-                    <thead>
-                        <tr>
-                            <th>钱包</th>
-                            <th>币种</th>
-                            <th>仓位</th>
-                            <th>杠杆</th>
-                            <th>浮盈</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="dash-card card-hover p-4">
-            <div class="panel-head mb-3">
-                <div>
-                    <div class="panel-kicker">Fills</div>
-                    <h3 class="panel-title text-base">近期成交</h3>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="data-table" id="tbl-fills">
-                    <thead>
-                        <tr>
-                            <th>钱包</th>
-                            <th>币种</th>
-                            <th>侧</th>
-                            <th>数量</th>
-                            <th>价格</th>
-                            <th>已实现</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <section class="mb-7">
-        <div class="dash-card card-hover p-4">
-            <div class="panel-head mb-3">
-                <div>
-                    <div class="panel-kicker">Events</div>
-                    <h3 class="panel-title text-base">事件流</h3>
-                    <p class="panel-sub mt-1">开仓 / 平仓 / 调仓 / 新成交</p>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="data-table" id="tbl-events">
-                    <thead>
-                        <tr>
-                            <th>时间</th>
-                            <th>类型</th>
-                            <th>地址</th>
-                            <th>详情</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+    <section aria-label="跟谁">
+        <h3 class="section-title">跟单目标</h3>
+        <p class="section-sub">只读监控，有成交才记入上方账本</p>
+        <div class="mt-3 overflow-x-auto">
+            <table class="data-table" id="tbl-targets">
+                <thead>
+                    <tr><th>目标</th><th>胜率</th><th>账户</th><th>持仓</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </section>
 </main>
@@ -278,12 +219,13 @@ function setStatus(ok, text) {
 function fmtUsd(n) {
     if (n == null || Number.isNaN(Number(n))) return '—';
     const v = Number(n);
-    return (v >= 0 ? '' : '-') + '$' + Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const abs = Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return (v < 0 ? '-$' : '$') + abs;
 }
 
 function fmtPct(n) {
     if (n == null || Number.isNaN(Number(n))) return '—';
-    return (Number(n) * 100).toFixed(1) + '%';
+    return (Number(n) * 100).toFixed(0) + '%';
 }
 
 function shortAddr(a) {
@@ -298,156 +240,60 @@ function sideClass(szi) {
     return '';
 }
 
-function eventDetail(e) {
-    const t = e.type;
-    if (t === 'baseline') return `AV ${fmtUsd(e.account_value)} · 仓位 ${(e.positions || []).length}`;
-    if (t === 'account_value_change') return `${fmtUsd(e.from)} → ${fmtUsd(e.to)}`;
-    if (t === 'position_open') {
-        const p = e.position || {};
-        return `开 ${p.coin} sz=${p.szi} lev=${p.lev ?? '—'}`;
-    }
-    if (t === 'position_close') {
-        const p = e.position || {};
-        return `平 ${p.coin} (was ${p.szi})`;
-    }
-    if (t === 'position_size_change') {
-        return `${e.coin} ${e.from_szi} → ${e.to_szi} uPnl=${Number(e.uPnl || 0).toFixed(2)}`;
-    }
-    if (t === 'new_fill' && e.fill) {
-        const f = e.fill;
-        return `${f.coin} ${f.side} sz=${f.sz} px=${f.px} pnl=${f.closedPnl}`;
-    }
-    try { return JSON.stringify(e).slice(0, 140); } catch (_) { return String(t); }
-}
-
-function renderBoard(data) {
-    const wallets = data.wallets || [];
-    const gen = data.generated_at || '';
-    document.getElementById('board-ts').textContent = gen
-        ? gen.replace('T', ' ').replace('Z', ' UTC').slice(0, 22)
-        : '--';
-    document.getElementById('source-badge').textContent =
-        (data.snapshot_source || 'live') + (data.refresh_skipped ? ' · 冷却' : '');
-    document.getElementById('focus-hint').textContent =
-        `监控 ${data.wallet_count ?? wallets.length} 个地址 · 本轮事件 ${data.events_logged ?? 0}` +
-        (data.errors && data.errors.length ? ` · 错误 ${data.errors.length}` : '');
-
-    const grid = document.getElementById('wallets-grid');
-    grid.innerHTML = wallets.map((row) => {
-        const m = row.meta || {};
-        const s = row.snapshot || {};
-        const wr = m.est_winrate != null ? fmtPct(m.est_winrate) : '—';
-        const av = s.account_value != null ? fmtUsd(s.account_value) : '—';
-        const err = row.error ? `<p class="text-xs neg mt-2">${row.error}</p>` : '';
-        const url = m.hl_url || `https://app.hyperliquid.xyz/explorer/address/${m.address}`;
-        return `<div class="wallet-card">
-            <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
-                <div>
-                    <div class="text-[0.625rem] uppercase tracking-wider text-text-muted">优先级 ${m.priority ?? '—'}</div>
-                    <div class="font-serif text-lg mt-0.5">${m.id || shortAddr(m.address)}</div>
-                    <div class="mono text-text-muted mt-1">${m.address || ''}</div>
-                </div>
-                <div class="flex flex-col items-end gap-1">
-                    <span class="metric-chip pos">估胜率 ${wr}</span>
-                    <span class="metric-chip">${av}</span>
-                </div>
-            </div>
-            <p class="text-sm text-text-secondary">${m.style || ''}</p>
-            <p class="text-xs text-text-muted mt-1">${m.why || ''}</p>
-            <div class="mt-3 flex flex-wrap gap-2">
-                <a class="metric-chip hover:border-gold/40" href="${url}" target="_blank" rel="noopener">HL 浏览器</a>
-                <span class="metric-chip">${(s.positions || []).length} 仓</span>
-            </div>
-            ${err}
-        </div>`;
-    }).join('') || '<p class="text-text-muted text-sm">名单为空</p>';
-
-    const posRows = [];
-    const fillRows = [];
-    for (const row of wallets) {
-        const m = row.meta || {};
-        const s = row.snapshot || {};
-        const label = m.id || shortAddr(m.address);
-        for (const p of (s.positions || [])) {
-            posRows.push(`<tr>
-                <td>${label}</td>
-                <td class="font-medium">${p.coin}</td>
-                <td class="${sideClass(p.szi)}">${p.szi}</td>
-                <td>${p.lev ?? '—'}</td>
-                <td class="${Number(p.uPnl) >= 0 ? 'pos' : 'neg'}">${fmtUsd(p.uPnl)}</td>
-            </tr>`);
-        }
-        for (const f of (s.recent_fills || []).slice(0, 8)) {
-            const pnl = f.closedPnl != null ? Number(f.closedPnl) : null;
-            fillRows.push(`<tr>
-                <td>${label}</td>
-                <td>${f.coin}</td>
-                <td>${f.side}</td>
-                <td>${f.sz}</td>
-                <td>${f.px}</td>
-                <td class="${pnl == null ? '' : (pnl >= 0 ? 'pos' : 'neg')}">${pnl == null ? '—' : fmtUsd(pnl)}</td>
-            </tr>`);
-        }
-    }
-    document.querySelector('#tbl-pos tbody').innerHTML =
-        posRows.join('') || '<tr><td colspan="5" class="text-text-muted">无持仓</td></tr>';
-    document.querySelector('#tbl-fills tbody').innerHTML =
-        fillRows.join('') || '<tr><td colspan="6" class="text-text-muted">无成交</td></tr>';
-}
-
-function renderEvents(events) {
-    const tb = document.querySelector('#tbl-events tbody');
-    tb.innerHTML = (events || []).map((e) => {
-        const ts = (e.logged_at || '').replace('T', ' ').replace('Z', '').slice(0, 19);
-        return `<tr>
-            <td class="mono">${ts || '—'}</td>
-            <td>${e.type || '—'}</td>
-            <td class="mono">${shortAddr(e.address)}</td>
-            <td>${eventDetail(e)}</td>
-        </tr>`;
-    }).join('') || '<tr><td colspan="4" class="text-text-muted">暂无事件</td></tr>';
-}
-
 function renderPaper(paper) {
-    const equity = paper.equity != null ? fmtUsd(paper.equity) : '—';
+    const equity = paper.equity;
     const pnl = paper.realized_pnl != null ? Number(paper.realized_pnl) : null;
-    document.getElementById('paper-equity').textContent = '权益 ' + equity;
-    const pnlEl = document.getElementById('paper-pnl');
-    pnlEl.textContent = '已实现 ' + (pnl == null ? '—' : fmtUsd(pnl));
-    pnlEl.className = 'metric-chip ' + (pnl == null ? '' : (pnl >= 0 ? 'pos' : 'neg'));
-
     const positions = Object.values(paper.positions || {});
+
+    document.getElementById('paper-equity').textContent = fmtUsd(equity);
+    const pnlEl = document.getElementById('paper-pnl');
+    pnlEl.textContent = fmtUsd(pnl);
+    pnlEl.className = 'stat-value ' + (pnl == null ? '' : (pnl >= 0 ? 'pos' : 'neg'));
+    document.getElementById('paper-n').textContent = String(positions.length);
+
     document.querySelector('#tbl-paper-pos tbody').innerHTML = positions.map((p) => `<tr>
         <td>${p.source || '—'}</td>
         <td class="font-medium">${p.coin}</td>
-        <td class="${sideClass(p.sz)}">${p.sz}</td>
+        <td class="${sideClass(p.sz)}">${Number(p.sz).toPrecision(4)}</td>
         <td>${p.entry_px}</td>
         <td class="${Number(p.u_pnl) >= 0 ? 'pos' : 'neg'}">${fmtUsd(p.u_pnl)}</td>
-    </tr>`).join('') || '<tr><td colspan="5" class="text-text-muted">暂无纸面仓</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="5" class="text-text-muted">暂无持仓</td></tr>';
 
-    const fills = (paper.fills || []).slice(0, 40);
+    const fills = (paper.fills || []).filter((f) => !f.skipped).slice(0, 20);
     document.querySelector('#tbl-paper-fills tbody').innerHTML = fills.map((f) => {
-        const ts = (f.ts || '').replace('T', ' ').replace('Z', '').slice(0, 19);
-        if (f.skipped) {
-            return `<tr>
-                <td class="mono">${ts}</td>
-                <td>skip</td>
-                <td>${f.source || '—'}</td>
-                <td>${f.coin || '—'}</td>
-                <td colspan="3" class="text-text-muted">${f.reason || 'skipped'} notional=${f.notional ?? '—'}</td>
-            </tr>`;
-        }
+        const ts = (f.ts || '').replace('T', ' ').slice(11, 19);
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         return `<tr>
-            <td class="mono">${ts}</td>
+            <td class="mono">${ts || '—'}</td>
             <td>${f.action || f.side || '—'}</td>
-            <td>${f.source || '—'}</td>
             <td>${f.coin}</td>
             <td>${f.our_sz}</td>
-            <td>${f.px}</td>
             <td class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-text-muted">等待 WS 成交…</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="text-text-muted">等待成交</td></tr>';
+}
+
+function renderTargets(board) {
+    const wallets = board.wallets || [];
+    document.querySelector('#tbl-targets tbody').innerHTML = wallets.map((row) => {
+        const m = row.meta || {};
+        const s = row.snapshot || {};
+        const url = m.hl_url || `https://app.hyperliquid.xyz/explorer/address/${m.address}`;
+        const pos = (s.positions || []).map((p) => {
+            const dir = Number(p.szi) >= 0 ? '+' : '';
+            return `${p.coin} ${dir}${Number(p.szi).toPrecision(3)}`;
+        }).join(', ') || '空仓';
+        return `<tr>
+            <td>
+                <div class="font-medium">${m.id || shortAddr(m.address)}</div>
+                <div class="mono text-text-muted">${shortAddr(m.address)}</div>
+            </td>
+            <td class="pos">${fmtPct(m.est_winrate)}</td>
+            <td>${fmtUsd(s.account_value)}</td>
+            <td class="text-text-secondary">${pos}</td>
+            <td><a class="metric-chip hover:border-gold/40" href="${url}" target="_blank" rel="noopener">查看</a></td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="5" class="text-text-muted">无目标</td></tr>';
 }
 
 function renderCopyStatus(st) {
@@ -456,67 +302,59 @@ function renderCopyStatus(st) {
         ws.textContent = 'WS —';
         return;
     }
-    ws.textContent = st.running
-        ? `WS 在线 · 见成交 ${st.fills_seen || 0}`
-        : `WS 离线${st.error ? ' · ' + st.error : ''}`;
+    ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0} 笔` : 'WS 离线';
+    let line = 'WS 盯目标成交，按比例记入纸面账本。不下真单。';
     if (st.last_fill_at) {
-        document.getElementById('focus-hint').textContent =
-            `模拟跟单运行中 · 最近成交 ${String(st.last_fill_at).replace('T', ' ').slice(0, 19)} UTC` +
-            (st.last_wallet ? ` · ${st.last_wallet}` : '');
+        line = `最近跟到 ${String(st.last_fill_at).replace('T', ' ').slice(0, 19)} UTC`
+            + (st.last_wallet ? ` · ${st.last_wallet}` : '');
+    } else if (st.running) {
+        line = '已连接，等待目标成交…';
     }
+    document.getElementById('status-line').textContent = line;
 }
 
 async function fetchBoard(refresh) {
-    const url = `${API}/api/hl-short/board${refresh ? '?refresh=true' : ''}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('board HTTP ' + res.status);
-    return res.json();
-}
-
-async function fetchEvents() {
-    const res = await fetch(`${API}/api/hl-short/events?limit=80`);
-    if (!res.ok) throw new Error('events HTTP ' + res.status);
+    const res = await fetch(`${API}/api/hl-short/board${refresh ? '?refresh=true' : ''}`);
+    if (!res.ok) throw new Error('board ' + res.status);
     return res.json();
 }
 
 async function fetchPaper() {
     const res = await fetch(`${API}/api/hl-short/paper`);
-    if (!res.ok) throw new Error('paper HTTP ' + res.status);
+    if (!res.ok) throw new Error('paper ' + res.status);
     return res.json();
 }
 
 async function fetchCopyStatus() {
     const res = await fetch(`${API}/api/hl-short/copy/status`);
-    if (!res.ok) throw new Error('copy status HTTP ' + res.status);
+    if (!res.ok) throw new Error('copy ' + res.status);
     return res.json();
 }
 
 async function loadAll(refresh) {
     try {
-        const [board, ev, paper, st] = await Promise.all([
+        const [board, paper, st] = await Promise.all([
             fetchBoard(!!refresh),
-            fetchEvents(),
             fetchPaper(),
             fetchCopyStatus(),
         ]);
-        renderBoard(board);
-        renderEvents(ev.events || []);
         renderPaper(paper);
+        renderTargets(board);
         renderCopyStatus(st);
         setStatus(true, '已连接');
     } catch (err) {
         console.error(err);
         setStatus(false, '连接失败');
-        document.getElementById('focus-hint').textContent = String(err.message || err);
+        document.getElementById('status-line').textContent = String(err.message || err);
     }
 }
 
 document.getElementById('btn-refresh').addEventListener('click', () => loadAll(true));
 document.getElementById('btn-paper-reset').addEventListener('click', async () => {
-    if (!confirm('重置模拟账本？持仓与已实现盈亏清零。')) return;
+    if (!confirm('重置模拟账本？')) return;
     try {
         const res = await fetch(`${API}/api/hl-short/paper/reset`, { method: 'POST' });
-        if (!res.ok) throw new Error('reset HTTP ' + res.status);
+        if (!res.ok) throw new Error('reset ' + res.status);
         renderPaper(await res.json());
     } catch (err) {
         alert(String(err.message || err));

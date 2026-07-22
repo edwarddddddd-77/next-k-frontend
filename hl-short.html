@@ -489,6 +489,40 @@ const ACT_LABEL = {
     risk_halt_close: '熔断平仓',
 };
 
+/** 多/空：优先用后端 pos；否则由 buy/sell + 动作推断 */
+function fillPos(f) {
+    const p = String(f.pos || f.position_side || '').toLowerCase();
+    if (p === 'long' || p === 'l') return '多';
+    if (p === 'short' || p === 's') return '空';
+    const side = String(f.side || '').toLowerCase();
+    const act = String(f.action || '').replace(/^sync_/, '');
+    if (act === 'close' || act === 'reduce' || act === 'risk_halt_close') {
+        // 卖平多、买平空
+        if (side === 'sell') return '多';
+        if (side === 'buy') return '空';
+        return '';
+    }
+    if (side === 'buy') return '多';
+    if (side === 'sell') return '空';
+    return '';
+}
+
+function fillActLabel(f) {
+    const actRaw = String(f.action || '').replace(/^sync_/, '');
+    const base = ACT_LABEL[actRaw] || actRaw || '—';
+    const pos = fillPos(f);
+    if (!pos) return base;
+    const withPos = {
+        open: `开${pos}`,
+        increase: `加${pos}`,
+        reduce: `减${pos}`,
+        close: `平${pos}`,
+        flip: `反手开${pos}`,
+        risk_halt_close: `熔断平${pos}`,
+    };
+    return withPos[actRaw] || `${base}·${pos}`;
+}
+
 let lastPaper = null;
 let fillFilter = 'all';
 
@@ -579,28 +613,33 @@ function fillRowsHtml(fills, showBot) {
     return fills.map((f) => {
         const ts = fmtBjTime(f.ts);
         const actRaw = String(f.action || '').replace(/^sync_/, '');
-        const act = ACT_LABEL[actRaw] || actRaw || f.side || '—';
+        const act = fillActLabel(f);
+        const pos = fillPos(f);
         const isOpen = actRaw === 'open' || actRaw === 'increase';
         const isClose = actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close';
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        const sell = f.side === 'sell' || actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close';
+        // 名义符号：开/加多 +、开/加空 −；平/减与仓位方向一致（平多 −、平空 +）
+        const longish = pos === '多';
+        const shortish = pos === '空';
+        const exposeUp = isOpen ? longish : (isClose ? shortish : (f.side === 'buy'));
         const notionLabel = !notion
             ? '—'
-            : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
+            : (exposeUp ? '+' : '-') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
         const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
         const pxTitle = isClose ? '平仓价' : (isOpen ? '开仓价' : '成交价');
         const pnlCell = isOpen
             ? '<span class="text-text-muted">—</span>'
             : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
+        const actClass = longish ? 'pos' : (shortish ? 'neg' : '');
         const botCell = showBot ? `<td>${botLabel(f._bot)}</td>` : '';
         return `<tr>
             ${botCell}
             <td class="mono">${ts || '—'}</td>
-            <td>${act}</td>
+            <td class="${actClass}">${act}</td>
             <td class="coin">${f.coin || '—'}</td>
             <td class="num" title="${pxTitle}">${fmtPx(f.px)}</td>
-            <td class="num ${sell ? 'neg' : 'pos'}">${notionLabel}</td>
+            <td class="num ${exposeUp ? 'pos' : 'neg'}">${notionLabel}</td>
             <td class="num">${lev}</td>
             <td class="num">${pnlCell}</td>
         </tr>`;

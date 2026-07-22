@@ -382,7 +382,7 @@ function renderLane(board) {
     const wt = getLane(board, 'watch');
     let line = board.note || '';
     if (board.generated_at) {
-        line = `可跟 ${cp.pick_count || 0} · 宽观察 ${wt.pick_count || 0} · 深筛 ${board.deep_unique || '—'} · 跳过已知 ${board.skipped_known || 0}`;
+        line = `可跟 ${cp.pick_count || 0} · 宽观察 ${wt.pick_count || 0} · 深筛 ${board.deep_unique || '—'} · 撞车 ${board.on_watchlist_count || 0}`;
         if (board.refresh_skipped) line += ' · 冷却中读缓存';
         if (board.elapsed_sec != null) line += ` · ${board.elapsed_sec}s`;
     } else if (!line) {
@@ -415,9 +415,12 @@ function renderLane(board) {
         const sample = `${p.fills7 ?? '—'}/${p.closed7 ?? '—'}`;
         const pace = p.fph24 != null ? Number(p.fph24).toFixed(1) : '—';
         const scratch = p.scratch != null ? (Number(p.scratch) * 100).toFixed(0) + '%' : '—';
+        const deskTag = p.on_watchlist
+            ? ` <span class="text-accent" title="已在映仓台">${p.watchlist_id === 'reject' ? '已剔除' : (p.watchlist_id || '在跟')}</span>`
+            : '';
         return `<tr>
             <td class="mono">${i + 1}</td>
-            <td class="mono"><a class="addr" href="${href}" target="_blank" rel="noopener">${shortAddr(p.addr)}</a></td>
+            <td class="mono"><a class="addr" href="${href}" target="_blank" rel="noopener">${shortAddr(p.addr)}</a>${deskTag}</td>
             <td class="num ${wrCls}">${fmtPct(wr)}</td>
             <td class="num">${sample}</td>
             <td class="num">${pace}</td>

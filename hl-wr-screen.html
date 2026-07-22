@@ -220,8 +220,8 @@
     <section class="focus-hero" aria-label="筛选说明">
         <div class="hero-top">
             <div>
-                <div class="panel-kicker">Daily · Hyperliquid · 两套并行</div>
-                <h2 class="panel-title">短线高胜率筛选</h2>
+                <div class="panel-kicker">Daily · Hyperliquid · 可跟优先</div>
+                <h2 class="panel-title">短线可跟筛选</h2>
                 <p id="status-line" class="panel-sub">载入中…</p>
             </div>
             <div class="flex flex-wrap gap-1.5 items-center">
@@ -239,8 +239,8 @@
                 <p class="section-sub" id="lane-sub">已排除映仓台名单</p>
             </div>
             <div id="lane-tabs" class="lane-tabs" role="tablist">
-                <button type="button" class="lane-tab is-active" data-lane="turnover">高换手</button>
-                <button type="button" class="lane-tab" data-lane="midsize">中盘7D</button>
+                <button type="button" class="lane-tab is-active" data-lane="copyable">可跟</button>
+                <button type="button" class="lane-tab" data-lane="watch">宽观察</button>
             </div>
         </div>
         <div class="board-shell">
@@ -266,7 +266,7 @@
 <script>
 const API = resolveApiBase();
 let lastBoard = null;
-let activeLane = 'turnover';
+let activeLane = 'copyable';
 
 function setStatus(ok, text) {
     const el = document.getElementById('connection-status');
@@ -333,10 +333,13 @@ function tickBjClock() {
 function getLane(board, id) {
     const lanes = (board && board.lanes) || {};
     if (lanes[id]) return lanes[id];
-    if (id === 'midsize') {
+    // legacy board fallback
+    if (id === 'copyable' && lanes.turnover) return { ...lanes.turnover, id: 'copyable', label: '可跟' };
+    if (id === 'watch' && lanes.midsize) return { ...lanes.midsize, id: 'watch', label: '宽观察' };
+    if (id === 'copyable' && board.picks) {
         return {
-            id: 'midsize',
-            label: '中盘7D',
+            id: 'copyable',
+            label: '可跟',
             criteria: board.criteria,
             candidate_count: board.candidate_count || 0,
             scanned_count: board.scanned_count || 0,
@@ -350,31 +353,21 @@ function getLane(board, id) {
 function renderCriteria(laneId, c) {
     const row = document.getElementById('criteria-row');
     if (!c) { row.innerHTML = ''; return; }
-    let chips;
-    if (laneId === 'turnover') {
-        chips = [
-            `权益 ${fmtUsd(c.av_band && c.av_band[0])}–${fmtUsd(c.av_band && c.av_band[1])}`,
-            `周换手 ≥ ${c.turn_w_min}× 或 月 ≥ ${c.turn_m_min}×`,
-            `周盈亏 > 0 · 周 ROI ≤ ${(c.week_roi_max * 100).toFixed(0)}%`,
-            `近期平仓胜率 ≥ ${fmtPct(c.wr_min)}`,
-            `平仓样本 ≥ ${c.closed_min}`,
-        ];
-    } else {
-        chips = [
-            `权益 ${fmtUsd(c.av_band && c.av_band[0])}–${fmtUsd(c.av_band && c.av_band[1])}`,
-            `周成交额 ≥ ${fmtUsd(c.week_vlm_min)}`,
-            `7D 胜率 ≥ ${fmtPct(c.wr_min)}`,
-            `成交 ≥ ${c.fills7_min} · 平仓 ≥ ${c.closed7_min}`,
-            `频次 ≤ ${c.fph24_max}/时`,
-        ];
-    }
+    const chips = [
+        `频次 ${c.fph24_min}–${c.fph24_max}/时`,
+        `7D 胜率 ≥ ${fmtPct(c.wr7_min)}`,
+        `7D 已实现盈亏 > 0`,
+        `scratch ≤ ${c.scratch_max}`,
+        `可映射占比 ≥ ${fmtPct(c.major_share_min)}`,
+        `不计盘口大小`,
+    ];
+    if (c.note) chips.push(c.note);
     row.innerHTML = chips.map((t) => `<span class="metric-chip" style="cursor:default">${t}</span>`).join('');
 }
 
 function renderLane(board) {
     const lane = getLane(board, activeLane);
     const picks = lane.picks || [];
-    const isTo = activeLane === 'turnover';
 
     document.querySelectorAll('.lane-tab').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.lane === activeLane);
@@ -385,27 +378,25 @@ function renderLane(board) {
         : '尚未生成';
     document.getElementById('count-badge').textContent = `${picks.length} 入选`;
 
-    const to = getLane(board, 'turnover');
-    const ms = getLane(board, 'midsize');
+    const cp = getLane(board, 'copyable');
+    const wt = getLane(board, 'watch');
     let line = board.note || '';
     if (board.generated_at) {
-        line = `高换手 ${to.pick_count || 0} · 中盘7D ${ms.pick_count || 0} · 深筛 ${board.deep_unique || '—'} · 跳过已知 ${board.skipped_known || 0}`;
+        line = `可跟 ${cp.pick_count || 0} · 宽观察 ${wt.pick_count || 0} · 深筛 ${board.deep_unique || '—'} · 跳过已知 ${board.skipped_known || 0}`;
         if (board.refresh_skipped) line += ' · 冷却中读缓存';
         if (board.elapsed_sec != null) line += ` · ${board.elapsed_sec}s`;
     } else if (!line) {
-        line = '每日 09:00（北京）两套一起跑 · 也可手动重跑';
+        line = '每日 09:00（北京）按可跟因子跑 · 也可手动重跑';
     }
     document.getElementById('status-line').textContent = line;
 
     document.getElementById('lane-title').textContent = (lane.label || '') + ' · 今日入选';
-    document.getElementById('lane-sub').textContent = isTo
-        ? `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按胜率·换手排序`
-        : `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按 7D 胜率·周盈亏排序`;
+    document.getElementById('lane-sub').textContent =
+        `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按 copy_score · 7D 盈亏排序`;
     renderCriteria(activeLane, lane.criteria);
 
-    document.getElementById('picks-head').innerHTML = isTo
-        ? '<th>#</th><th>地址</th><th class="num">胜率</th><th class="num">平仓样本</th><th class="num">笔/时</th><th class="num">权益</th><th class="num">周盈亏</th><th class="num">周换手</th><th>活跃币</th><th>持仓</th>'
-        : '<th>#</th><th>地址</th><th class="num">7D 胜率</th><th class="num">成交/平仓</th><th class="num">频次/时</th><th class="num">权益</th><th class="num">周盈亏</th><th class="num">周成交</th><th>活跃币</th><th>持仓</th>';
+    document.getElementById('picks-head').innerHTML =
+        '<th>#</th><th>地址</th><th class="num">7D 胜率</th><th class="num">成交/平仓</th><th class="num">频次/时</th><th class="num">权益</th><th class="num">7D已实现</th><th class="num">scratch</th><th>风格/活跃币</th><th>持仓</th>';
 
     const body = document.getElementById('picks-tbody');
     if (!picks.length) {
@@ -414,21 +405,16 @@ function renderLane(board) {
     }
 
     body.innerHTML = picks.map((p, i) => {
-        const wr = p.wr;
+        const wr = p.wr != null ? p.wr : p.wr7;
         const wrCls = wr != null && wr >= 0.7 ? 'wr-hi' : (wr != null && wr >= 0.55 ? 'pos' : '');
-        const wp = Number(p.week_pnl);
+        const pnl7 = Number(p.pnl7 != null ? p.pnl7 : p.week_pnl);
         const coins = (p.top_coins || []).slice(0, 3).map((x) => x.coin || x[0]).filter(Boolean).join(' · ') || '—';
+        const style = p.specialty ? `${p.specialty} · ${coins}` : coins;
         const pos = (p.coins_pos || []).slice(0, 3).join(' · ') || '—';
         const href = p.hl_url || `https://app.hyperliquid.xyz/explorer/address/${p.addr}`;
-        const sample = isTo
-            ? (p.closed_n ?? '—')
-            : `${p.fills7 ?? '—'}/${p.closed7 ?? '—'}`;
-        const pace = isTo
-            ? (p.tph != null ? Number(p.tph).toFixed(1) : '—')
-            : (p.fph24 != null ? Number(p.fph24).toFixed(1) : '—');
-        const extra = isTo
-            ? (p.turn_w != null ? Number(p.turn_w).toFixed(0) + '×' : '—')
-            : fmtUsd(p.week_vlm);
+        const sample = `${p.fills7 ?? '—'}/${p.closed7 ?? '—'}`;
+        const pace = p.fph24 != null ? Number(p.fph24).toFixed(1) : '—';
+        const scratch = p.scratch != null ? (Number(p.scratch) * 100).toFixed(0) + '%' : '—';
         return `<tr>
             <td class="mono">${i + 1}</td>
             <td class="mono"><a class="addr" href="${href}" target="_blank" rel="noopener">${shortAddr(p.addr)}</a></td>
@@ -436,9 +422,9 @@ function renderLane(board) {
             <td class="num">${sample}</td>
             <td class="num">${pace}</td>
             <td class="num">${fmtUsd(p.live_av != null ? p.live_av : p.av)}</td>
-            <td class="num ${wp >= 0 ? 'pos' : 'neg'}">${fmtUsd(wp)}</td>
-            <td class="num">${extra}</td>
-            <td>${coins}</td>
+            <td class="num ${pnl7 >= 0 ? 'pos' : 'neg'}">${fmtUsd(pnl7)}</td>
+            <td class="num">${scratch}</td>
+            <td>${style}</td>
             <td>${pos}</td>
         </tr>`;
     }).join('');
@@ -473,9 +459,9 @@ document.getElementById('lane-tabs').addEventListener('click', (e) => {
 
 document.getElementById('btn-refresh').addEventListener('click', () => loadBoard(false));
 document.getElementById('btn-rerun').addEventListener('click', async () => {
-    if (!confirm('强制重跑两套日筛？耗时约 2–3 分钟，且有冷却。')) return;
+    if (!confirm('强制重跑可跟日筛？耗时约数分钟，且有冷却。')) return;
     setStatus(true, '筛查中…');
-    document.getElementById('status-line').textContent = '正在深筛中（高换手 + 中盘7D），请稍候…';
+    document.getElementById('status-line').textContent = '正在深筛中（可跟 + 宽观察），请稍候…';
     await loadBoard(true);
 });
 

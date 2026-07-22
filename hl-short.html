@@ -255,24 +255,28 @@
         }
         .data-table thead th.num { text-align: right; }
         .data-table .coin { font-weight: 500; }
-        .tbl-pos col.c-coin { width: 20%; }
-        .tbl-pos col.c-sz { width: 32%; }
-        .tbl-pos col.c-lev { width: 18%; }
-        .tbl-pos col.c-pnl { width: 30%; }
-        .tbl-fills col.c-bot { width: 11%; }
-        .tbl-fills col.c-ts { width: 13%; }
-        .tbl-fills col.c-act { width: 12%; }
-        .tbl-fills col.c-coin { width: 12%; }
-        .tbl-fills col.c-sz { width: 18%; }
-        .tbl-fills col.c-lev { width: 12%; }
-        .tbl-fills col.c-pnl { width: 22%; }
+        .tbl-pos col.c-coin { width: 14%; }
+        .tbl-pos col.c-entry { width: 18%; }
+        .tbl-pos col.c-mark { width: 18%; }
+        .tbl-pos col.c-sz { width: 20%; }
+        .tbl-pos col.c-lev { width: 12%; }
+        .tbl-pos col.c-pnl { width: 18%; }
+        .tbl-fills col.c-bot { width: 10%; }
+        .tbl-fills col.c-ts { width: 11%; }
+        .tbl-fills col.c-act { width: 10%; }
+        .tbl-fills col.c-coin { width: 10%; }
+        .tbl-fills col.c-px { width: 14%; }
+        .tbl-fills col.c-sz { width: 15%; }
+        .tbl-fills col.c-lev { width: 10%; }
+        .tbl-fills col.c-pnl { width: 20%; }
         /* 单策略：无策略列，宽度铺满 */
-        .tbl-fills.hide-bot col.c-ts { width: 16%; }
-        .tbl-fills.hide-bot col.c-act { width: 14%; }
-        .tbl-fills.hide-bot col.c-coin { width: 12%; }
-        .tbl-fills.hide-bot col.c-sz { width: 22%; }
-        .tbl-fills.hide-bot col.c-lev { width: 14%; }
-        .tbl-fills.hide-bot col.c-pnl { width: 22%; }
+        .tbl-fills.hide-bot col.c-ts { width: 13%; }
+        .tbl-fills.hide-bot col.c-act { width: 12%; }
+        .tbl-fills.hide-bot col.c-coin { width: 11%; }
+        .tbl-fills.hide-bot col.c-px { width: 16%; }
+        .tbl-fills.hide-bot col.c-sz { width: 18%; }
+        .tbl-fills.hide-bot col.c-lev { width: 12%; }
+        .tbl-fills.hide-bot col.c-pnl { width: 18%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -391,6 +395,15 @@ function fmtUsd(n) {
     return (v < 0 ? '-$' : '$') + abs;
 }
 
+function fmtPx(n) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    const v = Number(n);
+    if (v <= 0) return '—';
+    if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    if (v >= 1) return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    return v.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
 function fmtBjTime(iso) {
     if (!iso) return '—';
     try {
@@ -449,6 +462,11 @@ function fmtPosU(sz, px) {
 
 function botLabel(id) {
     const map = {
+        bot_a: '策略 A',
+        bot_b: '策略 B',
+        bot_c: '策略 C',
+        bot_d: '策略 D',
+        bot_e: '策略 E',
         wr94_hype: '策略 A',
         wr72_multi: '策略 B',
         wr88_btc_ada: '策略 C',
@@ -536,7 +554,7 @@ function syncActiveChrome() {
 
 function posRowsHtml(positions) {
     if (!positions.length) {
-        return '<tr><td colspan="4" class="text-text-muted">空仓</td></tr>';
+        return '<tr><td colspan="6" class="text-text-muted">空仓</td></tr>';
     }
     return positions.map((p) => {
         const mark = p.mark_px != null ? p.mark_px : p.entry_px;
@@ -544,6 +562,8 @@ function posRowsHtml(positions) {
         const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
         return `<tr>
             <td class="coin">${p.coin}</td>
+            <td class="num">${fmtPx(p.entry_px)}</td>
+            <td class="num">${fmtPx(mark)}</td>
             <td class="num ${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
             <td class="num">${lev}</td>
             <td class="num ${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
@@ -552,7 +572,7 @@ function posRowsHtml(positions) {
 }
 
 function fillRowsHtml(fills, showBot) {
-    const cols = showBot ? 7 : 6;
+    const cols = showBot ? 8 : 7;
     if (!fills.length) {
         return `<tr><td colspan="${cols}" class="text-text-muted">暂无成交</td></tr>`;
     }
@@ -561,13 +581,15 @@ function fillRowsHtml(fills, showBot) {
         const actRaw = String(f.action || '').replace(/^sync_/, '');
         const act = ACT_LABEL[actRaw] || actRaw || f.side || '—';
         const isOpen = actRaw === 'open' || actRaw === 'increase';
+        const isClose = actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close';
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        const sell = f.side === 'sell' || actRaw === 'close' || actRaw === 'reduce';
+        const sell = f.side === 'sell' || actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close';
         const notionLabel = !notion
             ? '—'
             : (sell ? '-' : '+') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
         const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
+        const pxTitle = isClose ? '平仓价' : (isOpen ? '开仓价' : '成交价');
         const pnlCell = isOpen
             ? '<span class="text-text-muted">—</span>'
             : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
@@ -577,6 +599,7 @@ function fillRowsHtml(fills, showBot) {
             <td class="mono">${ts || '—'}</td>
             <td>${act}</td>
             <td class="coin">${f.coin || '—'}</td>
+            <td class="num" title="${pxTitle}">${fmtPx(f.px)}</td>
             <td class="num ${sell ? 'neg' : 'pos'}">${notionLabel}</td>
             <td class="num">${lev}</td>
             <td class="num">${pnlCell}</td>
@@ -602,12 +625,12 @@ function renderFills(paper) {
     table.classList.toggle('hide-bot', !showBot);
 
     document.getElementById('fills-cols').innerHTML = showBot
-        ? '<col class="c-bot" /><col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />'
-        : '<col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />';
+        ? '<col class="c-bot" /><col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />'
+        : '<col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />';
 
     document.getElementById('fills-head').innerHTML = showBot
-        ? '<th>策略</th><th>时间</th><th>动作</th><th>币</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>'
-        : '<th>时间</th><th>动作</th><th>币</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>';
+        ? '<th>策略</th><th>时间</th><th>动作</th><th>币</th><th class="num">价格</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>'
+        : '<th>时间</th><th>动作</th><th>币</th><th class="num">价格</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>';
 
     document.getElementById('fills-tbody').innerHTML = fillRowsHtml(fills, showBot);
     const sub = document.getElementById('fills-sub');
@@ -662,10 +685,12 @@ function renderPaper(paper) {
             <div class="scroll-panel">
                 <table class="data-table tbl-pos">
                     <colgroup>
-                        <col class="c-coin" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                        <col class="c-coin" /><col class="c-entry" /><col class="c-mark" />
+                        <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
                     </colgroup>
                     <thead><tr>
-                        <th>币</th><th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
+                        <th>币</th><th class="num">开仓价</th><th class="num">标记价</th>
+                        <th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
                     </tr></thead>
                     <tbody>${posRowsHtml(positions)}</tbody>
                 </table>

@@ -347,7 +347,7 @@
     <section aria-label="策略仓位">
         <div class="section-head">
             <h3 class="section-title">策略仓位</h3>
-            <p class="section-sub">按策略分列 · 各 1000U</p>
+            <p class="section-sub" id="bots-sub">按策略分列 · A/B 2000U · C–E 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
@@ -692,10 +692,12 @@ function renderPaper(paper) {
         const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
         const nPos = nested.length;
         const active = b.id === fillFilter ? ' is-active' : '';
+        const initBal = b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance);
+        const balTag = Number.isFinite(initBal) ? ` · ${Math.round(initBal)}U` : '';
         return `<button type="button" class="bot-card${active}" data-bot-id="${b.id}">
             <div class="bot-card-top">
                 <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
-                <div class="bot-card-meta">${nPos} 仓</div>
+                <div class="bot-card-meta">${nPos} 仓${balTag}</div>
             </div>
             <div class="bot-stats">
                 <div class="bot-stat">
@@ -740,6 +742,33 @@ function renderPaper(paper) {
     renderFillTabs(paper);
     renderFills(paper);
     syncActiveChrome();
+    const { sub } = deskBalanceLine(bots);
+    const subEl = document.getElementById('bots-sub');
+    if (subEl && sub) subEl.textContent = sub;
+}
+
+function deskBalanceLine(bots) {
+    const list = Array.isArray(bots) ? bots : [];
+    const pairs = list.map((b) => {
+        const v = b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance);
+        return {
+            id: b.id,
+            bal: Number.isFinite(v) ? Math.round(v) : null,
+        };
+    }).filter((x) => x.bal != null);
+    if (!pairs.length) return { line: `${list.length} 策略`, sub: '按策略分列' };
+    const uniq = [...new Set(pairs.map((p) => p.bal))];
+    if (uniq.length === 1) {
+        return {
+            line: `${list.length} 策略 · 各 ${uniq[0]}U`,
+            sub: `按策略分列 · 各 ${uniq[0]}U`,
+        };
+    }
+    const parts = pairs.map((p) => `${botLabel(p.id).replace('策略 ', '')}${p.bal}U`);
+    return {
+        line: parts.join(' · '),
+        sub: `按策略分列 · ${parts.join(' · ')}`,
+    };
 }
 
 function renderCopyStatus(st) {
@@ -749,13 +778,16 @@ function renderCopyStatus(st) {
         return;
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0}` : 'WS 离线';
-    const n = (st.paper && st.paper.bot_count) || ((st.paper && st.paper.bots) || []).length || 0;
-    let line = `${n} 策略 · 各 1000U`;
-    const halted = ((st.paper && st.paper.bots) || []).filter((b) => b.risk_halted);
+    const bots = (st.paper && st.paper.bots) || (lastPaper ? sortedBots(lastPaper) : []);
+    const { line: balLine, sub } = deskBalanceLine(bots);
+    let line = balLine;
+    const halted = bots.filter((b) => b.risk_halted);
     if (halted.length) {
         line = `熔断：${halted.map((b) => botLabel(b.id)).join(', ')}`;
     }
     document.getElementById('status-line').textContent = line;
+    const subEl = document.getElementById('bots-sub');
+    if (subEl && sub) subEl.textContent = sub;
 }
 
 async function fetchPaper(mark) {

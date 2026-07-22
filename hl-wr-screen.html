@@ -356,11 +356,13 @@ function renderCriteria(laneId, c) {
     const chips = [
         `频次 ${c.fph24_min}–${c.fph24_max}/时`,
         `7D 胜率 ≥ ${fmtPct(c.wr7_min)}`,
-        `7D 已实现盈亏 > 0`,
+        `7D 相对权益 ≥ ${fmtPct(c.pnl7_roi_min != null ? c.pnl7_roi_min : 0)}`,
+        c.month_pnl_min != null ? `月已实现 > ${c.month_pnl_min}` : null,
         `scratch ≤ ${c.scratch_max}`,
-        `可映射占比 ≥ ${fmtPct(c.major_share_min)}`,
-        `不计盘口大小`,
-    ];
+        `可映射 ≥ ${fmtPct(c.major_share_min)}`,
+        `前两币集中 ≥ ${fmtPct(c.c2_min != null ? c.c2_min : 0)}`,
+        `持仓币 ≤ ${c.npos_max != null ? c.npos_max : '—'}`,
+    ].filter(Boolean);
     if (c.note) chips.push(c.note);
     row.innerHTML = chips.map((t) => `<span class="metric-chip" style="cursor:default">${t}</span>`).join('');
 }
@@ -392,11 +394,11 @@ function renderLane(board) {
 
     document.getElementById('lane-title').textContent = (lane.label || '') + ' · 今日入选';
     document.getElementById('lane-sub').textContent =
-        `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按 copy_score · 7D 盈亏排序`;
+        `候选 ${lane.candidate_count || 0} · 深筛 ${lane.scanned_count || 0} · 按 copy_score · 7D相对收益排序`;
     renderCriteria(activeLane, lane.criteria);
 
     document.getElementById('picks-head').innerHTML =
-        '<th>#</th><th>地址</th><th class="num">7D 胜率</th><th class="num">成交/平仓</th><th class="num">频次/时</th><th class="num">权益</th><th class="num">7D已实现</th><th class="num">scratch</th><th>风格/活跃币</th><th>持仓</th>';
+        '<th>#</th><th>地址</th><th class="num">7D 胜率</th><th class="num">成交/平仓</th><th class="num">频次/时</th><th class="num">权益</th><th class="num">7D收益</th><th class="num">scratch</th><th>风格/活跃币</th><th>持仓</th>';
 
     const body = document.getElementById('picks-tbody');
     if (!picks.length) {
@@ -408,6 +410,8 @@ function renderLane(board) {
         const wr = p.wr != null ? p.wr : p.wr7;
         const wrCls = wr != null && wr >= 0.7 ? 'wr-hi' : (wr != null && wr >= 0.55 ? 'pos' : '');
         const pnl7 = Number(p.pnl7 != null ? p.pnl7 : p.week_pnl);
+        const roi = p.pnl7_roi != null ? Number(p.pnl7_roi) : null;
+        const roiLabel = roi == null ? fmtUsd(pnl7) : `${fmtPct(roi)} · ${fmtUsd(pnl7)}`;
         const coins = (p.top_coins || []).slice(0, 3).map((x) => x.coin || x[0]).filter(Boolean).join(' · ') || '—';
         const style = p.specialty ? `${p.specialty} · ${coins}` : coins;
         const pos = (p.coins_pos || []).slice(0, 3).join(' · ') || '—';
@@ -425,7 +429,7 @@ function renderLane(board) {
             <td class="num">${sample}</td>
             <td class="num">${pace}</td>
             <td class="num">${fmtUsd(p.live_av != null ? p.live_av : p.av)}</td>
-            <td class="num ${pnl7 >= 0 ? 'pos' : 'neg'}">${fmtUsd(pnl7)}</td>
+            <td class="num ${pnl7 >= 0 ? 'pos' : 'neg'}">${roiLabel}</td>
             <td class="num">${scratch}</td>
             <td>${style}</td>
             <td>${pos}</td>

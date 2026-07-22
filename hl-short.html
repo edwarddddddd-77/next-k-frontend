@@ -82,10 +82,19 @@
             min-width: 0;
         }
         .bot-card:hover { border-color: color-mix(in srgb, var(--gold) 35%, var(--border)); }
-        .bot-card.is-active {
-            border-color: color-mix(in srgb, var(--gold) 55%, var(--border));
-            box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 25%, transparent);
+        .bot-card.is-warn {
+            border-color: color-mix(in srgb, #c45c26 45%, var(--border));
         }
+        .bot-card.is-bad {
+            border-color: color-mix(in srgb, var(--neon-red, #e85d5d) 50%, var(--border));
+        }
+        .bot-health {
+            font-size: 0.65rem;
+            letter-spacing: 0.02em;
+            margin-top: 0.35rem;
+        }
+        .bot-health.warn { color: #c45c26; }
+        .bot-health.bad { color: var(--neon-red, #e85d5d); }
         .bot-card-top {
             display: flex;
             align-items: baseline;
@@ -694,7 +703,18 @@ function renderPaper(paper) {
         const active = b.id === fillFilter ? ' is-active' : '';
         const initBal = b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance);
         const balTag = Number.isFinite(initBal) ? ` · ${Math.round(initBal)}U` : '';
-        return `<button type="button" class="bot-card${active}" data-bot-id="${b.id}">
+        const h = b.target_health || {};
+        const healthCls = !h.status || h.status === 'ok'
+            ? ''
+            : (h.empty ? ' is-bad' : ' is-warn');
+        let healthLine = '';
+        if (h.status && h.status !== 'ok') {
+            const bits = [h.label || h.status];
+            if (h.target_av != null) bits.push(`对方AV $${Number(h.target_av).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+            if (h.quiet_hours != null) bits.push(`静默 ${Number(h.quiet_hours).toFixed(1)}h`);
+            healthLine = `<div class="bot-health ${h.empty ? 'bad' : 'warn'}">${bits.join(' · ')}</div>`;
+        }
+        return `<button type="button" class="bot-card${active}${healthCls}" data-bot-id="${b.id}">
             <div class="bot-card-top">
                 <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
                 <div class="bot-card-meta">${nPos} 仓${balTag}</div>
@@ -713,6 +733,7 @@ function renderPaper(paper) {
                     <span class="stat-value">${fmtUsd(b.realized_pnl)}</span>
                 </div>
             </div>
+            ${healthLine}
         </button>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
 
@@ -781,8 +802,17 @@ function renderCopyStatus(st) {
     const bots = (st.paper && st.paper.bots) || (lastPaper ? sortedBots(lastPaper) : []);
     const { line: balLine, sub } = deskBalanceLine(bots);
     let line = balLine;
+    const alerts = [];
+    for (const b of bots) {
+        const h = b.target_health || {};
+        if (h.status && h.status !== 'ok') {
+            alerts.push(`${botLabel(b.id)}${h.label || h.status}`);
+        }
+    }
     const halted = bots.filter((b) => b.risk_halted);
-    if (halted.length) {
+    if (alerts.length) {
+        line = `注意：${alerts.join(' · ')}`;
+    } else if (halted.length) {
         line = `熔断：${halted.map((b) => botLabel(b.id)).join(', ')}`;
     }
     document.getElementById('status-line').textContent = line;

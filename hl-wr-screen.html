@@ -354,14 +354,13 @@ function renderCriteria(laneId, c) {
     const row = document.getElementById('criteria-row');
     if (!c) { row.innerHTML = ''; return; }
     const chips = [
-        `频次 ${c.fph24_min}–${c.fph24_max}/时`,
+        `合并腿 ${c.fph24_min}–${c.fph24_max}/时`,
+        `7D 回合 ≥ ${c.closed7_min != null ? c.closed7_min : '—'}`,
         `7D 胜率 ≥ ${fmtPct(c.wr7_min)}`,
-        `7D 相对权益 ≥ ${fmtPct(c.pnl7_roi_min != null ? c.pnl7_roi_min : 0)}`,
-        c.month_pnl_min != null ? `月已实现 > ${c.month_pnl_min}` : null,
-        `scratch ≤ ${c.scratch_max}`,
+        c.pair_rate_min != null ? `配对 ≥ ${fmtPct(c.pair_rate_min)}` : null,
+        `平仓盈 ≥ ${c.pnl7_min != null ? c.pnl7_min : '—'}`,
         `可映射 ≥ ${fmtPct(c.major_share_min)}`,
-        `前两币集中 ≥ ${fmtPct(c.c2_min != null ? c.c2_min : 0)}`,
-        `持仓币 ≤ ${c.npos_max != null ? c.npos_max : '—'}`,
+        `live ≥ ${c.live_av_min != null ? c.live_av_min : '—'}`,
     ].filter(Boolean);
     if (c.note) chips.push(c.note);
     row.innerHTML = chips.map((t) => `<span class="metric-chip" style="cursor:default">${t}</span>`).join('');

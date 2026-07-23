@@ -356,7 +356,7 @@
     <section aria-label="策略仓位">
         <div class="section-head">
             <h3 class="section-title">策略仓位</h3>
-            <p class="section-sub" id="bots-sub">按策略分列 · B–F 各 1000U</p>
+            <p class="section-sub" id="bots-sub">按策略分列 · A–H 各 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
@@ -477,6 +477,8 @@ function botLabel(id) {
         bot_d: '策略 D',
         bot_e: '策略 E',
         bot_f: '策略 F',
+        bot_g: '策略 G',
+        bot_h: '策略 H',
         wr94_hype: '策略 A',
         wr72_multi: '策略 B',
         wr88_btc_ada: '策略 C',
@@ -486,7 +488,7 @@ function botLabel(id) {
     return map[id] || id || '策略';
 }
 
-const BOT_ORDER = ['wr94_hype', 'wr72_multi', 'wr88_btc_ada', 'wr63_alts', 'wr75_btc_eth'];
+const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_e', 'bot_f', 'bot_g', 'bot_h'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'flip']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;

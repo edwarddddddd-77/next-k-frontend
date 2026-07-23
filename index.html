@@ -488,26 +488,23 @@
             </div>
         </section>
 
-        <section class="mb-7" aria-label="实盘策略动向" id="strategy-signals-section">
+        <section class="mb-7" aria-label="纸面模拟" id="strategy-signals-section">
             <div class="dash-card card-hover overflow-hidden min-w-0 flex flex-col">
                 <div class="panel-head border-b border-border/80">
                     <div>
-                        <div class="panel-kicker">Execution</div>
-                        <h2 class="panel-title">实盘策略动向</h2>
-                        <p class="text-text-muted text-[11px] mt-1 leading-relaxed">仅展示策略开仓信号，不含平仓与交易所同步持仓</p>
+                        <div class="panel-kicker">Paper</div>
+                        <h2 class="panel-title">纸面模拟</h2>
+                        <p class="text-text-muted text-[11px] mt-1 leading-relaxed">AVAX F-MR（gate）纸面开仓信号 · 研究用，不自动下单 · 无硬止盈止损</p>
                     </div>
                     <div class="panel-toolbar">
                         <span id="strategy-signals-ts" class="panel-ts">—</span>
                         <button type="button" id="strategy-signals-refresh" class="btn-ghost">更新</button>
                     </div>
                 </div>
-                <div id="strategy-signal-tab-bar" class="flex flex-nowrap items-end gap-0.5 overflow-x-auto px-3 sm:px-4 pt-2 border-b border-border/60 bg-surface-light/[0.15] scrollbar-thin" role="tablist" aria-label="策略动向来源"></div>
+                <div id="strategy-signal-tab-bar" class="flex flex-nowrap items-end gap-0.5 overflow-x-auto px-3 sm:px-4 pt-2 border-b border-border/60 bg-surface-light/[0.15] scrollbar-thin" role="tablist" aria-label="纸面模拟来源"></div>
                 <div id="strategy-signal-panels" class="min-w-0">
-                    <div id="strategy-signal-panel-orb" role="tabpanel" class="panel-body pt-0 overflow-x-auto signal-lane-scroll">
-                        <div id="strategy-signals-orb-body" class="state-muted animate-pulse py-4 px-1">正在载入 Alpha 动向…</div>
-                    </div>
-                    <div id="strategy-signal-panel-ict" role="tabpanel" hidden class="panel-body pt-0 overflow-x-auto signal-lane-scroll">
-                        <div id="strategy-signals-ict-body" class="state-muted animate-pulse py-4 px-1">正在载入 Beta 动向…</div>
+                    <div id="strategy-signal-panel-fmr" role="tabpanel" class="panel-body pt-0 overflow-x-auto signal-lane-scroll">
+                        <div id="strategy-signals-fmr-body" class="state-muted animate-pulse py-4 px-1">正在载入纸面模拟…</div>
                     </div>
                 </div>
             </div>
@@ -629,7 +626,7 @@
             const blocks = [
                 main.querySelector('section[aria-label="精选推荐"]'),
                 pick('oi-lane-section', '资金池 · 持仓扫描'),
-                pick('strategy-signals-section', '实盘策略动向'),
+                pick('strategy-signals-section', '纸面模拟'),
                 pick('indicatoredge-section', '最佳指标查询'),
                 pick('worth-history-section', '精选推荐与核心关注归档'),
             ];
@@ -840,7 +837,8 @@
             async strategySignals(lane, limit) {
                 const l = encodeURIComponent(lane || '');
                 const n = limit != null ? limit : 100;
-                const res = await fetchWithTimeout(`${API_BASE}/api/strategy/signals?lane=${l}&limit=${n}`, {}, 12000);
+                const timeout = String(lane || '') === 'avax_f_mr' ? 45000 : 12000;
+                const res = await fetchWithTimeout(`${API_BASE}/api/strategy/signals?lane=${l}&limit=${n}`, {}, timeout);
                 const text = await res.text();
                 let data;
                 try {
@@ -849,6 +847,9 @@
                     throw new Error(text || res.statusText);
                 }
                 if (!res.ok) throw new Error(apiErrorDetail(data, text, res));
+                if (data && data.ok === false) {
+                    throw new Error(data.error || data.detail || 'strategy_signals_error');
+                }
                 return data;
             },
             async indicatorEdgeBest(symbol) {
@@ -1190,12 +1191,12 @@
         }
 
         const STRATEGY_SIGNAL_TAB_META = [
-            ['orb', 'Alpha', 'trading_orb'],
-            ['ict', 'Beta', 'mtfmomo'],
+            ['fmr', 'F-MR 纸面', 'avax_f_mr'],
         ];
-        let _strategySignalCounts = { orb: 0, ict: 0 };
-        let _strategySignalsByTab = { orb: [], ict: [] };
-        let _strategySignalErrors = { orb: null, ict: null };
+        let _strategySignalCounts = { fmr: 0 };
+        let _strategySignalsByTab = { fmr: [] };
+        let _strategySignalErrors = { fmr: null };
+        let _strategySignalMeta = { fmr: null };
 
         function strategySignalTabBtnClass(active) {
             const base =
@@ -1210,7 +1211,7 @@
                 const k = localStorage.getItem('strategySignalTabKey');
                 if (k && STRATEGY_SIGNAL_TAB_META.some(([id]) => id === k)) return k;
             } catch (e) { /* ignore */ }
-            return 'orb';
+            return 'fmr';
         }
 
         function fmtSignalTime(iso) {
@@ -1248,10 +1249,10 @@
                 return '<span class="sig-badge sig-badge-open">已成交</span>';
             }
             if (st === 'shadow') {
-                return '<span class="sig-badge sig-badge-warn">模拟/信号</span>';
+                return '<span class="sig-badge sig-badge-warn">回测纸面</span>';
             }
             if (st === 'emitted') {
-                return '<span class="sig-badge sig-badge-warn">已推送</span>';
+                return '<span class="sig-badge sig-badge-warn">纸面信号</span>';
             }
             if (st === 'traded' && act === 'close') {
                 return '<span class="sig-badge sig-badge-warn">已离场</span>';
@@ -1274,12 +1275,21 @@
         function signalSkipReasonLabel(reason) {
             if (!reason) return '—';
             if (reason === 'already_flat') return '交易所已无持仓';
+            // F-MR backtest rows: hold=10h ret=1.148%
+            if (/^hold=\d+h ret=/.test(String(reason))) return String(reason);
             return String(reason);
         }
 
         function renderStrategySignalTabBar() {
             const bar = document.getElementById('strategy-signal-tab-bar');
             if (!bar) return;
+            // Single paper lane — hide empty chrome
+            if (STRATEGY_SIGNAL_TAB_META.length <= 1) {
+                bar.classList.add('hidden');
+                bar.innerHTML = '';
+                return;
+            }
+            bar.classList.remove('hidden');
             const active = strategySignalPreferredTabKey();
             bar.innerHTML = STRATEGY_SIGNAL_TAB_META.map(([key, label]) => {
                 const count = _strategySignalCounts[key];
@@ -1331,30 +1341,44 @@
             const err = _strategySignalErrors[key];
             if (err) {
                 _strategySignalCounts[key] = 0;
-                body.innerHTML = '<div class="text-neon-red text-xs py-4">动向载入失败：' + escHtml(err) + '</div>';
+                body.innerHTML = '<div class="text-neon-red text-xs py-4">纸面模拟载入失败：' + escHtml(err) + '</div>';
                 return;
             }
             const rows = _strategySignalsByTab[key] || [];
             _strategySignalCounts[key] = rows.length;
             if (!rows.length) {
-                body.innerHTML = '<div class="state-muted text-xs py-4">暂无 ' + escHtml(label) + ' 动向</div>';
+                body.innerHTML = '<div class="state-muted text-xs py-4">暂无 ' + escHtml(label) + ' 记录</div>';
                 return;
             }
+            const meta = _strategySignalMeta[key] || {};
+            const bt = meta.backtest_summary || {};
+            const live = meta.live || {};
+            const liveSide = String(live.side || 'flat').toUpperCase();
+            const wrPct = bt.wr != null && Number.isFinite(Number(bt.wr)) ? (100 * Number(bt.wr)).toFixed(1) + '%' : '—';
+            const eq = bt.equity_mult != null ? Number(bt.equity_mult).toFixed(2) + '×' : '—';
+            const nBt = bt.n_trades != null ? String(bt.n_trades) : '—';
+            const summary =
+                '<div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted mb-3 px-0.5">'
+                + '<span>当前 <span class="text-text-primary font-medium">' + escHtml(liveSide) + '</span>'
+                + (live.strength != null ? ' · 强度 ' + escHtml(String(live.strength)) : '')
+                + '</span>'
+                + '<span>90d 纸面 ' + escHtml(nBt) + ' 笔 · WR ' + escHtml(wrPct) + ' · 复利 ' + escHtml(eq) + '</span>'
+                + '<span>无硬止盈止损</span>'
+                + '</div>';
             const trs = rows.map((s) => {
                 return '<tr>'
                     + '<td class="text-text-secondary text-xs">' + escHtml(signalActionLabel(s.action)) + '</td>'
                     + '<td class="font-medium text-text-primary">' + escHtml(s.symbol || '—') + '</td>'
                     + '<td>' + signalSideBadge(s.side) + '</td>'
                     + '<td class="font-mono">' + fmtSignalNum(s.entry_price, 4) + '</td>'
-                    + '<td class="font-mono text-neon-red">' + fmtSignalNum(s.sl_price, 4) + '</td>'
-                    + '<td class="font-mono text-neon-green">' + fmtSignalNum(s.tp_price, 4) + '</td>'
                     + '<td>' + signalStatusBadge(s.status, s.action) + '</td>'
-                    + '<td class="text-text-muted text-xs max-w-[10rem] truncate" title="' + escHtml(signalSkipReasonLabel(s.skip_reason) || '') + '">' + escHtml(signalSkipReasonLabel(s.skip_reason)) + '</td>'
+                    + '<td class="text-text-muted text-xs max-w-[12rem] truncate" title="' + escHtml(signalSkipReasonLabel(s.skip_reason) || '') + '">' + escHtml(signalSkipReasonLabel(s.skip_reason)) + '</td>'
                     + '<td class="text-text-muted text-xs">' + fmtSignalTime(s.received_at) + '</td>'
                     + '</tr>';
             }).join('');
-            body.innerHTML = '<table class="data-table min-w-[720px]"><thead><tr>'
-                + '<th>类型</th><th>合约</th><th>多空</th><th>进场价</th><th>止损位</th><th>止盈位</th><th>进度</th><th>说明</th><th>推送时间</th>'
+            body.innerHTML = summary
+                + '<table class="data-table min-w-[560px]"><thead><tr>'
+                + '<th>类型</th><th>合约</th><th>多空</th><th>进场价</th><th>进度</th><th>说明</th><th>信号时间</th>'
                 + '</tr></thead><tbody>' + trs + '</tbody></table>';
         }
 
@@ -1393,12 +1417,17 @@
                     if (res.status === 'fulfilled') {
                         _strategySignalErrors[key] = null;
                         _strategySignalsByTab[key] = res.value.signals || [];
+                        _strategySignalMeta[key] = {
+                            live: res.value.live || null,
+                            backtest_summary: res.value.backtest_summary || null,
+                        };
                         total += _strategySignalsByTab[key].length;
                     } else {
                         const reason = res.reason;
                         console.error('strategy signals ' + key + ':', reason);
                         _strategySignalErrors[key] = reason && reason.message ? String(reason.message) : '载入失败';
                         _strategySignalsByTab[key] = [];
+                        _strategySignalMeta[key] = null;
                     }
                 });
                 renderStrategySignals();
@@ -1407,9 +1436,10 @@
                 }
             } catch (e) {
                 console.error('strategy signals:', e);
-                _strategySignalsByTab = { orb: [], ict: [] };
-                _strategySignalCounts = { orb: 0, ict: 0 };
-                _strategySignalErrors = { orb: '载入失败', ict: '载入失败' };
+                _strategySignalsByTab = { fmr: [] };
+                _strategySignalCounts = { fmr: 0 };
+                _strategySignalErrors = { fmr: '载入失败' };
+                _strategySignalMeta = { fmr: null };
                 if (tsEl) tsEl.textContent = '—';
                 renderStrategySignalTabBar();
             } finally {
@@ -2055,7 +2085,7 @@
             [
                 main.querySelector('section[aria-label="精选推荐"]'),
                 pick('oi-lane-section', '资金池 · 持仓扫描'),
-                pick('strategy-signals-section', '实盘策略动向'),
+                pick('strategy-signals-section', '纸面模拟'),
                 pick('indicatoredge-section', '最佳指标查询'),
                 pick('worth-history-section', '精选推荐与核心关注归档'),
             ].forEach((el) => {

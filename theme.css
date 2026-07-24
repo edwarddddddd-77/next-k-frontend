@@ -1,50 +1,49 @@
-/* Next K — shared light desk theme
-   Calmer surfaces, softer edges, less visual noise. */
+/* Next K — Hyperstats-style dark trading desk */
 
 :root {
-    color-scheme: light;
-    --bg: #F3F5F8;
-    --surface: #FFFFFF;
-    --surface-light: #EEF1F5;
-    --border: #E0E4EA;
-    --accent: #B85A56;
-    --gold: #9A7B4F;
-    --gold-soft: rgba(154, 123, 79, 0.10);
-    --neon-green: #2D8A55;
-    --neon-red: #C24B45;
-    --neon-purple: #9A7B4F;
-    --neon-blue: #4A6F86;
-    --neon-yellow: #9A7B4F;
-    --warn: #9A7B4F;
-    --text-primary: #1A1C21;
-    --text-secondary: #5A616C;
-    --text-muted: #8B929E;
-    --scrollbar-track: #EBEEF2;
-    --scrollbar-thumb: #C8CED6;
-    --scrollbar-thumb-hover: #AEB6C0;
-    --shadow-color: rgba(26, 28, 33, 0.07);
-    --hover-bg: rgba(26, 28, 33, 0.035);
-    --card-glow: rgba(154, 123, 79, 0.06);
-    --btn-hover-bg: #EBEEF2;
-    --oi-hover: #EBEEF2;
-    --code-bg: #E9EDF2;
-    --hero-bg-start: #F8F9FB;
-    --hero-bg-mid: #F3F5F8;
-    --hero-bg-end: #EEF1F5;
-    --hero-shadow: rgba(26, 28, 33, 0.06);
-    --hero-inner-glow: rgba(255, 255, 255, 0.9);
-    --glass: rgba(255, 255, 255, 0.82);
-    --glass-border: rgba(224, 228, 234, 0.95);
-    --ink: #1A1C21;
+    color-scheme: dark;
+    --bg: #0B0E11;
+    --surface: #15191E;
+    --surface-light: #1C2128;
+    --border: #2B3139;
+    --accent: #3D8BFF;
+    --gold: #F0B90B;
+    --gold-soft: rgba(240, 185, 11, 0.12);
+    --neon-green: #0ECB81;
+    --neon-red: #F6465D;
+    --neon-purple: #8B7CFF;
+    --neon-blue: #3D8BFF;
+    --neon-yellow: #F0B90B;
+    --warn: #F0B90B;
+    --text-primary: #EAECEF;
+    --text-secondary: #848E9C;
+    --text-muted: #5E6673;
+    --scrollbar-track: #15191E;
+    --scrollbar-thumb: #2B3139;
+    --scrollbar-thumb-hover: #474D57;
+    --shadow-color: rgba(0, 0, 0, 0.45);
+    --hover-bg: rgba(61, 139, 255, 0.06);
+    --card-glow: rgba(61, 139, 255, 0.08);
+    --btn-hover-bg: #1C2128;
+    --oi-hover: #1C2128;
+    --code-bg: #1C2128;
+    --hero-bg-start: #15191E;
+    --hero-bg-mid: #12161B;
+    --hero-bg-end: #0F1318;
+    --hero-shadow: rgba(0, 0, 0, 0.35);
+    --hero-inner-glow: rgba(61, 139, 255, 0.04);
+    --glass: rgba(21, 25, 30, 0.88);
+    --glass-border: rgba(43, 49, 57, 0.95);
+    --ink: #EAECEF;
     --radius-sm: 0.375rem;
     --radius-md: 0.5rem;
     --radius-lg: 0.625rem;
     --radius-xl: 0.75rem;
     --card-shadow:
-        0 1px 2px color-mix(in srgb, var(--shadow-color) 55%, transparent),
+        0 1px 0 color-mix(in srgb, #fff 3%, transparent),
         0 8px 24px -12px var(--shadow-color);
     --card-shadow-hover:
-        0 2px 4px color-mix(in srgb, var(--shadow-color) 45%, transparent),
+        0 1px 0 color-mix(in srgb, #fff 5%, transparent),
         0 14px 32px -14px color-mix(in srgb, var(--shadow-color) 120%, transparent);
     --space-section: 1.25rem;
     --space-panel-x: 1.25rem;
@@ -58,8 +57,9 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--bg);
     background-image:
-        radial-gradient(ellipse 80% 50% at 12% -8%, color-mix(in srgb, var(--gold) 7%, transparent), transparent 55%),
-        linear-gradient(180deg, #F7F8FA 0%, var(--bg) 38%);
+        radial-gradient(ellipse 70% 40% at 8% -6%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+        radial-gradient(ellipse 50% 30% at 92% 0%, color-mix(in srgb, var(--neon-green) 5%, transparent), transparent 50%),
+        linear-gradient(180deg, #0F1318 0%, var(--bg) 42%);
     background-attachment: fixed;
     line-height: 1.5;
 }
@@ -70,8 +70,8 @@ body::before {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.09;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
 }
 
 body > header,
@@ -95,7 +95,7 @@ h1, h2, h3, .hl-title, .panel-title {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); background-clip: padding-box; }
 ::selection {
-    background: color-mix(in srgb, var(--gold) 18%, transparent);
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
     color: var(--text-primary);
 }
 
@@ -114,13 +114,13 @@ h1, h2, h3, .hl-title, .panel-title {
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-md);
-    border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
     background: linear-gradient(
         145deg,
-        color-mix(in srgb, var(--gold) 35%, var(--surface)) 0%,
-        color-mix(in srgb, var(--accent) 55%, var(--surface)) 100%
+        color-mix(in srgb, var(--accent) 45%, var(--surface)) 0%,
+        color-mix(in srgb, var(--neon-green) 25%, var(--surface)) 100%
     );
-    box-shadow: 0 2px 8px -4px color-mix(in srgb, var(--gold) 28%, transparent);
+    box-shadow: 0 2px 10px -4px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .brand-mark svg { width: 0.95rem; height: 0.95rem; color: var(--ink); }
@@ -163,10 +163,10 @@ h1, h2, h3, .hl-title, .panel-title {
 }
 
 .nav-pill-active {
-    color: var(--text-primary);
-    border-color: color-mix(in srgb, var(--border) 90%, transparent);
-    background: var(--surface);
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 80%, transparent);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    box-shadow: none;
 }
 
 .header-clock {
@@ -217,7 +217,7 @@ h1, h2, h3, .hl-title, .panel-title {
 }
 
 .card-hover:hover {
-    border-color: color-mix(in srgb, var(--border) 70%, var(--gold) 15%);
+    border-color: color-mix(in srgb, var(--border) 55%, var(--accent) 25%);
     box-shadow: var(--card-shadow-hover);
 }
 
@@ -302,7 +302,7 @@ h1, h2, h3, .hl-title, .panel-title {
     font-weight: 600;
     letter-spacing: 0.02em;
     color: var(--text-secondary);
-    background: var(--surface);
+    background: var(--surface-light);
     border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
     border-radius: 999px;
     cursor: pointer;
@@ -311,8 +311,8 @@ h1, h2, h3, .hl-title, .panel-title {
 
 .btn-ghost:hover {
     color: var(--text-primary);
-    border-color: color-mix(in srgb, var(--gold) 25%, var(--border));
-    background: color-mix(in srgb, var(--gold-soft) 50%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface-light));
 }
 
 .btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -337,12 +337,12 @@ h1, h2, h3, .hl-title, .panel-title {
     text-align: left;
     white-space: nowrap;
     border-bottom: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
-    background: color-mix(in srgb, var(--surface-light) 55%, var(--surface));
+    background: color-mix(in srgb, var(--surface-light) 70%, var(--surface));
 }
 
 .data-table tbody td {
     padding: 0.62rem 0.85rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
     vertical-align: middle;
 }
 
@@ -354,7 +354,7 @@ h1, h2, h3, .hl-title, .panel-title {
     background: linear-gradient(
         90deg,
         color-mix(in srgb, var(--surface-light) 80%, transparent) 0%,
-        color-mix(in srgb, var(--border) 35%, transparent) 50%,
+        color-mix(in srgb, var(--border) 55%, transparent) 50%,
         color-mix(in srgb, var(--surface-light) 80%, transparent) 100%
     );
     background-size: 200% 100%;

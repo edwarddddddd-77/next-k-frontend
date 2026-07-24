@@ -748,16 +748,22 @@ function renderPaper(paper) {
         const healthCls = !h.status || h.status === 'ok'
             ? ''
             : (h.empty ? ' is-bad' : ' is-warn');
+        const tav = h.target_av != null ? h.target_av : b.target_av;
+        const tspot = h.target_spot_usdc != null ? h.target_spot_usdc : b.target_spot_usdc;
+        const tevm = h.target_evm_usdc != null ? h.target_evm_usdc : b.target_evm_usdc;
         let healthLine = '';
         if (h.status && h.status !== 'ok') {
             const bits = [h.label || h.status];
-            if (h.target_av != null) bits.push(`永续AV $${Number(h.target_av).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
-            if (h.target_spot_usdc != null && !(h.label || '').includes('现货')) {
-                bits.push(`现货 $${Number(h.target_spot_usdc).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
-            }
             if (h.quiet_hours != null) bits.push(`静默 ${Number(h.quiet_hours).toFixed(1)}h`);
             healthLine = `<div class="bot-health ${h.empty ? 'bad' : 'warn'}">${bits.join(' · ')}</div>`;
         }
+        const fundBits = [];
+        if (tav != null) fundBits.push(`永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+        if (tspot != null) fundBits.push(`Core现货 $${Number(tspot).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+        if (tevm != null) fundBits.push(`EVM $${Number(tevm).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+        const fundLine = fundBits.length
+            ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方 ${fundBits.join(' · ')}</div>`
+            : '';
         return `<button type="button" class="bot-card${active}${healthCls}" data-bot-id="${b.id}">
             <div class="bot-card-top">
                 <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
@@ -777,7 +783,7 @@ function renderPaper(paper) {
                     <span class="stat-value">${fmtUsd(b.realized_pnl)}</span>
                 </div>
             </div>
-            ${healthLine}
+            ${healthLine}${fundLine}
         </button>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
 
@@ -903,19 +909,27 @@ function renderSpot(paper) {
             : (b.target_health && b.target_health.target_spot_usdc != null
                 ? Number(b.target_health.target_spot_usdc)
                 : null);
+        const evmUsdc = b.target_evm_usdc != null
+            ? Number(b.target_evm_usdc)
+            : (b.target_health && b.target_health.target_evm_usdc != null
+                ? Number(b.target_health.target_evm_usdc)
+                : null);
         const at = b.target_spot_at != null ? Number(b.target_spot_at) : null;
+        const usdcTag = usdc != null && Number.isFinite(usdc)
+            ? `Core现货 $${usdc.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+            : 'Core现货 —';
+        const evmTag = evmUsdc != null && Number.isFinite(evmUsdc)
+            ? `EVM $${evmUsdc.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+            : 'EVM —';
         if (at != null && Number.isFinite(at) && (latestAt == null || at > latestAt)) {
             latestAt = at;
         }
         if ((bals || []).length) withBal += 1;
         if ((fills || []).length) withFill += 1;
-        const usdcTag = usdc != null && Number.isFinite(usdc)
-            ? `USDC $${usdc.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-            : 'USDC —';
         return `<div class="strategy-block">
             <div class="strategy-block-head">
                 <div class="strategy-block-title">${escapeHtml(botLabel(b.id))}</div>
-                <div class="strategy-block-meta spot-block-meta">${escapeHtml(usdcTag)} · 监控</div>
+                <div class="strategy-block-meta spot-block-meta">${escapeHtml(usdcTag)} · ${escapeHtml(evmTag)} · 监控</div>
             </div>
             <div class="scroll-panel" style="margin-bottom:0.45rem;">
                 <table class="data-table tbl-spot">

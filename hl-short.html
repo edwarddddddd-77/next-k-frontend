@@ -97,36 +97,54 @@
         .bot-health.bad { color: var(--neon-red, #e85d5d); }
         .bot-card-top {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             justify-content: space-between;
             gap: 0.5rem;
             margin-bottom: 0.55rem;
             padding-bottom: 0.45rem;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
         }
-        .bot-card-name { font-family: "Noto Serif SC", Georgia, serif; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
-        .bot-card-meta { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; }
+        .bot-card-name {
+            font-family: "Noto Serif SC", Georgia, serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+        }
+        .bot-card-meta { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
         .bot-tag {
             display: inline-flex;
             align-items: center;
-            padding: 0.05rem 0.35rem;
-            border-radius: 2px;
+            justify-content: center;
+            height: 1.125rem;
+            padding: 0 0.42rem;
+            border: none;
+            border-radius: 999px;
             font-family: "Source Sans 3", system-ui, sans-serif;
-            font-size: 0.62rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            line-height: 1.35;
-            border: 1px solid transparent;
+            font-size: 0.6rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            line-height: 1;
+            flex-shrink: 0;
+            vertical-align: middle;
         }
         .bot-tag.is-day {
-            color: color-mix(in srgb, var(--gold) 85%, var(--text-primary));
-            border-color: color-mix(in srgb, var(--gold) 35%, var(--border));
-            background: color-mix(in srgb, var(--gold) 12%, transparent);
+            color: color-mix(in srgb, var(--gold) 70%, #5a4a28);
+            background: color-mix(in srgb, var(--gold) 16%, transparent);
         }
         .bot-tag.is-swing {
-            color: color-mix(in srgb, #5b8def 90%, var(--text-primary));
-            border-color: color-mix(in srgb, #5b8def 40%, var(--border));
-            background: color-mix(in srgb, #5b8def 12%, transparent);
+            color: #3d5f8a;
+            background: color-mix(in srgb, #5b8def 14%, transparent);
+        }
+        .bot-halt {
+            font-family: "Source Sans 3", system-ui, sans-serif;
+            font-size: 0.62rem;
+            font-weight: 500;
+            color: var(--neon-red, #e85d5d);
+            letter-spacing: 0.04em;
         }
         .bot-stats {
             display: flex;
@@ -202,18 +220,24 @@
         }
         .strategy-block-head {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             justify-content: space-between;
             gap: 0.4rem;
             margin-bottom: 0.2rem;
             padding: 0 0.1rem;
+            min-height: 1.35rem;
         }
         .strategy-block-title {
             font-family: "Noto Serif SC", Georgia, serif;
             font-size: 0.82rem;
             font-weight: 600;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            min-width: 0;
         }
-        .strategy-block-meta { font-size: 0.65rem; color: var(--text-muted); }
+        .strategy-block-meta { font-size: 0.65rem; color: var(--text-muted); line-height: 1; flex-shrink: 0; }
         .scroll-panel {
             max-height: 11rem;
             overflow: auto;
@@ -776,7 +800,7 @@ function renderPaper(paper) {
 
     const strip = document.getElementById('bots-strip');
     strip.innerHTML = bots.map((b) => {
-        const halted = b.risk_halted ? ' · 熔断' : '';
+        const halted = b.risk_halted ? '<span class="bot-halt">熔断</span>' : '';
         const nested = botPositions(paper, b);
         const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
         const nPos = nested.length;
@@ -799,7 +823,7 @@ function renderPaper(paper) {
             : '';
         return `<button type="button" class="bot-card${active}${healthCls}" data-bot-id="${b.id}">
             <div class="bot-card-top">
-                <div class="bot-card-name">${botLabel(b.id)}${botTagHtml(b)}${halted}</div>
+                <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
                 <div class="bot-card-meta">${nPos} 仓${balTag}</div>
             </div>
             <div class="bot-stats">
@@ -824,7 +848,7 @@ function renderPaper(paper) {
         const positions = botPositions(paper, b);
         return `<div class="strategy-block">
             <div class="strategy-block-head">
-                <div class="strategy-block-title">${botLabel(b.id)} ${botTagHtml(b)}</div>
+                <div class="strategy-block-title"><span>${botLabel(b.id)}</span>${botTagHtml(b)}</div>
                 <div class="strategy-block-meta">${positions.length} 仓</div>
             </div>
             <div class="scroll-panel">

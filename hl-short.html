@@ -104,8 +104,30 @@
             padding-bottom: 0.45rem;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
         }
-        .bot-card-name { font-family: "Noto Serif SC", Georgia, serif; font-size: 0.95rem; font-weight: 600; }
+        .bot-card-name { font-family: "Noto Serif SC", Georgia, serif; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
         .bot-card-meta { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; }
+        .bot-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.05rem 0.35rem;
+            border-radius: 2px;
+            font-family: "Source Sans 3", system-ui, sans-serif;
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            line-height: 1.35;
+            border: 1px solid transparent;
+        }
+        .bot-tag.is-day {
+            color: color-mix(in srgb, var(--gold) 85%, var(--text-primary));
+            border-color: color-mix(in srgb, var(--gold) 35%, var(--border));
+            background: color-mix(in srgb, var(--gold) 12%, transparent);
+        }
+        .bot-tag.is-swing {
+            color: color-mix(in srgb, #5b8def 90%, var(--text-primary));
+            border-color: color-mix(in srgb, #5b8def 40%, var(--border));
+            background: color-mix(in srgb, #5b8def 12%, transparent);
+        }
         .bot-stats {
             display: flex;
             flex-direction: column;
@@ -365,7 +387,7 @@
     <section aria-label="策略仓位">
         <div class="section-head">
             <h3 class="section-title">策略仓位</h3>
-            <p class="section-sub" id="bots-sub">按策略分列 · A–H 各 1000U</p>
+            <p class="section-sub" id="bots-sub">按策略分列 · A–J 各 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
@@ -378,6 +400,17 @@
             </div>
         </div>
         <div id="spot-by-strategy" class="pos-grid"></div>
+    </section>
+
+    <section aria-label="跟单候选池">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">跟单候选池</h3>
+                <p class="section-sub" id="cand-sub">ready 日内/波段 · flat WR≥80% · 钱包有钱可绑 · 周筛 周一 09:30</p>
+            </div>
+            <button id="btn-cand-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">刷新池</button>
+        </div>
+        <div id="cand-ready" class="pos-grid"></div>
     </section>
 
     <section aria-label="成交记录">
@@ -507,6 +540,8 @@ function botLabel(id) {
         bot_f: '策略 F',
         bot_g: '策略 G',
         bot_h: '策略 H',
+        bot_i: '策略 I',
+        bot_j: '策略 J',
         wr94_hype: '策略 A',
         wr72_multi: '策略 B',
         wr88_btc_ada: '策略 C',
@@ -516,7 +551,25 @@ function botLabel(id) {
     return map[id] || id || '策略';
 }
 
-const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_e', 'bot_f', 'bot_g', 'bot_h'];
+function botTag(b) {
+    const raw = (b && (b.tag || b.ht_style || b.style)) || '';
+    const s = String(raw).toLowerCase();
+    if (raw === '日内' || s === 'day_trader' || s === 'day' || s.startsWith('day')) {
+        return { label: '日内', cls: 'is-day' };
+    }
+    if (raw === '波段' || s === 'swing_trader' || s === 'swing' || s.startsWith('swing')) {
+        return { label: '波段', cls: 'is-swing' };
+    }
+    return null;
+}
+
+function botTagHtml(b) {
+    const t = botTag(b);
+    if (!t) return '';
+    return `<span class="bot-tag ${t.cls}">${t.label}</span>`;
+}
+
+const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;
@@ -766,7 +819,7 @@ function renderPaper(paper) {
             : '';
         return `<button type="button" class="bot-card${active}${healthCls}" data-bot-id="${b.id}">
             <div class="bot-card-top">
-                <div class="bot-card-name">${botLabel(b.id)}${halted}</div>
+                <div class="bot-card-name">${botLabel(b.id)}${botTagHtml(b)}${halted}</div>
                 <div class="bot-card-meta">${nPos} 仓${balTag}</div>
             </div>
             <div class="bot-stats">
@@ -791,7 +844,7 @@ function renderPaper(paper) {
         const positions = botPositions(paper, b);
         return `<div class="strategy-block">
             <div class="strategy-block-head">
-                <div class="strategy-block-title">${botLabel(b.id)}</div>
+                <div class="strategy-block-title">${botLabel(b.id)} ${botTagHtml(b)}</div>
                 <div class="strategy-block-meta">${positions.length} 仓</div>
             </div>
             <div class="scroll-panel">
@@ -928,7 +981,7 @@ function renderSpot(paper) {
         if ((fills || []).length) withFill += 1;
         return `<div class="strategy-block">
             <div class="strategy-block-head">
-                <div class="strategy-block-title">${escapeHtml(botLabel(b.id))}</div>
+                <div class="strategy-block-title">${escapeHtml(botLabel(b.id))} ${botTagHtml(b)}</div>
                 <div class="strategy-block-meta spot-block-meta">${escapeHtml(usdcTag)} · ${escapeHtml(evmTag)} · 监控</div>
             </div>
             <div class="scroll-panel" style="margin-bottom:0.45rem;">
@@ -1077,17 +1130,71 @@ async function fetchCopyStatus() {
 
 let pollTick = 0;
 
+async function fetchCandidates(refresh) {
+    const q = refresh ? '?refresh=true' : '';
+    const res = await fetch(`${API}/api/hl-short/candidates${q}`);
+    if (!res.ok) throw new Error('candidates ' + res.status);
+    return res.json();
+}
+
+function renderCandidates(board) {
+    const el = document.getElementById('cand-ready');
+    const sub = document.getElementById('cand-sub');
+    if (!el) return;
+    if (!board || board.ok === false) {
+        el.innerHTML = '<p class="text-text-muted text-sm">暂无候选池 · 等周筛或手动重建</p>';
+        if (sub) sub.textContent = 'ready 日内/波段 · flat WR≥80% · 钱包资金可绑';
+        return;
+    }
+    const ready = board.ready || [];
+    const watch = board.watch || [];
+    const gen = board.generated_at ? String(board.generated_at).replace('T', ' ').slice(0, 19) : '—';
+    if (sub) {
+        sub.textContent = `更新 ${gen} · ready ${board.ready_count ?? ready.length} · watch ${board.watch_count ?? watch.length} · bound ${board.bound_count ?? 0}`;
+    }
+    const rows = ready.slice(0, 12);
+    if (!rows.length) {
+        el.innerHTML = '<p class="text-text-muted text-sm">ready 为空 · 看周筛是否跑完</p>';
+        return;
+    }
+    el.innerHTML = `<div class="scroll-panel"><table class="data-table">
+        <thead><tr>
+            <th>#</th><th>风格</th><th>地址</th><th>WR</th><th>回合</th><th>钱包$</th><th>永续</th><th>静默</th><th>币</th>
+        </tr></thead>
+        <tbody>${rows.map((r, i) => {
+            const addr = String(r.addr || '');
+            const short = addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '—';
+            const wr = r.wr7 != null ? `${(Number(r.wr7) * 100).toFixed(0)}%` : '—';
+            const href = r.hl_url || (addr ? `https://app.hyperliquid.xyz/explorer/address/${addr}` : '#');
+            const style = r.style === 'day_trader' ? '日内' : (r.style === 'swing_trader' ? '波段' : (r.style || '—'));
+            const wallet = r.wallet_usd != null ? r.wallet_usd : r.live_av;
+            return `<tr>
+                <td>${i + 1}</td>
+                <td>${escapeHtml(style)}</td>
+                <td><a href="${escapeHtml(href)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${escapeHtml(short)}</a></td>
+                <td>${escapeHtml(wr)}</td>
+                <td>${escapeHtml(r.trips7 ?? '—')}</td>
+                <td>${fmtUsd(wallet)}</td>
+                <td>${fmtUsd(r.live_av)}</td>
+                <td>${r.quiet_h != null ? `${Number(r.quiet_h).toFixed(1)}h` : '—'}</td>
+                <td>${escapeHtml(r.coins || '—')}</td>
+            </tr>`;
+        }).join('')}</tbody></table></div>`;
+}
+
 async function loadAll(refresh) {
     try {
         pollTick += 1;
         // Mark mids at most every 3rd poll (~45s) or on manual refresh
         const wantMark = !!refresh || (pollTick % 3 === 0);
-        const [paper, st] = await Promise.all([
+        const [paper, st, cands] = await Promise.all([
             fetchPaper(wantMark),
             fetchCopyStatus(),
+            fetchCandidates(false).catch(() => null),
         ]);
         renderPaper(paper);
         renderCopyStatus(st);
+        if (cands) renderCandidates(cands);
         setStatus(true, '已连接');
     } catch (err) {
         console.error(err);
@@ -1097,6 +1204,21 @@ async function loadAll(refresh) {
 }
 
 document.getElementById('btn-refresh').addEventListener('click', () => loadAll(true));
+document.getElementById('btn-cand-refresh')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-cand-refresh');
+    if (btn) btn.disabled = true;
+    try {
+        const board = await fetchCandidates(true);
+        renderCandidates(board);
+        if (board.refresh_skipped) {
+            alert(`候选池冷却中，约 ${board.retry_after_sec || '?'}s 后再试（已显示缓存）`);
+        }
+    } catch (err) {
+        alert(String(err.message || err));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+});
 document.getElementById('btn-paper-reset').addEventListener('click', async () => {
     if (!confirm('重置模拟账本？')) return;
     try {

@@ -286,6 +286,15 @@
         .tbl-fills.hide-bot col.c-sz { width: 18%; }
         .tbl-fills.hide-bot col.c-lev { width: 12%; }
         .tbl-fills.hide-bot col.c-pnl { width: 18%; }
+        .tbl-spot col.c-coin { width: 28%; }
+        .tbl-spot col.c-sz { width: 36%; }
+        .tbl-spot col.c-ntl { width: 36%; }
+        .tbl-spot-fills col.c-ts { width: 22%; }
+        .tbl-spot-fills col.c-act { width: 14%; }
+        .tbl-spot-fills col.c-coin { width: 22%; }
+        .tbl-spot-fills col.c-px { width: 20%; }
+        .tbl-spot-fills col.c-ntl { width: 22%; }
+        .spot-block-meta { font-size: 0.65rem; color: var(--text-muted); }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -361,6 +370,16 @@
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
 
+    <section aria-label="对方现货">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">对方现货</h3>
+                <p class="section-sub" id="spot-sub">同地址监控 · 不跟单</p>
+            </div>
+        </div>
+        <div id="spot-by-strategy" class="pos-grid"></div>
+    </section>
+
     <section aria-label="成交记录">
         <div class="section-head">
             <div>
@@ -402,6 +421,15 @@ function fmtUsd(n) {
     const v = Number(n);
     const abs = Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
     return (v < 0 ? '-$' : '$') + abs;
+}
+
+function escapeHtml(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function fmtPx(n) {
@@ -489,7 +517,7 @@ function botLabel(id) {
 }
 
 const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_e', 'bot_f', 'bot_g', 'bot_h'];
-const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'flip']);
+const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;
 const ACT_LABEL = {
@@ -499,6 +527,9 @@ const ACT_LABEL = {
     close: '平仓',
     flip: '反手',
     risk_halt_close: '熔断平仓',
+    risk_tp_close: '总账止盈平仓',
+    risk_sl_close: '总账止损平仓',
+    risk_tp_reduce: '总账软止盈减仓',
 };
 
 /** 多/空：优先用后端 pos；否则由 buy/sell + 动作推断 */
@@ -508,7 +539,7 @@ function fillPos(f) {
     if (p === 'short' || p === 's') return '空';
     const side = String(f.side || '').toLowerCase();
     const act = String(f.action || '').replace(/^sync_/, '');
-    if (act === 'close' || act === 'reduce' || act === 'risk_halt_close') {
+    if (act === 'close' || act === 'reduce' || act === 'risk_halt_close' || act === 'risk_tp_close' || act === 'risk_sl_close' || act === 'risk_tp_reduce') {
         // 卖平多、买平空
         if (side === 'sell') return '多';
         if (side === 'buy') return '空';
@@ -531,6 +562,9 @@ function fillActLabel(f) {
         close: `平${pos}`,
         flip: `反手开${pos}`,
         risk_halt_close: `熔断平${pos}`,
+        risk_tp_close: `止盈平${pos}`,
+        risk_sl_close: `止损平${pos}`,
+        risk_tp_reduce: `软止盈减${pos}`,
     };
     return withPos[actRaw] || `${base}·${pos}`;
 }
@@ -585,7 +619,10 @@ function collectFills(paper, filterId) {
 
 function setFillFilter(id) {
     fillFilter = id || 'all';
-    if (lastPaper) renderFills(lastPaper);
+    if (lastPaper) {
+        renderFills(lastPaper);
+        renderSpot(lastPaper);
+    }
     syncActiveChrome();
 }
 
@@ -628,7 +665,8 @@ function fillRowsHtml(fills, showBot) {
         const act = fillActLabel(f);
         const pos = fillPos(f);
         const isOpen = actRaw === 'open' || actRaw === 'increase';
-        const isClose = actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close';
+        const isClose = actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close'
+            || actRaw === 'risk_tp_close' || actRaw === 'risk_sl_close' || actRaw === 'risk_tp_reduce';
         const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
         const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
         // 名义符号：开/加多 +、开/加空 −；平/减与仓位方向一致（平多 −、平空 +）
@@ -713,7 +751,10 @@ function renderPaper(paper) {
         let healthLine = '';
         if (h.status && h.status !== 'ok') {
             const bits = [h.label || h.status];
-            if (h.target_av != null) bits.push(`对方AV $${Number(h.target_av).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+            if (h.target_av != null) bits.push(`永续AV $${Number(h.target_av).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+            if (h.target_spot_usdc != null && !(h.label || '').includes('现货')) {
+                bits.push(`现货 $${Number(h.target_spot_usdc).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+            }
             if (h.quiet_hours != null) bits.push(`静默 ${Number(h.quiet_hours).toFixed(1)}h`);
             healthLine = `<div class="bot-health ${h.empty ? 'bad' : 'warn'}">${bits.join(' · ')}</div>`;
         }
@@ -765,10 +806,150 @@ function renderPaper(paper) {
 
     renderFillTabs(paper);
     renderFills(paper);
+    renderSpot(paper);
     syncActiveChrome();
     const { sub } = deskBalanceLine(bots);
     const subEl = document.getElementById('bots-sub');
     if (subEl && sub) subEl.textContent = sub;
+}
+
+function fmtSpotSz(n) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    const v = Number(n);
+    const abs = Math.abs(v);
+    if (abs >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    if (abs >= 1) return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    return v.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+function fmtFillTimeMs(t) {
+    if (t == null) return '—';
+    try {
+        let ms = Number(t);
+        if (!Number.isFinite(ms)) return '—';
+        if (ms < 1e12) ms *= 1000;
+        return fmtBjTime(new Date(ms).toISOString());
+    } catch (e) {
+        return '—';
+    }
+}
+
+function spotBalancesHtml(balances) {
+    const rows = (balances || []).filter((b) => {
+        const coin = String(b.coin_raw || b.coin || '').toUpperCase();
+        const tot = Math.abs(Number(b.total) || 0);
+        if (coin === 'USDC') return tot >= 0.01;
+        return tot > 0;
+    });
+    if (!rows.length) {
+        return '<tr><td colspan="3" class="text-text-muted">无现货持仓</td></tr>';
+    }
+    return rows.map((b) => {
+        const ntl = Number(b.entry_ntl);
+        return `<tr>
+            <td class="coin">${escapeHtml(b.coin || '—')}</td>
+            <td class="num">${fmtSpotSz(b.total)}</td>
+            <td class="num">${ntl ? fmtUsd(ntl) : '—'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function spotFillsHtml(fills) {
+    const rows = (fills || []).slice().sort((a, b) => {
+        const ta = Number(a.time) || 0;
+        const tb = Number(b.time) || 0;
+        return tb - ta;
+    }).slice(0, 8);
+    if (!rows.length) {
+        return '<tr><td colspan="5" class="text-text-muted">暂无现货成交</td></tr>';
+    }
+    return rows.map((f) => {
+        const buy = f.side === 'buy';
+        const act = buy ? '买' : (f.side === 'sell' ? '卖' : String(f.dir || '—'));
+        const ts = f.ts ? fmtBjTime(f.ts) : fmtFillTimeMs(f.time);
+        const notion = f.notional != null
+            ? Number(f.notional)
+            : Math.abs((Number(f.px) || 0) * (Number(f.sz) || 0));
+        return `<tr>
+            <td class="mono">${escapeHtml(ts)}</td>
+            <td class="${buy ? 'pos' : 'neg'}">${escapeHtml(act)}</td>
+            <td class="coin">${escapeHtml(f.coin || '—')}</td>
+            <td class="num">${fmtPx(f.px)}</td>
+            <td class="num">${notion ? fmtUsd(notion) : '—'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderSpot(paper) {
+    const el = document.getElementById('spot-by-strategy');
+    const subEl = document.getElementById('spot-sub');
+    if (!el) return;
+    let bots = sortedBots(paper);
+    if (fillFilter !== 'all') {
+        bots = bots.filter((b) => b.id === fillFilter);
+    }
+    let withBal = 0;
+    let withFill = 0;
+    let latestAt = null;
+    el.innerHTML = bots.map((b) => {
+        const bals = b.target_spot_balances
+            || (b.target_health && b.target_health.target_spot_balances)
+            || [];
+        const fills = b.target_spot_fills
+            || (b.target_health && b.target_health.target_spot_fills)
+            || [];
+        const usdc = b.target_spot_usdc != null
+            ? Number(b.target_spot_usdc)
+            : (b.target_health && b.target_health.target_spot_usdc != null
+                ? Number(b.target_health.target_spot_usdc)
+                : null);
+        const at = b.target_spot_at != null ? Number(b.target_spot_at) : null;
+        if (at != null && Number.isFinite(at) && (latestAt == null || at > latestAt)) {
+            latestAt = at;
+        }
+        if ((bals || []).length) withBal += 1;
+        if ((fills || []).length) withFill += 1;
+        const usdcTag = usdc != null && Number.isFinite(usdc)
+            ? `USDC $${usdc.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+            : 'USDC —';
+        return `<div class="strategy-block">
+            <div class="strategy-block-head">
+                <div class="strategy-block-title">${escapeHtml(botLabel(b.id))}</div>
+                <div class="strategy-block-meta spot-block-meta">${escapeHtml(usdcTag)} · 监控</div>
+            </div>
+            <div class="scroll-panel" style="margin-bottom:0.45rem;">
+                <table class="data-table tbl-spot">
+                    <colgroup>
+                        <col class="c-coin" /><col class="c-sz" /><col class="c-ntl" />
+                    </colgroup>
+                    <thead><tr>
+                        <th>币</th><th class="num">数量</th><th class="num">成本(约)</th>
+                    </tr></thead>
+                    <tbody>${spotBalancesHtml(bals)}</tbody>
+                </table>
+            </div>
+            <div class="scroll-panel">
+                <table class="data-table tbl-spot-fills">
+                    <colgroup>
+                        <col class="c-ts" /><col class="c-act" /><col class="c-coin" />
+                        <col class="c-px" /><col class="c-ntl" />
+                    </colgroup>
+                    <thead><tr>
+                        <th>时间</th><th>方向</th><th>币</th>
+                        <th class="num">价</th><th class="num">名义</th>
+                    </tr></thead>
+                    <tbody>${spotFillsHtml(fills)}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('') || '<p class="text-text-muted text-sm">暂无策略</p>';
+    if (subEl) {
+        let asOf = '';
+        if (latestAt != null) {
+            asOf = ` · 截至 ${fmtBjTime(new Date(latestAt * 1000).toISOString())}`;
+        }
+        subEl.textContent = `同地址监控 · 不跟单 · ${withBal} 有持仓 · ${withFill} 有成交${asOf}`;
+    }
 }
 
 function deskBalanceLine(bots) {
@@ -803,14 +984,58 @@ function renderCopyStatus(st) {
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0}` : 'WS 离线';
     const bots = (st.paper && st.paper.bots) || (lastPaper ? sortedBots(lastPaper) : []);
+    const paper = st.paper || lastPaper || {};
     const { line: balLine, sub } = deskBalanceLine(bots);
     let line = balLine;
+    const cfg = (paper && paper.config) || (st.config) || {};
+    const tp = Number(cfg.portfolio_tp_pct);
+    const tpHard = Number(cfg.portfolio_tp_hard_pct);
+    const sl = Number(cfg.portfolio_sl_pct);
+    const botSl = Number(cfg.daily_loss_pct);
+    const ret = paper.portfolio_return_pct != null ? Number(paper.portfolio_return_pct) : null;
+    const anchor = paper.portfolio_anchor_equity != null ? Number(paper.portfolio_anchor_equity) : null;
+    const eq = paper.portfolio_equity != null ? Number(paper.portfolio_equity) : (paper.equity != null ? Number(paper.equity) : null);
+    if (ret != null && Number.isFinite(ret) && anchor != null) {
+        const sign = ret >= 0 ? '+' : '';
+        const hasDeskRisk = (Number.isFinite(tp) && tp > 0)
+            || (Number.isFinite(tpHard) && tpHard > 0)
+            || (Number.isFinite(sl) && sl > 0);
+        const band = hasDeskRisk
+            ? ` · 软+${(tp * 100).toFixed(1)}%/硬+${(Number.isFinite(tpHard) ? tpHard * 100 : 0).toFixed(0)}%/−${(sl * 100).toFixed(0)}%`
+            : '';
+        const botBand = (Number.isFinite(botSl) && botSl > 0)
+            ? ` · 单号−${(botSl * 100).toFixed(0)}%熔断(冷却解)`
+            : '';
+        const scale = paper.portfolio_copy_scale != null ? Number(paper.portfolio_copy_scale) : 1;
+        const scaleBand = (Number.isFinite(scale) && scale < 0.999)
+            ? ` · 跟单×${scale.toFixed(2)}`
+            : '';
+        line = `总账户 ${sign}${(ret * 100).toFixed(2)}% · 权益 $${Number(eq || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 锚点 $${anchor.toLocaleString(undefined, { maximumFractionDigits: 0 })}${band}${botBand}${scaleBand}`;
+    }
     const alerts = [];
     for (const b of bots) {
         const h = b.target_health || {};
         if (h.status && h.status !== 'ok') {
             alerts.push(`${botLabel(b.id)}${h.label || h.status}`);
         }
+    }
+    const pr = paper.portfolio_risk || {};
+    let tripFresh = false;
+    if (pr.tripped_at) {
+        try {
+            tripFresh = (Date.now() - new Date(pr.tripped_at).getTime()) < 10 * 60 * 1000;
+        } catch (e) {
+            tripFresh = false;
+        }
+    }
+    if (tripFresh && pr.reason === 'portfolio_tp_soft') {
+        line = `总账软止盈已减仓 · 跟单×${Number(pr.copy_scale != null ? pr.copy_scale : paper.portfolio_copy_scale || 0.5).toFixed(2)} · 等硬止盈/止损或继续跟`;
+    } else if (tripFresh && (pr.reason === 'portfolio_tp_hard' || pr.reason === 'portfolio_tp')) {
+        line = `总账硬止盈 · 复利锚点 $${Number(pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 等新单`;
+    } else if (tripFresh && pr.reason === 'portfolio_sl') {
+        line = `总账止损 · 复利锚点 $${Number(pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 等新单`;
+    } else if (tripFresh && pr.reason === 'portfolio_multi_halt') {
+        line = `多号熔断触发整桌重置 · 锚点 $${Number(pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
     }
     const halted = bots.filter((b) => b.risk_halted);
     if (alerts.length) {

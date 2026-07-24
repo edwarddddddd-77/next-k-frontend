@@ -35,13 +35,13 @@
                         'text-muted': 'var(--text-muted)',
                     },
                     borderRadius: {
-                        sm: '0.125rem',
-                        DEFAULT: '0.1875rem',
-                        md: '0.1875rem',
-                        lg: '0.25rem',
-                        xl: '0.3125rem',
-                        '2xl': '0.375rem',
-                        '3xl': '0.4375rem',
+                        sm: '0.375rem',
+                        DEFAULT: '0.5rem',
+                        md: '0.5rem',
+                        lg: '0.625rem',
+                        xl: '0.75rem',
+                        '2xl': '0.875rem',
+                        '3xl': '1rem',
                     },
                 }
             }
@@ -69,19 +69,19 @@
         }
         .dash-mini-card {
             border-radius: var(--radius-md);
-            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-            background: color-mix(in srgb, var(--surface-light) 32%, var(--surface));
-            padding: 0.75rem 0.85rem;
+            border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+            background: var(--surface);
+            padding: 0.9rem 1rem;
             min-height: 7.5rem;
-            box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent);
+            box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 40%, transparent);
         }
         .dash-mini-card-label {
-            font-size: 0.8125rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--text-muted);
-            margin-bottom: 0.55rem;
+            margin-bottom: 0.65rem;
         }
         .data-table {
             width: 100%;
@@ -390,9 +390,9 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-8" data-layout-rev="19" data-theme="zen-premium">
+    <main class="max-w-7xl mx-auto px-4 sm:px-5 py-9" data-layout-rev="20" data-theme="zen-calm">
         <!-- 首屏：精选推荐 -->
-        <section class="mb-7" aria-label="精选推荐">
+        <section class="mb-8" aria-label="精选推荐">
             <div id="oi-radar-highlights-slot" class="min-h-0 min-w-0 flex flex-col">
                 <div class="highlights-hero p-4 md:p-5 flex-1 flex flex-col justify-center">
                     <div class="state-muted animate-pulse">正在载入精选推荐…</div>
@@ -400,7 +400,7 @@
             </div>
         </section>
 
-        <section class="mb-7" aria-label="资金池 · 持仓扫描" id="oi-lane-section">
+        <section class="mb-8" aria-label="资金池 · 持仓扫描" id="oi-lane-section">
             <div class="dash-card card-hover min-w-0">
                 <div class="panel-head">
                     <div>
@@ -418,7 +418,7 @@
             </div>
         </section>
 
-        <section class="mb-7" aria-label="纸面模拟" id="strategy-signals-section">
+        <section class="mb-8" aria-label="纸面模拟" id="strategy-signals-section">
             <div class="dash-card card-hover overflow-hidden min-w-0 flex flex-col">
                 <div class="panel-head border-b border-border/80">
                     <div>
@@ -440,7 +440,7 @@
             </div>
         </section>
 
-<section class="mb-7" aria-label="精选推荐与核心关注归档" id="worth-history-section">
+<section class="mb-8" aria-label="精选推荐与核心关注归档" id="worth-history-section">
             <div class="dash-card card-hover min-w-0">
                 <div class="panel-head">
                     <div>

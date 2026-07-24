@@ -146,6 +146,14 @@
             color: var(--accent);
             background: color-mix(in srgb, var(--accent) 14%, transparent);
         }
+        .bot-tag.is-conc {
+            color: var(--neon-purple);
+            background: color-mix(in srgb, var(--neon-purple) 14%, transparent);
+        }
+        .bot-tag.is-extra {
+            color: var(--text-secondary);
+            background: color-mix(in srgb, var(--surface-light) 80%, transparent);
+        }
         .bot-halt {
             font-family: "Source Sans 3", system-ui, sans-serif;
             font-size: 0.62rem;
@@ -238,9 +246,9 @@
             min-height: 1.5rem;
         }
         .strategy-block-title {
-            font-family: "Noto Serif SC", Georgia, serif;
+            font-family: "Source Sans 3", system-ui, sans-serif;
             font-size: 0.9rem;
-            font-weight: 600;
+            font-weight: 650;
             line-height: 1.2;
             display: inline-flex;
             align-items: center;
@@ -280,11 +288,11 @@
             line-height: 1.2;
             cursor: pointer;
         }
-        .fill-tab:hover { border-color: color-mix(in srgb, var(--gold) 35%, var(--border)); }
+        .fill-tab:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); color: var(--text-secondary); }
         .fill-tab.is-active {
-            border-color: color-mix(in srgb, var(--gold) 50%, var(--border));
-            color: var(--text-primary);
-            background: color-mix(in srgb, var(--gold) 12%, var(--surface));
+            border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 10%, var(--surface));
         }
         .fills-scroll {
             max-height: 22rem;
@@ -583,10 +591,38 @@ function botTag(b) {
     return null;
 }
 
+const STYLE_TAG_LABEL = {
+    concentrated: { label: '单币集中', cls: 'is-conc' },
+    sniper: { label: '短线狙', cls: 'is-extra' },
+    degen: { label: '高频', cls: 'is-extra' },
+    grinder: { label: '磨单', cls: 'is-extra' },
+    diversified: { label: '分散', cls: 'is-extra' },
+};
+
 function botTagHtml(b) {
-    const t = botTag(b);
-    if (!t) return '';
-    return `<span class="bot-tag ${t.cls}">${t.label}</span>`;
+    const parts = [];
+    const main = botTag(b);
+    if (main) parts.push(`<span class="bot-tag ${main.cls}">${main.label}</span>`);
+    const extras = Array.isArray(b && b.style_tags) ? b.style_tags : [];
+    for (const raw of extras) {
+        const key = String(raw || '').toLowerCase();
+        const meta = STYLE_TAG_LABEL[key];
+        if (!meta) continue;
+        parts.push(`<span class="bot-tag ${meta.cls}">${meta.label}</span>`);
+    }
+    return parts.join('');
+}
+
+function styleCellHtml(r) {
+    const style = r.style === 'day_trader' ? '日内' : (r.style === 'swing_trader' ? '波段' : (r.style || '—'));
+    const bits = [escapeHtml(style)];
+    const extras = Array.isArray(r.style_tags) ? r.style_tags : [];
+    for (const raw of extras) {
+        const key = String(raw || '').toLowerCase();
+        const meta = STYLE_TAG_LABEL[key];
+        if (meta) bits.push(`<span class="bot-tag ${meta.cls}">${meta.label}</span>`);
+    }
+    return bits.join(' ');
 }
 
 const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j'];
@@ -1031,11 +1067,11 @@ function renderCandidates(board) {
             const short = addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '—';
             const wr = r.wr7 != null ? `${(Number(r.wr7) * 100).toFixed(0)}%` : '—';
             const href = r.hl_url || (addr ? `https://app.hyperliquid.xyz/explorer/address/${addr}` : '#');
-            const style = r.style === 'day_trader' ? '日内' : (r.style === 'swing_trader' ? '波段' : (r.style || '—'));
+            const style = styleCellHtml(r);
             const wallet = r.wallet_usd != null ? r.wallet_usd : r.live_av;
             return `<tr>
                 <td>${i + 1}</td>
-                <td>${escapeHtml(style)}</td>
+                <td>${style}</td>
                 <td><a href="${escapeHtml(href)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${escapeHtml(short)}</a></td>
                 <td>${escapeHtml(wr)}</td>
                 <td>${escapeHtml(r.trips7 ?? '—')}</td>

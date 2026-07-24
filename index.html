@@ -236,24 +236,6 @@
             color: var(--accent);
             background: color-mix(in srgb, var(--accent) 8%, transparent);
         }
-        .ie-flip-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.28rem 0.55rem;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border);
-            background: color-mix(in srgb, var(--surface-light) 40%, transparent);
-            font-size: 0.6875rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: border-color 0.15s ease, color 0.15s ease;
-        }
-        .ie-flip-chip:hover { color: var(--text-primary); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
-        .ie-flip-long { border-color: color-mix(in srgb, var(--neon-green) 28%, var(--border)); color: var(--neon-green); }
-        .ie-flip-short { border-color: color-mix(in srgb, var(--neon-red) 28%, var(--border)); color: var(--neon-red); }
-        .ie-flip-flat { color: var(--text-muted); }
-        .ie-flip-new {
             border-color: color-mix(in srgb, var(--gold) 40%, var(--border));
             box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent);
         }
@@ -546,20 +528,6 @@
                     </div>
                     <div id="ie-lookup-result" class="min-h-[4.5rem]">
                         <p class="state-muted mb-0">输入标的后点击查询</p>
-                    </div>
-                    <div class="border-t border-border/50 pt-4 space-y-3">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <div class="text-xs font-semibold text-text-primary">Just flipped · 刚翻转</div>
-                                <p class="text-text-muted text-[11px] mt-0.5">轮询 IndicatorEdge Screener；对比上次抓取标出新增</p>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span id="ie-flips-meta" class="text-text-muted text-[11px]">—</span>
-                                <button type="button" id="ie-flips-refresh" class="btn-ghost text-[11px] px-2 py-1">刷新</button>
-                            </div>
-                        </div>
-                        <div id="ie-flips-new" class="hidden"></div>
-                        <div id="ie-flips-body" class="state-muted text-sm">载入翻转列表…</div>
                     </div>
                 </div>
             </div>
@@ -855,19 +823,6 @@
             async indicatorEdgeBest(symbol) {
                 const s = encodeURIComponent(String(symbol || '').trim());
                 const res = await fetchWithTimeout(`${API_BASE}/api/indicatoredge/best?symbol=${s}`, {}, 20000);
-                const text = await res.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    throw new Error(text || res.statusText);
-                }
-                if (!res.ok) throw new Error(apiErrorDetail(data, text, res));
-                return data;
-            },
-            async indicatorEdgeFlips(refresh) {
-                const q = refresh ? '?refresh=true' : '';
-                const res = await fetchWithTimeout(`${API_BASE}/api/indicatoredge/flips${q}`, {}, 25000);
                 const text = await res.text();
                 let data;
                 try {
@@ -2183,97 +2138,6 @@
                     void runIndicatorEdgeLookup(sym);
                 });
             });
-            const flipsBtn = document.getElementById('ie-flips-refresh');
-            if (flipsBtn) {
-                flipsBtn.addEventListener('click', () => void loadIndicatorEdgeFlips(true));
-            }
-            void loadIndicatorEdgeFlips(false);
-            setInterval(() => void loadIndicatorEdgeFlips(false), 120000);
-        }
-
-        function ieFlipChipClass(sig, isNew) {
-            const s = String(sig || '').toUpperCase();
-            let cls = 'ie-flip-chip';
-            if (s === 'LONG') cls += ' ie-flip-long';
-            else if (s === 'SHORT') cls += ' ie-flip-short';
-            else cls += ' ie-flip-flat';
-            if (isNew) cls += ' ie-flip-new';
-            return cls;
-        }
-
-        function renderIndicatorEdgeFlips(data) {
-            const body = document.getElementById('ie-flips-body');
-            const meta = document.getElementById('ie-flips-meta');
-            const neu = document.getElementById('ie-flips-new');
-            if (!body) return;
-            const flips = (data && data.flips) || [];
-            const newKeys = new Set(((data && data.new_flips) || []).map((x) => String(x.key || '')));
-            const counts = (data && data.counts) || {};
-            if (meta) {
-                const src = data && data.source_updated ? ('源 ' + data.source_updated) : '';
-                const n = data && data.new_count != null ? ('新增 ' + data.new_count) : '';
-                meta.textContent = [src, '共 ' + flips.length, n].filter(Boolean).join(' · ') || '—';
-            }
-            if (neu) {
-                const news = (data && data.new_flips) || [];
-                if (news.length) {
-                    neu.classList.remove('hidden');
-                    neu.innerHTML =
-                        '<div class="text-[11px] text-gold mb-1.5">相对上次抓取 · 新增翻转</div>'
-                        + '<div class="flex flex-wrap gap-1.5">'
-                        + news.map((f) => {
-                            const label = (f.ticker || f.name || f.slug || '') + ' → ' + (f.signal || '?');
-                            const href = f.url || '#';
-                            return '<a class="' + ieFlipChipClass(f.signal, true) + '" href="' + escHtml(href)
-                                + '" target="_blank" rel="noopener">' + escHtml(label) + '</a>';
-                        }).join('')
-                        + '</div>';
-                } else {
-                    neu.classList.add('hidden');
-                    neu.innerHTML = '';
-                }
-            }
-            if (!flips.length) {
-                body.innerHTML = '<p class="state-muted text-sm mb-0">暂无翻转条目</p>';
-                return;
-            }
-            const cLine = 'LONG ' + (counts.LONG || 0) + ' · FLAT ' + (counts.FLAT || 0) + ' · SHORT ' + (counts.SHORT || 0);
-            body.innerHTML =
-                '<div class="text-[11px] text-text-muted mb-2">' + escHtml(cLine) + '</div>'
-                + '<div class="flex flex-wrap gap-1.5">'
-                + flips.map((f) => {
-                    const isNew = newKeys.has(String(f.key || ''));
-                    const label = (f.ticker || f.name || f.slug || '') + ' → ' + (f.signal || '?');
-                    const href = f.url || '#';
-                    return '<a class="' + ieFlipChipClass(f.signal, isNew) + '" href="' + escHtml(href)
-                        + '" target="_blank" rel="noopener" title="' + escHtml(f.name || '') + '">'
-                        + escHtml(label) + '</a>';
-                }).join('')
-                + '</div>'
-                + '<div class="mt-2 flex flex-wrap items-center justify-between gap-2">'
-                +   ((data && data.url)
-                    ? '<a class="text-accent text-xs hover:underline" href="' + escHtml(data.url) + '" target="_blank" rel="noopener">打开 Screener</a>'
-                    : '<span></span>')
-                +   '<span class="text-text-muted text-[11px]">假设信号 · 非投资建议</span>'
-                + '</div>';
-        }
-
-        async function loadIndicatorEdgeFlips(force) {
-            const body = document.getElementById('ie-flips-body');
-            const btn = document.getElementById('ie-flips-refresh');
-            if (force && btn) { btn.disabled = true; btn.textContent = '刷新中…'; }
-            try {
-                const data = await API.indicatorEdgeFlips(!!force);
-                renderIndicatorEdgeFlips(data);
-            } catch (e) {
-                console.error(e);
-                if (body) {
-                    body.innerHTML = '<p class="text-neon-red text-sm mb-0">翻转列表加载失败：'
-                        + escHtml(e && e.message ? String(e.message) : 'error') + '</p>';
-                }
-            } finally {
-                if (btn) { btn.disabled = false; btn.textContent = '刷新'; }
-            }
         }
 
         function setStatusPill(el, state, text) {

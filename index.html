@@ -377,7 +377,6 @@
                     <a class="nav-pill nav-pill-active" href="index.html">观盘台</a>
                     <a class="nav-pill" href="hl-short.html">映仓台</a>
                     <a class="nav-pill" href="grid.html">Next K 网格</a>
-                    <a class="nav-pill" href="grid.html">Next K 网格</a>
                     </nav>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
@@ -390,7 +389,7 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-5 py-9" data-layout-rev="20" data-theme="zen-calm">
+    <main class="max-w-7xl mx-auto px-4 sm:px-5 py-9" data-layout-rev="21" data-theme="zen-calm">
         <!-- 首屏：精选推荐 -->
         <section class="mb-8" aria-label="精选推荐">
             <div id="oi-radar-highlights-slot" class="min-h-0 min-w-0 flex flex-col">
@@ -708,7 +707,7 @@
                 return data;
             },
             async strategySignals(lane, limit) {
-                const l = encodeURIComponent(lane || '');
+                const l = encodeURIComponent(lane || 'avax_f_mr');
                 const n = limit != null ? limit : 100;
                 const timeout = String(lane || '') === 'avax_f_mr' ? 45000 : 12000;
                 const res = await fetchWithTimeout(`${API_BASE}/api/strategy/signals?lane=${l}&limit=${n}`, {}, timeout);
@@ -723,16 +722,6 @@
                 if (data && data.ok === false) {
                     throw new Error(data.error || data.detail || 'strategy_signals_error');
                 }
-                return data;
-            }, 20000);
-                const text = await res.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    throw new Error(text || res.statusText);
-                }
-                if (!res.ok) throw new Error(apiErrorDetail(data, text, res));
                 return data;
             },
         };

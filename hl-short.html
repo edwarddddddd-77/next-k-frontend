@@ -960,10 +960,13 @@ function renderCopyStatus(st) {
     const tp = Number(cfg.portfolio_tp_pct);
     const tpHard = Number(cfg.portfolio_tp_hard_pct);
     const sl = Number(cfg.portfolio_sl_pct);
+    const peakDdLimit = Number(cfg.portfolio_peak_dd_pct);
     const botSl = Number(cfg.daily_loss_pct);
     const ret = paper.portfolio_return_pct != null ? Number(paper.portfolio_return_pct) : null;
     const anchor = paper.portfolio_anchor_equity != null ? Number(paper.portfolio_anchor_equity) : null;
     const eq = paper.portfolio_equity != null ? Number(paper.portfolio_equity) : (paper.equity != null ? Number(paper.equity) : null);
+    const peak = paper.portfolio_peak_equity != null ? Number(paper.portfolio_peak_equity) : null;
+    const peakDd = paper.portfolio_peak_dd_pct != null ? Number(paper.portfolio_peak_dd_pct) : null;
     if (ret != null && Number.isFinite(ret) && anchor != null) {
         const sign = ret >= 0 ? '+' : '';
         const hasDeskRisk = (Number.isFinite(tp) && tp > 0)
@@ -972,6 +975,12 @@ function renderCopyStatus(st) {
         const band = hasDeskRisk
             ? ` · 软+${(tp * 100).toFixed(1)}%/硬+${(Number.isFinite(tpHard) ? tpHard * 100 : 0).toFixed(0)}%/−${(sl * 100).toFixed(0)}%`
             : '';
+        const peakBand = (Number.isFinite(peakDdLimit) && peakDdLimit > 0)
+            ? ` · 峰值回撤−${(peakDdLimit * 100).toFixed(0)}%全平`
+            : '';
+        const peakNow = (Number.isFinite(peakDd) && Number.isFinite(peak))
+            ? ` · 现回撤${(peakDd * 100).toFixed(1)}%(峰$${peak.toLocaleString(undefined, { maximumFractionDigits: 0 })})`
+            : '';
         const botBand = (Number.isFinite(botSl) && botSl > 0)
             ? ` · 单号−${(botSl * 100).toFixed(0)}%熔断(冷却解)`
             : '';
@@ -979,7 +988,7 @@ function renderCopyStatus(st) {
         const scaleBand = (Number.isFinite(scale) && scale < 0.999)
             ? ` · 跟单×${scale.toFixed(2)}`
             : '';
-        line = `总账户 ${sign}${(ret * 100).toFixed(2)}% · 权益 $${Number(eq || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 锚点 $${anchor.toLocaleString(undefined, { maximumFractionDigits: 0 })}${band}${botBand}${scaleBand}`;
+        line = `总账户 ${sign}${(ret * 100).toFixed(2)}% · 权益 $${Number(eq || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 锚点 $${anchor.toLocaleString(undefined, { maximumFractionDigits: 0 })}${band}${peakBand}${peakNow}${botBand}${scaleBand}`;
     }
     const alerts = [];
     for (const b of bots) {
@@ -1003,6 +1012,8 @@ function renderCopyStatus(st) {
         line = `总账硬止盈 · 复利锚点 $${Number(pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 等新单`;
     } else if (tripFresh && pr.reason === 'portfolio_sl') {
         line = `总账止损 · 复利锚点 $${Number(pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 等新单`;
+    } else if (tripFresh && pr.reason === 'portfolio_peak_dd') {
+        line = `总账峰值回撤全平 · 峰值重置 $${Number(pr.peak_after || pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · 等新单`;
     } else if (tripFresh && pr.reason === 'portfolio_multi_halt') {
         line = `多号熔断触发整桌重置 · 锚点 $${Number(pr.anchor_after || anchor || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
     }

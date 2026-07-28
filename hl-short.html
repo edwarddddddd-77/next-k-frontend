@@ -422,6 +422,21 @@
         <div id="bots-strip"></div>
     </section>
 
+    <section aria-label="共识模拟">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">共识模拟</h3>
+                <p class="section-sub" id="cons-sub">WS 仓位簿 · 边缘开仓 · ≥N 同向 · 与 A–L 跟单分开</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5 items-center">
+                <button id="btn-cons-tick" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">扫一轮</button>
+                <button id="btn-cons-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置共识</button>
+            </div>
+        </div>
+        <div id="cons-hero" class="bots-strip mb-3"></div>
+        <div id="cons-body" class="pos-grid"></div>
+    </section>
+
     <section aria-label="账户仓位">
         <div class="section-head">
             <h3 class="section-title">账户仓位</h3>
@@ -1096,19 +1111,134 @@ function renderCandidates(board) {
         }).join('')}</tbody></table></div>`;
 }
 
+function renderConsensus(book) {
+    const hero = document.getElementById('cons-hero');
+    const body = document.getElementById('cons-body');
+    const sub = document.getElementById('cons-sub');
+    if (!hero || !body) return;
+    if (!book) {
+        hero.innerHTML = '';
+        body.innerHTML = '<p class="text-text-muted text-sm">共识账本未载入</p>';
+        return;
+    }
+    const cfg = book.config || {};
+    const eq = Number(book.equity);
+    const init = Number(book.init_balance || cfg.balance || 0);
+    const ret = init > 0 && Number.isFinite(eq) ? (eq - init) / init : null;
+    const rp = Number(book.realized_pnl || 0);
+    const up = Number(book.unrealized_pnl || 0);
+    const nPos = Object.keys(book.positions || {}).length;
+    const minA = cfg.min_agree != null ? cfg.min_agree : 3;
+    if (sub) {
+        const tick = book.last_tick_at ? String(book.last_tick_at).replace('T', ' ').slice(0, 19) : '—';
+        const bk = book.book || {};
+        const bookLine = bk.wallets != null
+            ? ` · 簿 ${bk.ws || 0}WS/${bk.rest || 0}REST`
+            : '';
+        sub.textContent = `WS仓位簿 · ≥${minA} 同向 · 仓位 ${(Number(cfg.position_pct || 0) * 100).toFixed(0)}% · 止损 −${(Number(cfg.hard_stop_pct || 0) * 100).toFixed(0)}% · 上次 ${tick}${bookLine}${book.last_tick_note ? ' · ' + book.last_tick_note : ''}`;
+    }
+    const retTxt = ret == null ? '—' : `${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(2)}%`;
+    const retCls = ret == null ? '' : (ret >= 0 ? 'text-neon-green' : 'text-neon-red');
+    hero.innerHTML = `
+        <span class="metric-chip">权益 ${fmtUsd(eq)}</span>
+        <span class="metric-chip ${retCls}">回报 ${retTxt}</span>
+        <span class="metric-chip">已实现 ${fmtUsd(rp)}</span>
+        <span class="metric-chip">浮盈 ${fmtUsd(up)}</span>
+        <span class="metric-chip">持仓 ${nPos}</span>
+        <span class="metric-chip">${cfg.enabled === false ? '已关闭' : '模拟中'}</span>`;
+
+    const signals = Object.entries(book.signals || {})
+        .filter(([, s]) => s && (s.side || (s.long || 0) + (s.short || 0) >= 2))
+        .sort((a, b) => (Number(b[1].agree || 0) - Number(a[1].agree || 0)));
+    const positions = Object.values(book.positions || {});
+    const fills = (book.fills || []).slice().reverse().slice(0, 12);
+
+    const sigRows = signals.slice(0, 12).map(([coin, s]) => {
+        const side = s.side ? String(s.side).toUpperCase() : '—';
+        const voters = (s.voters || []).map((v) => String(v).replace(/^bot_/i, '')).join(',') || '—';
+        return `<tr>
+            <td>${escapeHtml(coin)}</td>
+            <td>${escapeHtml(side)}</td>
+            <td class="num">${escapeHtml(String(s.long ?? 0))}/${escapeHtml(String(s.short ?? 0))}</td>
+            <td>${escapeHtml(voters)}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="4" class="text-text-muted">暂无共识信号</td></tr>';
+
+    const posRows = positions.map((p) => {
+        const upnl = Number(p.upnl || 0);
+        const cls = upnl >= 0 ? 'text-neon-green' : 'text-neon-red';
+        return `<tr>
+            <td>${escapeHtml(p.coin)}</td>
+            <td>${escapeHtml(String(p.side || '').toUpperCase())}</td>
+            <td class="num">${fmtPx(p.entry)}</td>
+            <td class="num">${fmtPx(p.mark)}</td>
+            <td class="num">${fmtUsd(p.ntl)}</td>
+            <td class="num ${cls}">${fmtUsd(upnl)}</td>
+            <td>${escapeHtml((p.voters || []).map((v) => String(v).replace(/^bot_/i, '')).join(',') || '—')}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" class="text-text-muted">空仓</td></tr>';
+
+    const fillRows = fills.map((f) => {
+        const pnl = Number(f.pnl || 0);
+        const cls = pnl >= 0 ? 'text-neon-green' : 'text-neon-red';
+        const ts = f.ts ? String(f.ts).replace('T', ' ').slice(5, 19) : '—';
+        return `<tr>
+            <td>${escapeHtml(ts)}</td>
+            <td>${escapeHtml(f.action || '')}</td>
+            <td>${escapeHtml(f.coin || '')}</td>
+            <td>${escapeHtml(f.side || '')}</td>
+            <td class="num">${fmtPx(f.px)}</td>
+            <td class="num ${cls}">${fmtUsd(pnl)}</td>
+            <td>${escapeHtml(f.reason || '')}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" class="text-text-muted">暂无成交</td></tr>';
+
+    body.innerHTML = `
+        <div class="bot-card">
+            <div class="bot-card-head"><span class="bot-card-title">共识信号</span></div>
+            <div class="scroll-panel"><table class="data-table">
+                <thead><tr><th>币</th><th>方向</th><th class="num">多/空票</th><th>投票席</th></tr></thead>
+                <tbody>${sigRows}</tbody>
+            </table></div>
+        </div>
+        <div class="bot-card">
+            <div class="bot-card-head"><span class="bot-card-title">共识持仓</span></div>
+            <div class="scroll-panel"><table class="data-table">
+                <thead><tr><th>币</th><th>向</th><th class="num">开仓</th><th class="num">标记</th><th class="num">名义</th><th class="num">浮盈</th><th>投票</th></tr></thead>
+                <tbody>${posRows}</tbody>
+            </table></div>
+        </div>
+        <div class="bot-card">
+            <div class="bot-card-head"><span class="bot-card-title">共识成交</span></div>
+            <div class="scroll-panel"><table class="data-table">
+                <thead><tr><th>时间</th><th>动作</th><th>币</th><th>边</th><th class="num">价</th><th class="num">PnL</th><th>原因</th></tr></thead>
+                <tbody>${fillRows}</tbody>
+            </table></div>
+        </div>`;
+}
+
+async function fetchConsensus(doTick) {
+    const q = doTick ? '?tick=1' : '';
+    const res = await fetch(`${API}/api/hl-short/consensus${q}`);
+    if (!res.ok) throw new Error('consensus ' + res.status);
+    return res.json();
+}
+
 async function loadAll(refresh) {
     try {
         pollTick += 1;
         // Mark mids at most every 3rd poll (~45s) or on manual refresh
         const wantMark = !!refresh || (pollTick % 3 === 0);
-        const [paper, st, cands] = await Promise.all([
+        const [paper, st, cands, cons] = await Promise.all([
             fetchPaper(wantMark),
             fetchCopyStatus(),
             fetchCandidates(false).catch(() => null),
+            fetchConsensus(false).catch(() => null),
         ]);
         renderPaper(paper);
         renderCopyStatus(st);
         if (cands) renderCandidates(cands);
+        if (cons) renderConsensus(cons);
         setStatus(true, '已连接');
     } catch (err) {
         console.error(err);
@@ -1139,6 +1269,31 @@ document.getElementById('btn-paper-reset').addEventListener('click', async () =>
         const res = await fetch(`${API}/api/hl-short/paper/reset`, { method: 'POST' });
         if (!res.ok) throw new Error('reset ' + res.status);
         await loadAll(false);
+    } catch (err) {
+        alert(String(err.message || err));
+    }
+});
+
+document.getElementById('btn-cons-tick')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-cons-tick');
+    if (btn) btn.disabled = true;
+    try {
+        const book = await fetchConsensus(true);
+        renderConsensus(book);
+    } catch (err) {
+        alert(String(err.message || err));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+});
+
+document.getElementById('btn-cons-reset')?.addEventListener('click', async () => {
+    if (!confirm('重置共识模拟账本？')) return;
+    try {
+        const res = await fetch(`${API}/api/hl-short/consensus/reset`, { method: 'POST' });
+        if (!res.ok) throw new Error('consensus reset ' + res.status);
+        const book = await res.json();
+        renderConsensus(book);
     } catch (err) {
         alert(String(err.message || err));
     }

@@ -425,7 +425,7 @@
     <section aria-label="账户仓位">
         <div class="section-head">
             <h3 class="section-title">账户仓位</h3>
-            <p class="section-sub" id="bots-sub">账户 A–J · 两列 · 各 1000U</p>
+            <p class="section-sub" id="bots-sub">账户 A–K · 两列 · 各 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
@@ -626,7 +626,7 @@ function styleCellHtml(r) {
     return bits.join(' ');
 }
 
-const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_k'];
+const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;
@@ -930,18 +930,18 @@ function deskBalanceLine(bots) {
             bal: Number.isFinite(v) ? Math.round(v) : null,
         };
     }).filter((x) => x.bal != null);
-    if (!pairs.length) return { line: `${list.length} 账户`, sub: '账户 A–J · 两列' };
+    if (!pairs.length) return { line: `${list.length} 账户`, sub: '账户 A–K · 两列' };
     const uniq = [...new Set(pairs.map((p) => p.bal))];
     if (uniq.length === 1) {
         return {
             line: `${list.length} 账户 · 各 ${uniq[0]}U`,
-            sub: `账户 A–J · 两列 · 各 ${uniq[0]}U`,
+            sub: `账户 A–K · 两列 · 各 ${uniq[0]}U`,
         };
     }
     const parts = pairs.map((p) => `${botLabel(p.id).replace('账户 ', '')}${p.bal}U`);
     return {
         line: parts.join(' · '),
-        sub: `账户 A–J · 两列 · ${parts.join(' · ')}`,
+        sub: `账户 A–K · 两列 · ${parts.join(' · ')}`,
     };
 }
 

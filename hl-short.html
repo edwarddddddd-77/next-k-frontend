@@ -38,8 +38,8 @@
         };
     </script>
     <style>
-        .desk-main { max-width: 80rem; margin: 0 auto; padding: 1rem 1.35rem 2rem; }
-        .desk-stack { display: flex; flex-direction: column; gap: 1.15rem; }
+        .desk-main { max-width: 80rem; margin: 0 auto; padding: 1rem 1.35rem 2.5rem; }
+        .desk-stack { display: flex; flex-direction: column; gap: 1.75rem; }
         .focus-hero {
             border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
             border-radius: var(--radius-lg);
@@ -267,6 +267,93 @@
             background: var(--surface);
             z-index: 1;
         }
+        /* 共识模拟：单独放宽，避免三列挤在一起 */
+        .cons-shell {
+            border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+            border-radius: var(--radius-lg);
+            background: var(--surface);
+            box-shadow: var(--card-shadow);
+            padding: 1.15rem 1.25rem 1.35rem;
+        }
+        .cons-shell > .section-head { margin-bottom: 0.9rem; }
+        .cons-shell .section-sub {
+            max-width: 44rem;
+            line-height: 1.55;
+            margin-top: 0.2rem;
+        }
+        .cons-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem 0.65rem;
+            margin-bottom: 1.1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+        }
+        .cons-metrics .metric-chip {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.78rem;
+        }
+        .cons-note {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+            margin: -0.35rem 0 1rem;
+            word-break: break-word;
+        }
+        .cons-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        @media (min-width: 900px) {
+            .cons-layout {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+                gap: 1.15rem;
+            }
+            .cons-layout .cons-fills {
+                grid-column: 1 / -1;
+            }
+        }
+        .cons-block {
+            border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+            border-radius: var(--radius-md);
+            background: color-mix(in srgb, var(--surface-light) 28%, var(--surface));
+            padding: 0.85rem 0.95rem 0.75rem;
+            min-width: 0;
+        }
+        .cons-block-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.65rem;
+            padding-bottom: 0.45rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+        }
+        .cons-block-title {
+            font-family: "Source Sans 3", system-ui, sans-serif;
+            font-size: 0.9rem;
+            font-weight: 650;
+        }
+        .cons-block-meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .cons-scroll {
+            max-height: 16.5rem;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .cons-scroll .data-table thead th {
+            position: sticky;
+            top: 0;
+            background: color-mix(in srgb, var(--surface-light) 28%, var(--surface));
+            z-index: 1;
+        }
+        .cons-scroll .data-table td,
+        .cons-scroll .data-table th {
+            padding: 0.45rem 0.55rem;
+        }
         .fills-shell {
             border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
             border-radius: var(--radius-md);
@@ -422,19 +509,20 @@
         <div id="bots-strip"></div>
     </section>
 
-    <section aria-label="共识模拟">
+    <section class="cons-shell" aria-label="共识模拟">
         <div class="section-head">
             <div>
                 <h3 class="section-title">共识模拟</h3>
-                <p class="section-sub" id="cons-sub">WS 仓位簿 · 边缘开仓 · ≥N 同向 · 与 A–L 跟单分开</p>
+                <p class="section-sub" id="cons-sub">独立纸面袖套 · 与 A–L 跟单分开</p>
             </div>
             <div class="flex flex-wrap gap-1.5 items-center">
                 <button id="btn-cons-tick" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">扫一轮</button>
                 <button id="btn-cons-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置共识</button>
             </div>
         </div>
-        <div id="cons-hero" class="bots-strip mb-3"></div>
-        <div id="cons-body" class="pos-grid"></div>
+        <div id="cons-hero" class="cons-metrics"></div>
+        <p id="cons-note" class="cons-note" hidden></p>
+        <div id="cons-body" class="cons-layout"></div>
     </section>
 
     <section aria-label="账户仓位">
@@ -1115,9 +1203,11 @@ function renderConsensus(book) {
     const hero = document.getElementById('cons-hero');
     const body = document.getElementById('cons-body');
     const sub = document.getElementById('cons-sub');
+    const note = document.getElementById('cons-note');
     if (!hero || !body) return;
     if (!book) {
         hero.innerHTML = '';
+        if (note) { note.hidden = true; note.textContent = ''; }
         body.innerHTML = '<p class="text-text-muted text-sm">共识账本未载入</p>';
         return;
     }
@@ -1134,12 +1224,18 @@ function renderConsensus(book) {
     const feeBps = cfg.fee_bps != null ? cfg.fee_bps : 3.5;
     const feesPaid = Number(book.fees_paid || 0);
     if (sub) {
+        sub.textContent =
+            `≥${minA}且领先≥${minLead} · 确认${cfg.confirm_ticks || 2}tick · 全仓×${Number(lev).toFixed(0)} · 翻向/止损/超时平 · 费${Number(feeBps).toFixed(1)}bps`;
+    }
+    if (note) {
         const tick = book.last_tick_at ? String(book.last_tick_at).replace('T', ' ').slice(0, 19) : '—';
         const bk = book.book || {};
         const bookLine = bk.wallets != null
-            ? ` · 簿 ${bk.ws || 0}WS/${bk.rest || 0}REST`
+            ? `簿 ${bk.ws || 0}WS/${bk.rest || 0}REST`
             : '';
-        sub.textContent = `WS仓位簿 · ≥${minA}且领先≥${minLead} · 确认${cfg.confirm_ticks || 2}tick · 全仓×${Number(lev).toFixed(0)} · 翻向/止损/超时平 · 费${Number(feeBps).toFixed(1)}bps · 上次 ${tick}${bookLine}${book.last_tick_note ? ' · ' + book.last_tick_note : ''}`;
+        const parts = [`上次 ${tick}`, bookLine, book.last_tick_note].filter(Boolean);
+        note.textContent = parts.join(' · ');
+        note.hidden = !note.textContent;
     }
     const retTxt = ret == null ? '—' : `${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(2)}%`;
     const retCls = ret == null ? '' : (ret >= 0 ? 'text-neon-green' : 'text-neon-red');
@@ -1200,23 +1296,32 @@ function renderConsensus(book) {
     }).join('') || '<tr><td colspan="7" class="text-text-muted">暂无成交</td></tr>';
 
     body.innerHTML = `
-        <div class="bot-card">
-            <div class="bot-card-head"><span class="bot-card-title">共识信号</span></div>
-            <div class="scroll-panel"><table class="data-table">
+        <div class="cons-block">
+            <div class="cons-block-head">
+                <span class="cons-block-title">共识信号</span>
+                <span class="cons-block-meta">${signals.length} 条</span>
+            </div>
+            <div class="cons-scroll"><table class="data-table">
                 <thead><tr><th>币</th><th>方向</th><th class="num">多/空票</th><th>投票席</th></tr></thead>
                 <tbody>${sigRows}</tbody>
             </table></div>
         </div>
-        <div class="bot-card">
-            <div class="bot-card-head"><span class="bot-card-title">共识持仓</span></div>
-            <div class="scroll-panel"><table class="data-table">
+        <div class="cons-block">
+            <div class="cons-block-head">
+                <span class="cons-block-title">共识持仓</span>
+                <span class="cons-block-meta">${positions.length} 仓</span>
+            </div>
+            <div class="cons-scroll"><table class="data-table">
                 <thead><tr><th>币</th><th>向</th><th class="num">开仓</th><th class="num">标记</th><th class="num">名义</th><th class="num">浮盈</th><th>投票</th></tr></thead>
                 <tbody>${posRows}</tbody>
             </table></div>
         </div>
-        <div class="bot-card">
-            <div class="bot-card-head"><span class="bot-card-title">共识成交</span></div>
-            <div class="scroll-panel"><table class="data-table">
+        <div class="cons-block cons-fills">
+            <div class="cons-block-head">
+                <span class="cons-block-title">共识成交</span>
+                <span class="cons-block-meta">近 ${fills.length} 笔</span>
+            </div>
+            <div class="cons-scroll"><table class="data-table">
                 <thead><tr><th>时间</th><th>动作</th><th>币</th><th>边</th><th class="num">价</th><th class="num">PnL</th><th>原因</th></tr></thead>
                 <tbody>${fillRows}</tbody>
             </table></div>

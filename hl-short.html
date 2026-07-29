@@ -1218,14 +1218,14 @@ function renderConsensus(book) {
     const rp = Number(book.realized_pnl || 0);
     const up = Number(book.unrealized_pnl || 0);
     const nPos = Object.keys(book.positions || {}).length;
-    const minA = cfg.min_agree != null ? cfg.min_agree : 3;
-    const minLead = cfg.min_lead != null ? cfg.min_lead : 2;
-    const lev = cfg.leverage != null ? cfg.leverage : 2;
-    const feeBps = cfg.fee_bps != null ? cfg.fee_bps : 3.5;
+    const minA = cfg.min_agree != null ? cfg.min_agree : 2;
+    const feeBps = cfg.fee_bps != null ? cfg.fee_bps : 10;
+    const feePct = cfg.fee_rate != null ? Number(cfg.fee_rate) * 100 : Number(feeBps) / 100;
+    const posPct = cfg.position_pct != null ? Number(cfg.position_pct) * 100 : 20;
     const feesPaid = Number(book.fees_paid || 0);
     if (sub) {
         sub.textContent =
-            `≥${minA}且领先≥${minLead} · 确认${cfg.confirm_ticks || 2}tick · 全仓×${Number(lev).toFixed(0)} · 翻向/止损/超时平 · 费${Number(feeBps).toFixed(1)}bps`;
+            `Purffle 规则 · 只做多 · ≥${minA} 多头开 · 跌破平 · 现金 ${posPct.toFixed(0)}% · 费 ${feePct.toFixed(2)}%/边 · WS仓位簿 · HL中价纸面`;
     }
     if (note) {
         const tick = book.last_tick_at ? String(book.last_tick_at).replace('T', ' ').slice(0, 19) : '—';
@@ -1242,6 +1242,7 @@ function renderConsensus(book) {
     hero.innerHTML = `
         <span class="metric-chip">权益 ${fmtUsd(eq)}</span>
         <span class="metric-chip ${retCls}">回报 ${retTxt}</span>
+        <span class="metric-chip">现金 ${fmtUsd(book.cash)}</span>
         <span class="metric-chip">已实现 ${fmtUsd(rp)}</span>
         <span class="metric-chip">浮盈 ${fmtUsd(up)}</span>
         <span class="metric-chip">手续费 ${fmtUsd(feesPaid)}</span>
@@ -1249,22 +1250,21 @@ function renderConsensus(book) {
         <span class="metric-chip">${cfg.enabled === false ? '已关闭' : '模拟中'}</span>`;
 
     const signals = Object.entries(book.signals || {})
-        .filter(([, s]) => s && (s.side || (s.long || 0) + (s.short || 0) >= 2))
-        .sort((a, b) => (Number(b[1].agree || 0) - Number(a[1].agree || 0)));
+        .filter(([, s]) => s && ((s.long || 0) >= 1 || (s.short || 0) >= 1))
+        .sort((a, b) => (Number(b[1].long || 0) - Number(a[1].long || 0)));
     const positions = Object.values(book.positions || {});
     const fills = (book.fills || []).slice().reverse().slice(0, 12);
 
     const sigRows = signals.slice(0, 12).map(([coin, s]) => {
         const side = s.side ? String(s.side).toUpperCase() : '—';
-        const conf = s.confirmed ? '✓' : (s.side ? `s${s.streak || 0}` : '—');
         const voters = (s.voters || []).map((v) => String(v).replace(/^bot_/i, '')).join(',') || '—';
         return `<tr>
             <td>${escapeHtml(coin)}</td>
-            <td>${escapeHtml(side)} <span class="text-text-muted">${escapeHtml(conf)}</span></td>
+            <td>${escapeHtml(side)}</td>
             <td class="num">${escapeHtml(String(s.long ?? 0))}/${escapeHtml(String(s.short ?? 0))}</td>
             <td>${escapeHtml(voters)}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="4" class="text-text-muted">暂无共识信号</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="text-text-muted">暂无多头共识</td></tr>';
 
     const posRows = positions.map((p) => {
         const upnl = Number(p.upnl || 0);

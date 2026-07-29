@@ -1129,13 +1129,17 @@ function renderConsensus(book) {
     const up = Number(book.unrealized_pnl || 0);
     const nPos = Object.keys(book.positions || {}).length;
     const minA = cfg.min_agree != null ? cfg.min_agree : 3;
+    const minLead = cfg.min_lead != null ? cfg.min_lead : 2;
+    const lev = cfg.leverage != null ? cfg.leverage : 2;
+    const feeBps = cfg.fee_bps != null ? cfg.fee_bps : 3.5;
+    const feesPaid = Number(book.fees_paid || 0);
     if (sub) {
         const tick = book.last_tick_at ? String(book.last_tick_at).replace('T', ' ').slice(0, 19) : '—';
         const bk = book.book || {};
         const bookLine = bk.wallets != null
             ? ` · 簿 ${bk.ws || 0}WS/${bk.rest || 0}REST`
             : '';
-        sub.textContent = `WS仓位簿 · ≥${minA} 同向 · 仓位 ${(Number(cfg.position_pct || 0) * 100).toFixed(0)}% · 止损 −${(Number(cfg.hard_stop_pct || 0) * 100).toFixed(0)}% · 上次 ${tick}${bookLine}${book.last_tick_note ? ' · ' + book.last_tick_note : ''}`;
+        sub.textContent = `WS仓位簿 · ≥${minA}且领先≥${minLead} · 确认${cfg.confirm_ticks || 2}tick · 全仓×${Number(lev).toFixed(0)} · 翻向/止损/超时平 · 费${Number(feeBps).toFixed(1)}bps · 上次 ${tick}${bookLine}${book.last_tick_note ? ' · ' + book.last_tick_note : ''}`;
     }
     const retTxt = ret == null ? '—' : `${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(2)}%`;
     const retCls = ret == null ? '' : (ret >= 0 ? 'text-neon-green' : 'text-neon-red');
@@ -1144,6 +1148,7 @@ function renderConsensus(book) {
         <span class="metric-chip ${retCls}">回报 ${retTxt}</span>
         <span class="metric-chip">已实现 ${fmtUsd(rp)}</span>
         <span class="metric-chip">浮盈 ${fmtUsd(up)}</span>
+        <span class="metric-chip">手续费 ${fmtUsd(feesPaid)}</span>
         <span class="metric-chip">持仓 ${nPos}</span>
         <span class="metric-chip">${cfg.enabled === false ? '已关闭' : '模拟中'}</span>`;
 
@@ -1155,10 +1160,11 @@ function renderConsensus(book) {
 
     const sigRows = signals.slice(0, 12).map(([coin, s]) => {
         const side = s.side ? String(s.side).toUpperCase() : '—';
+        const conf = s.confirmed ? '✓' : (s.side ? `s${s.streak || 0}` : '—');
         const voters = (s.voters || []).map((v) => String(v).replace(/^bot_/i, '')).join(',') || '—';
         return `<tr>
             <td>${escapeHtml(coin)}</td>
-            <td>${escapeHtml(side)}</td>
+            <td>${escapeHtml(side)} <span class="text-text-muted">${escapeHtml(conf)}</span></td>
             <td class="num">${escapeHtml(String(s.long ?? 0))}/${escapeHtml(String(s.short ?? 0))}</td>
             <td>${escapeHtml(voters)}</td>
         </tr>`;

@@ -121,7 +121,32 @@
             gap: 0.45rem;
             min-width: 0;
         }
-        .bot-card-meta { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
+        .bot-card-meta {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .bot-reset {
+            font-family: "Source Sans 3", system-ui, sans-serif;
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            padding: 0.22rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .bot-reset:hover {
+            border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+            color: var(--text);
+        }
         .bot-tag {
             display: inline-flex;
             align-items: center;
@@ -871,10 +896,13 @@ function renderPaper(paper) {
         const fundLine = tav != null
             ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>`
             : '';
-        return `<button type="button" class="bot-card${active}${healthCls}" data-bot-id="${b.id}">
+        return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
             <div class="bot-card-top">
                 <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
-                <div class="bot-card-meta">${nPos} 仓${balTag}</div>
+                <div class="bot-card-meta">
+                    <span>${nPos} 仓${balTag}</span>
+                    <button type="button" class="bot-reset" data-bot-reset="${b.id}" title="重置此席位">重置</button>
+                </div>
             </div>
             <div class="bot-stats">
                 <div class="bot-stat">
@@ -891,7 +919,7 @@ function renderPaper(paper) {
                 </div>
             </div>
             ${healthLine}${fundLine}
-        </button>`;
+        </div>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无账户</p>';
 
     document.getElementById('pos-by-strategy').innerHTML = bots.map((b) => {
@@ -1155,7 +1183,7 @@ document.getElementById('btn-cand-refresh')?.addEventListener('click', async () 
     }
 });
 document.getElementById('btn-paper-reset').addEventListener('click', async () => {
-    if (!confirm('重置模拟账本？')) return;
+    if (!confirm('重置全部模拟账本？')) return;
     try {
         const res = await fetch(`${API}/api/hl-short/paper/reset`, { method: 'POST' });
         if (!res.ok) throw new Error('reset ' + res.status);
@@ -1165,7 +1193,39 @@ document.getElementById('btn-paper-reset').addEventListener('click', async () =>
     }
 });
 
+async function resetOneBot(botId, btn) {
+    const id = String(botId || '').trim();
+    if (!id) return;
+    if (!confirm(`重置 ${botLabel(id)}？将清空该席仓位与成交，恢复初始资金。`)) return;
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch(`${API}/api/hl-short/paper/reset/${encodeURIComponent(id)}`, {
+            method: 'POST',
+        });
+        if (!res.ok) {
+            let detail = 'reset ' + res.status;
+            try {
+                const body = await res.json();
+                if (body && body.detail) detail = String(body.detail);
+            } catch (_) {}
+            throw new Error(detail);
+        }
+        await loadAll(false);
+    } catch (err) {
+        alert(String(err.message || err));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 document.getElementById('bots-strip').addEventListener('click', (e) => {
+    const resetBtn = e.target.closest('[data-bot-reset]');
+    if (resetBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        resetOneBot(resetBtn.dataset.botReset, resetBtn);
+        return;
+    }
     const card = e.target.closest('.bot-card');
     if (!card) return;
     const id = card.dataset.botId;

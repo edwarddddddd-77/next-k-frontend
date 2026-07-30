@@ -894,8 +894,11 @@ function renderPaper(paper) {
         const balTag = Number.isFinite(initBal)
             ? ` · ${b.live_only || b.paper === false ? '实盘 ' : ''}${Math.round(initBal)}U`
             : '';
+        const venueLabel = String(b.venue || '').toLowerCase() === 'bitget'
+            ? 'Bitget'
+            : (String(b.venue || '').toLowerCase() === 'binance' ? '币安' : '交易所');
         const liveErr = b.live_error
-            ? `<div class="bot-health bad">币安：${escapeHtml(String(b.live_error))}</div>`
+            ? `<div class="bot-health bad">${venueLabel}：${escapeHtml(String(b.live_error))}</div>`
             : '';
         const upnlLive = (b.live_only || b.paper === false) && b.u_pnl != null
             ? Number(b.u_pnl)
@@ -1224,10 +1227,13 @@ async function resetOneBot(botId, btn) {
     const id = String(botId || '').trim();
     if (!id) return;
     const bot = lastPaper && lastPaper.bots ? lastPaper.bots[id] : null;
-    const isLive = !!(bot && (bot.live_only || bot.paper === false));
-    const msg = isLive
+    const isLiveOnly = !!(bot && (bot.live_only || bot.paper === false));
+    const venue = String((bot && bot.venue) || '').toLowerCase();
+    const msg = isLiveOnly
         ? `平掉 ${botLabel(id)} 实盘仓位？不会再走纸面账本。`
-        : `重置 ${botLabel(id)}？将清空该席仓位与成交，恢复初始资金。`;
+        : (bot && bot.live
+            ? `重置 ${botLabel(id)} 纸面并同步${venue === 'bitget' ? ' Bitget' : ''}平仓？`
+            : `重置 ${botLabel(id)}？将清空该席仓位与成交，恢复初始资金。`);
     if (!confirm(msg)) return;
     if (btn) btn.disabled = true;
     try {

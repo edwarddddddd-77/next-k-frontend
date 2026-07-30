@@ -394,11 +394,24 @@
             gap: 0.75rem;
             margin-top: 1rem;
         }
+        #am-bots-strip.am-strip {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
         @media (min-width: 900px) {
             #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.85rem; }
         }
         @media (min-width: 640px) and (max-width: 899px) {
             #bots-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 639px) {
+            #am-bots-strip.am-strip { grid-template-columns: 1fr; }
+        }
+        .bot-tag.is-am {
+            color: var(--gold, #c4a574);
+            border-color: color-mix(in srgb, var(--gold, #c4a574) 40%, transparent);
+            background: color-mix(in srgb, var(--gold, #c4a574) 12%, transparent);
         }
     </style>
 </head>
@@ -457,6 +470,17 @@
             <p class="section-sub" id="bots-sub">账户桌面 · 两列 · 各 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
+    </section>
+
+    <section aria-label="反马丁袖套" id="am-section">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">反马丁 · A / E / C</h3>
+                <p class="section-sub" id="am-sub">温和反马丁（绿日 +0.5 封顶 2×）· 与主桌同址分账 · 不影响原 A/E/C</p>
+            </div>
+        </div>
+        <div id="am-bots-strip" class="am-strip"></div>
+        <div id="am-pos-by-strategy" class="pos-grid" style="margin-top:0.85rem;"></div>
     </section>
 
     <section aria-label="跟单候选池">
@@ -604,6 +628,9 @@ function botLabel(id) {
         bot_m: '账户 M',
         bot_n: '账户 N',
         bot_o: '账户 O',
+        bot_am_a: '反马丁 A',
+        bot_am_e: '反马丁 E',
+        bot_am_c: '反马丁 C',
         wr94_hype: '账户 A',
         wr72_multi: '账户 B',
         wr88_btc_ada: '账户 C',
@@ -631,18 +658,33 @@ const STYLE_TAG_LABEL = {
     degen: { label: '高频', cls: 'is-extra' },
     grinder: { label: '磨单', cls: 'is-extra' },
     diversified: { label: '分散', cls: 'is-extra' },
+    anti_martingale: { label: '反马丁', cls: 'is-am' },
 };
+
+function isAmBot(b) {
+    if (!b) return false;
+    if (String(b.section || '').toLowerCase() === 'anti_martingale') return true;
+    const am = String(b.anti_martingale || '').toLowerCase();
+    if (am && am !== '0' && am !== 'false' && am !== 'off') return true;
+    return String(b.id || '').startsWith('bot_am_');
+}
 
 function botTagHtml(b) {
     const parts = [];
     if (b && (b.live_only || b.paper === false || b.live === true || b.venue === 'bitget' || b.venue === 'binance')) {
         parts.push('<span class="bot-tag is-live">实盘</span>');
     }
+    if (isAmBot(b)) {
+        const sc = b.am_scale != null ? Number(b.am_scale) : 1;
+        const scTxt = Number.isFinite(sc) ? sc.toFixed(1).replace(/\.0$/, '') + '×' : '';
+        parts.push(`<span class="bot-tag is-am">反马丁${scTxt ? ' ' + scTxt : ''}</span>`);
+    }
     const main = botTag(b);
     if (main) parts.push(`<span class="bot-tag ${main.cls}">${main.label}</span>`);
     const extras = Array.isArray(b && b.style_tags) ? b.style_tags : [];
     for (const raw of extras) {
         const key = String(raw || '').toLowerCase();
+        if (key === 'anti_martingale') continue;
         const meta = STYLE_TAG_LABEL[key];
         if (!meta) continue;
         parts.push(`<span class="bot-tag ${meta.cls}">${meta.label}</span>`);
@@ -662,7 +704,8 @@ function styleCellHtml(r) {
     return bits.join(' ');
 }
 
-const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_m', 'bot_n', 'bot_o'];
+const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_m', 'bot_n', 'bot_o', 'bot_am_a', 'bot_am_e', 'bot_am_c'];
+const AM_BOT_ORDER = ['bot_am_a', 'bot_am_e', 'bot_am_c'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip', 'live_sync']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;
@@ -726,6 +769,119 @@ function sortedBots(paper) {
         const ib = BOT_ORDER.indexOf(b.id);
         return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });
+}
+
+function sortedDeskBots(paper) {
+    return sortedBots(paper).filter((b) => !isAmBot(b));
+}
+
+function sortedAmBots(paper) {
+    const bots = Object.values(paper.bots || {}).filter(isAmBot);
+    return bots.sort((a, b) => {
+        const ia = AM_BOT_ORDER.indexOf(a.id);
+        const ib = AM_BOT_ORDER.indexOf(b.id);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+}
+
+function botCardHtml(paper, b) {
+    const halted = b.risk_halted ? '<span class="bot-halt">熔断</span>' : '';
+    const nested = botPositions(paper, b);
+    const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
+    const nPos = nested.length;
+    const active = b.id === fillFilter ? ' is-active' : '';
+    const initBal = b.live_only || b.paper === false
+        ? (b.balance != null ? Number(b.balance) : (b.equity != null ? Number(b.equity) : NaN))
+        : (b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance));
+    const balTag = Number.isFinite(initBal)
+        ? ` · ${b.live_only || b.paper === false ? '实盘 ' : ''}${Math.round(initBal)}U`
+        : '';
+    const venueLabel = String(b.venue || '').toLowerCase() === 'bitget'
+        ? 'Bitget'
+        : (String(b.venue || '').toLowerCase() === 'binance' ? '币安' : '交易所');
+    const liveErr = b.live_error
+        ? `<div class="bot-health bad">${venueLabel}：${escapeHtml(String(b.live_error))}</div>`
+        : '';
+    const upnlLive = (b.live_only || b.paper === false) && b.u_pnl != null
+        ? Number(b.u_pnl)
+        : upnl2;
+    const h = b.target_health || {};
+    const healthCls = !h.status || h.status === 'ok'
+        ? ''
+        : (h.empty ? ' is-bad' : ' is-warn');
+    const tav = h.target_av != null ? h.target_av : b.target_av;
+    let healthLine = '';
+    if (h.status && h.status !== 'ok') {
+        const bits = [h.label || h.status];
+        if (h.quiet_hours != null) bits.push(`静默 ${Number(h.quiet_hours).toFixed(1)}h`);
+        healthLine = `<div class="bot-health ${h.empty ? 'bad' : 'warn'}">${bits.join(' · ')}</div>`;
+    }
+    const fundLine = tav != null
+        ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>`
+        : '';
+    const isLive = !!(b.live_only || b.paper === false);
+    const thirdLabel = isLive ? '可用' : (isAmBot(b) ? 'scale' : '已实现');
+    let thirdVal;
+    if (isLive) {
+        thirdVal = b.live_available != null ? Number(b.live_available) : (b.balance != null ? Number(b.balance) : 0);
+    } else if (isAmBot(b)) {
+        thirdVal = null;
+    } else {
+        thirdVal = Number(b.realized_pnl);
+    }
+    const thirdHtml = isAmBot(b) && !isLive
+        ? `<span class="stat-value">${(Number(b.am_scale) || 1).toFixed(1).replace(/\.0$/, '')}×</span>`
+        : `<span class="stat-value">${fmtUsd(thirdVal)}</span>`;
+    const amReason = isAmBot(b) && b.am_reason
+        ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">${escapeHtml(String(b.am_reason))}</div>`
+        : '';
+    return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
+        <div class="bot-card-top">
+            <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
+            <div class="bot-card-meta">
+                <span>${nPos} 仓${balTag}</span>
+                <button type="button" class="bot-reset" data-bot-reset="${b.id}" title="${isLive ? '平掉币安仓位' : '重置此席位'}">重置</button>
+            </div>
+        </div>
+        <div class="bot-stats">
+            <div class="bot-stat">
+                <span class="stat-label">${isLive ? '实盘权益' : '权益'}</span>
+                <span class="stat-value equity">${fmtUsd(b.equity)}</span>
+            </div>
+            <div class="bot-stat">
+                <span class="stat-label">浮盈</span>
+                <span class="stat-value ${upnlLive >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnlLive)}</span>
+            </div>
+            <div class="bot-stat">
+                <span class="stat-label">${thirdLabel}</span>
+                ${thirdHtml}
+            </div>
+        </div>
+        ${liveErr}${healthLine}${fundLine}${amReason}
+    </div>`;
+}
+
+function strategyBlockHtml(paper, b) {
+    const positions = botPositions(paper, b);
+    return `<div class="strategy-block">
+        <div class="strategy-block-head">
+            <div class="strategy-block-title"><span>${botLabel(b.id)}</span>${botTagHtml(b)}</div>
+            <div class="strategy-block-meta">${positions.length} 仓</div>
+        </div>
+        <div class="scroll-panel">
+            <table class="data-table tbl-pos">
+                <colgroup>
+                    <col class="c-coin" /><col class="c-entry" /><col class="c-mark" />
+                    <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                </colgroup>
+                <thead><tr>
+                    <th>币</th><th class="num">开仓价</th><th class="num">标记价</th>
+                    <th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
+                </tr></thead>
+                <tbody>${posRowsHtml(positions)}</tbody>
+            </table>
+        </div>
+    </div>`;
 }
 
 function botPositions(paper, bot) {
@@ -876,109 +1032,41 @@ function renderFills(paper) {
 
 function renderPaper(paper) {
     lastPaper = paper;
-    const bots = sortedBots(paper);
-    if (fillFilter !== 'all' && !bots.some((b) => b.id === fillFilter)) {
+    const allBots = sortedBots(paper);
+    const deskBots = sortedDeskBots(paper);
+    const amBots = sortedAmBots(paper);
+    if (fillFilter !== 'all' && !allBots.some((b) => b.id === fillFilter)) {
         fillFilter = 'all';
     }
 
     const strip = document.getElementById('bots-strip');
-    strip.innerHTML = bots.map((b) => {
-        const halted = b.risk_halted ? '<span class="bot-halt">熔断</span>' : '';
-        const nested = botPositions(paper, b);
-        const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
-        const nPos = nested.length;
-        const active = b.id === fillFilter ? ' is-active' : '';
-        const initBal = b.live_only || b.paper === false
-            ? (b.balance != null ? Number(b.balance) : (b.equity != null ? Number(b.equity) : NaN))
-            : (b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance));
-        const balTag = Number.isFinite(initBal)
-            ? ` · ${b.live_only || b.paper === false ? '实盘 ' : ''}${Math.round(initBal)}U`
-            : '';
-        const venueLabel = String(b.venue || '').toLowerCase() === 'bitget'
-            ? 'Bitget'
-            : (String(b.venue || '').toLowerCase() === 'binance' ? '币安' : '交易所');
-        const liveErr = b.live_error
-            ? `<div class="bot-health bad">${venueLabel}：${escapeHtml(String(b.live_error))}</div>`
-            : '';
-        const upnlLive = (b.live_only || b.paper === false) && b.u_pnl != null
-            ? Number(b.u_pnl)
-            : upnl2;
-        const realizedShow = (b.live_only || b.paper === false)
-            ? (b.u_pnl != null ? Number(b.u_pnl) : 0)
-            : Number(b.realized_pnl);
-        // For live seats show wallet equity; realized column → 浮盈 total from exchange.
-        const h = b.target_health || {};
-        const healthCls = !h.status || h.status === 'ok'
-            ? ''
-            : (h.empty ? ' is-bad' : ' is-warn');
-        const tav = h.target_av != null ? h.target_av : b.target_av;
-        let healthLine = '';
-        if (h.status && h.status !== 'ok') {
-            const bits = [h.label || h.status];
-            if (h.quiet_hours != null) bits.push(`静默 ${Number(h.quiet_hours).toFixed(1)}h`);
-            healthLine = `<div class="bot-health ${h.empty ? 'bad' : 'warn'}">${bits.join(' · ')}</div>`;
-        }
-        const fundLine = tav != null
-            ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>`
-            : '';
-        const isLive = !!(b.live_only || b.paper === false);
-        const thirdLabel = isLive ? '可用' : '已实现';
-        const thirdVal = isLive
-            ? (b.live_available != null ? Number(b.live_available) : (b.balance != null ? Number(b.balance) : 0))
-            : Number(b.realized_pnl);
-        return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
-            <div class="bot-card-top">
-                <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
-                <div class="bot-card-meta">
-                    <span>${nPos} 仓${balTag}</span>
-                    <button type="button" class="bot-reset" data-bot-reset="${b.id}" title="${isLive ? '平掉币安仓位' : '重置此席位'}">重置</button>
-                </div>
-            </div>
-            <div class="bot-stats">
-                <div class="bot-stat">
-                    <span class="stat-label">${isLive ? '实盘权益' : '权益'}</span>
-                    <span class="stat-value equity">${fmtUsd(b.equity)}</span>
-                </div>
-                <div class="bot-stat">
-                    <span class="stat-label">浮盈</span>
-                    <span class="stat-value ${upnlLive >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnlLive)}</span>
-                </div>
-                <div class="bot-stat">
-                    <span class="stat-label">${thirdLabel}</span>
-                    <span class="stat-value">${fmtUsd(thirdVal)}</span>
-                </div>
-            </div>
-            ${liveErr}${healthLine}${fundLine}
-        </div>`;
-    }).join('') || '<p class="text-text-muted text-sm">暂无账户</p>';
+    strip.innerHTML = deskBots.map((b) => botCardHtml(paper, b)).join('')
+        || '<p class="text-text-muted text-sm">暂无账户</p>';
 
-    document.getElementById('pos-by-strategy').innerHTML = bots.map((b) => {
-        const positions = botPositions(paper, b);
-        return `<div class="strategy-block">
-            <div class="strategy-block-head">
-                <div class="strategy-block-title"><span>${botLabel(b.id)}</span>${botTagHtml(b)}</div>
-                <div class="strategy-block-meta">${positions.length} 仓</div>
-            </div>
-            <div class="scroll-panel">
-                <table class="data-table tbl-pos">
-                    <colgroup>
-                        <col class="c-coin" /><col class="c-entry" /><col class="c-mark" />
-                        <col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
-                    </colgroup>
-                    <thead><tr>
-                        <th>币</th><th class="num">开仓价</th><th class="num">标记价</th>
-                        <th class="num">仓位(U)</th><th class="num">杠杆</th><th class="num">浮盈</th>
-                    </tr></thead>
-                    <tbody>${posRowsHtml(positions)}</tbody>
-                </table>
-            </div>
-        </div>`;
-    }).join('') || '<p class="text-text-muted text-sm">暂无仓位</p>';
+    document.getElementById('pos-by-strategy').innerHTML = deskBots.map((b) => strategyBlockHtml(paper, b)).join('')
+        || '<p class="text-text-muted text-sm">暂无仓位</p>';
+
+    const amStrip = document.getElementById('am-bots-strip');
+    const amPos = document.getElementById('am-pos-by-strategy');
+    const amSec = document.getElementById('am-section');
+    if (amStrip && amPos) {
+        amStrip.innerHTML = amBots.map((b) => botCardHtml(paper, b)).join('')
+            || '<p class="text-text-muted text-sm">反马丁席位加载中…</p>';
+        amPos.innerHTML = amBots.map((b) => strategyBlockHtml(paper, b)).join('')
+            || '';
+    }
+    if (amSec) amSec.style.display = '';
+    const amSub = document.getElementById('am-sub');
+    if (amSub && amBots.length) {
+        const eq = amBots.reduce((s, b) => s + (Number(b.equity) || 0), 0);
+        const scales = amBots.map((b) => `${botLabel(b.id).replace(/^反马丁\s*/, '')}${(Number(b.am_scale) || 1).toFixed(1).replace(/\.0$/, '')}×`).join(' · ');
+        amSub.textContent = `温和反马丁 · 纸面合计 ${fmtUsd(eq)} · ${scales || '1×'} · 原 A/E/C 仍为 1×`;
+    }
 
     renderFillTabs(paper);
     renderFills(paper);
     syncActiveChrome();
-    const { sub } = deskBalanceLine(bots);
+    const { sub } = deskBalanceLine(deskBots);
     const subEl = document.getElementById('bots-sub');
     if (subEl && sub) subEl.textContent = sub;
 }
@@ -1032,9 +1120,9 @@ function renderCopyStatus(st) {
         return;
     }
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0}` : 'WS 离线';
-    const bots = (st.paper && st.paper.bots) || (lastPaper ? sortedBots(lastPaper) : []);
     const paper = st.paper || lastPaper || {};
-    const { line: balLine, sub } = deskBalanceLine(bots);
+    const deskList = sortedDeskBots(paper);
+    const { line: balLine, sub } = deskBalanceLine(deskList);
     let line = balLine;
     const cfg = (paper && paper.config) || (st.config) || {};
     const tp = Number(cfg.portfolio_tp_pct);
@@ -1269,6 +1357,23 @@ document.getElementById('bots-strip').addEventListener('click', (e) => {
     const id = card.dataset.botId;
     setFillFilter(fillFilter === id ? 'all' : id);
 });
+
+const amStripEl = document.getElementById('am-bots-strip');
+if (amStripEl) {
+    amStripEl.addEventListener('click', (e) => {
+        const resetBtn = e.target.closest('[data-bot-reset]');
+        if (resetBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            resetOneBot(resetBtn.dataset.botReset, resetBtn);
+            return;
+        }
+        const card = e.target.closest('.bot-card');
+        if (!card) return;
+        const id = card.dataset.botId;
+        setFillFilter(fillFilter === id ? 'all' : id);
+    });
+}
 
 document.getElementById('fill-tabs').addEventListener('click', (e) => {
     const tab = e.target.closest('.fill-tab');

@@ -478,6 +478,42 @@
 </header>
 
 <main class="page-shell page-shell-y desk-stack">
+    <section class="focus-hero am-desk" aria-label="反马丁桌面" id="am-section">
+        <div class="hero-top">
+            <div>
+                <div class="panel-kicker">Paper · Anti-martingale</div>
+                <h2 class="panel-title">反马丁桌 · A / E / C</h2>
+                <p id="am-sub" class="panel-sub">温和反马丁（绿日 +0.5 封顶 2×）· 与主桌同址分账 · 独立展示</p>
+            </div>
+        </div>
+        <div id="am-bots-strip" class="am-strip"></div>
+        <div class="section-head" style="margin-top:1.15rem;margin-bottom:0.55rem;">
+            <h3 class="section-title">反马丁仓位</h3>
+            <p class="section-sub">仅 AM 三席 · 不影响原 A/E/C</p>
+        </div>
+        <div id="am-pos-by-strategy" class="pos-grid am-pos-grid"></div>
+        <div class="section-head" style="margin-top:1.15rem;">
+            <div>
+                <h3 class="section-title">反马丁成交</h3>
+                <p class="section-sub" id="am-fills-sub">仅反马丁席 · 北京时间</p>
+            </div>
+            <div id="am-fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选反马丁账户"></div>
+        </div>
+        <div class="fills-shell">
+            <div class="fills-scroll">
+                <table id="am-tbl-fills" class="data-table tbl-fills">
+                    <colgroup id="am-fills-cols"></colgroup>
+                    <thead>
+                        <tr id="am-fills-head"></tr>
+                    </thead>
+                    <tbody id="am-fills-tbody">
+                        <tr><td class="text-text-muted">载入中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <section class="focus-hero" aria-label="账户桌面">
         <div class="hero-top">
             <div>
@@ -528,42 +564,6 @@
                         <tr id="fills-head"></tr>
                     </thead>
                     <tbody id="fills-tbody">
-                        <tr><td class="text-text-muted">载入中…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <section class="focus-hero am-desk" aria-label="反马丁桌面" id="am-section">
-        <div class="hero-top">
-            <div>
-                <div class="panel-kicker">Paper · Anti-martingale</div>
-                <h2 class="panel-title">反马丁桌 · A / E / C</h2>
-                <p id="am-sub" class="panel-sub">温和反马丁（绿日 +0.5 封顶 2×）· 与主桌同址分账 · 独立展示</p>
-            </div>
-        </div>
-        <div id="am-bots-strip" class="am-strip"></div>
-        <div class="section-head" style="margin-top:1.15rem;margin-bottom:0.55rem;">
-            <h3 class="section-title">反马丁仓位</h3>
-            <p class="section-sub">仅 AM 三席 · 不影响原 A/E/C</p>
-        </div>
-        <div id="am-pos-by-strategy" class="pos-grid am-pos-grid"></div>
-        <div class="section-head" style="margin-top:1.15rem;">
-            <div>
-                <h3 class="section-title">反马丁成交</h3>
-                <p class="section-sub" id="am-fills-sub">仅反马丁席 · 北京时间</p>
-            </div>
-            <div id="am-fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选反马丁账户"></div>
-        </div>
-        <div class="fills-shell">
-            <div class="fills-scroll">
-                <table id="am-tbl-fills" class="data-table tbl-fills">
-                    <colgroup id="am-fills-cols"></colgroup>
-                    <thead>
-                        <tr id="am-fills-head"></tr>
-                    </thead>
-                    <tbody id="am-fills-tbody">
                         <tr><td class="text-text-muted">载入中…</td></tr>
                     </tbody>
                 </table>
@@ -1171,7 +1171,7 @@ function renderPaper(paper) {
     if (amSub && amBots.length) {
         const eq = amBots.reduce((s, b) => s + (Number(b.equity) || 0), 0);
         const scales = amBots.map((b) => `${botLabel(b.id).replace(/^反马丁\s*/, '')}${(Number(b.am_scale) || 1).toFixed(1).replace(/\.0$/, '')}×`).join(' · ');
-        amSub.textContent = `纸面合计 ${fmtUsd(eq)} · ${scales || '1×'} · 原 A/E/C 仍在上方主桌 1×`;
+        amSub.textContent = `纸面合计 ${fmtUsd(eq)} · ${scales || '1×'} · 下方主桌原 A/E/C 仍为 1×`;
     }
 
     renderDeskFills(paper);

@@ -1233,6 +1233,7 @@ function renderCopyStatus(st) {
     ws.textContent = st.running ? `WS 在线 · ${st.fills_seen || 0}` : 'WS 离线';
     const paper = st.paper || lastPaper || {};
     const deskList = sortedDeskBots(paper);
+    const bots = sortedBots(paper);
     const { line: balLine, sub } = deskBalanceLine(deskList);
     let line = balLine;
     const cfg = (paper && paper.config) || (st.config) || {};
@@ -1379,10 +1380,8 @@ async function loadAll(refresh) {
         pollTick += 1;
         // Mark mids at most every 3rd poll (~45s) or on manual refresh
         const wantMark = !!refresh || (pollTick % 3 === 0);
-        // Paper is the desk source of truth — don't let copy/candidates flap the pill.
         const paper = await fetchPaper(wantMark);
         renderPaper(paper);
-        setStatus(true, '已连接');
         const [st, cands] = await Promise.all([
             fetchCopyStatus().catch((e) => {
                 console.warn('copy/status', e);
@@ -1392,6 +1391,7 @@ async function loadAll(refresh) {
         ]);
         if (st) renderCopyStatus(st);
         if (cands) renderCandidates(cands);
+        setStatus(true, '已连接');
     } catch (err) {
         console.error(err);
         const detail = String(err.message || err).slice(0, 48);

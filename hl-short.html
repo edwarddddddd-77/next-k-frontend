@@ -38,7 +38,10 @@
         };
     </script>
     <style>
-        .desk-main { max-width: 80rem; margin: 0 auto; padding: 1rem 1.35rem 2.5rem; }
+        .desk-main { max-width: none; width: 100%; margin: 0; padding: 1rem 1.5rem 2.5rem; }
+        @media (min-width: 1600px) {
+            .desk-main { padding-left: 2rem; padding-right: 2rem; }
+        }
         .desk-stack { display: flex; flex-direction: column; gap: 1.75rem; }
         .focus-hero {
             border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);

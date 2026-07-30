@@ -54,8 +54,17 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--bg);
-    background-image: none;
+    background-image:
+        radial-gradient(
+            ellipse 90% 42% at 50% -8%,
+            color-mix(in srgb, var(--accent) 6%, transparent),
+            transparent 58%
+        );
     line-height: 1.5;
+}
+
+body.board-canvas {
+    min-height: 100vh;
 }
 
 body::before { display: none; }
@@ -207,8 +216,8 @@ h1, h2, h3, .hl-title, .panel-title {
 }
 
 .dash-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
     border-radius: var(--radius-md);
     box-shadow: none;
     overflow: hidden;
@@ -221,8 +230,8 @@ h1, h2, h3, .hl-title, .panel-title {
     justify-content: space-between;
     gap: 0.75rem;
     padding: var(--space-panel-y) var(--space-panel-x);
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    background: color-mix(in srgb, var(--surface-light) 22%, var(--surface));
 }
 
 .panel-kicker {
@@ -366,4 +375,40 @@ h1, h2, h3, .hl-title, .panel-title {
     color: var(--text-muted);
     letter-spacing: 0.01em;
     line-height: 1.5;
+}
+
+/* ── Full-bleed board shell (观盘 / 映仓 / 网格) ── */
+.page-shell {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: clamp(1rem, 2.4vw, 2.75rem);
+    padding-right: clamp(1rem, 2.4vw, 2.75rem);
+    box-sizing: border-box;
+}
+
+.page-shell-y {
+    padding-top: clamp(1.15rem, 2vw, 1.85rem);
+    padding-bottom: clamp(2rem, 3.2vw, 3.25rem);
+}
+
+.app-header .page-shell {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+}
+
+.board-lane {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.15rem, 1.8vw, 1.75rem);
+}
+
+.board-section {
+    min-width: 0;
+}
+
+footer.board-footer {
+    border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    background: color-mix(in srgb, var(--surface) 40%, transparent);
 }

@@ -635,7 +635,7 @@ const STYLE_TAG_LABEL = {
 
 function botTagHtml(b) {
     const parts = [];
-    if (b && (b.live_only || b.paper === false || b.venue === 'binance')) {
+    if (b && (b.live_only || b.paper === false || b.live === true || b.venue === 'bitget' || b.venue === 'binance')) {
         parts.push('<span class="bot-tag is-live">实盘</span>');
     }
     const main = botTag(b);
@@ -1226,7 +1226,7 @@ async function resetOneBot(botId, btn) {
     const bot = lastPaper && lastPaper.bots ? lastPaper.bots[id] : null;
     const isLive = !!(bot && (bot.live_only || bot.paper === false));
     const msg = isLive
-        ? `平掉 ${botLabel(id)} 币安实盘仓位？不会再走纸面账本。`
+        ? `平掉 ${botLabel(id)} 实盘仓位？不会再走纸面账本。`
         : `重置 ${botLabel(id)}？将清空该席仓位与成交，恢复初始资金。`;
     if (!confirm(msg)) return;
     if (btn) btn.disabled = true;

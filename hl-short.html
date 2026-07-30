@@ -398,6 +398,7 @@
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.75rem;
+            margin-top: 1rem;
         }
         @media (min-width: 900px) {
             #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.85rem; }
@@ -412,6 +413,20 @@
             color: var(--gold, #c4a574);
             border-color: color-mix(in srgb, var(--gold, #c4a574) 40%, transparent);
             background: color-mix(in srgb, var(--gold, #c4a574) 12%, transparent);
+        }
+        .am-desk {
+            margin-top: 0.5rem;
+            border-color: color-mix(in srgb, var(--gold, #c4a574) 28%, var(--border));
+        }
+        #am-pos-by-strategy.pos-grid,
+        #am-pos-by-strategy.am-pos-grid {
+            grid-template-columns: 1fr;
+        }
+        @media (min-width: 900px) {
+            #am-pos-by-strategy.pos-grid,
+            #am-pos-by-strategy.am-pos-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
         }
     </style>
 </head>
@@ -472,17 +487,6 @@
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
 
-    <section aria-label="反马丁袖套" id="am-section">
-        <div class="section-head">
-            <div>
-                <h3 class="section-title">反马丁 · A / E / C</h3>
-                <p class="section-sub" id="am-sub">温和反马丁（绿日 +0.5 封顶 2×）· 与主桌同址分账 · 不影响原 A/E/C</p>
-            </div>
-        </div>
-        <div id="am-bots-strip" class="am-strip"></div>
-        <div id="am-pos-by-strategy" class="pos-grid" style="margin-top:0.85rem;"></div>
-    </section>
-
     <section aria-label="跟单候选池">
         <div class="section-head">
             <div>
@@ -498,9 +502,9 @@
         <div class="section-head">
             <div>
                 <h3 class="section-title">成交记录</h3>
-                <p class="section-sub" id="fills-sub">通栏 · 北京时间</p>
+                <p class="section-sub" id="fills-sub">主桌 · 北京时间</p>
             </div>
-            <div id="fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选账户"></div>
+            <div id="fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选主桌账户"></div>
         </div>
         <div class="fills-shell">
             <div class="fills-scroll">
@@ -510,6 +514,42 @@
                         <tr id="fills-head"></tr>
                     </thead>
                     <tbody id="fills-tbody">
+                        <tr><td class="text-text-muted">载入中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="focus-hero am-desk" aria-label="反马丁桌面" id="am-section">
+        <div class="hero-top">
+            <div>
+                <div class="panel-kicker">Paper · Anti-martingale</div>
+                <h2 class="panel-title">反马丁桌 · A / E / C</h2>
+                <p id="am-sub" class="panel-sub">温和反马丁（绿日 +0.5 封顶 2×）· 与主桌同址分账 · 独立展示</p>
+            </div>
+        </div>
+        <div id="am-bots-strip" class="am-strip"></div>
+        <div class="section-head" style="margin-top:1.15rem;margin-bottom:0.55rem;">
+            <h3 class="section-title">反马丁仓位</h3>
+            <p class="section-sub">仅 AM 三席 · 不影响原 A/E/C</p>
+        </div>
+        <div id="am-pos-by-strategy" class="pos-grid am-pos-grid"></div>
+        <div class="section-head" style="margin-top:1.15rem;">
+            <div>
+                <h3 class="section-title">反马丁成交</h3>
+                <p class="section-sub" id="am-fills-sub">仅反马丁席 · 北京时间</p>
+            </div>
+            <div id="am-fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选反马丁账户"></div>
+        </div>
+        <div class="fills-shell">
+            <div class="fills-scroll">
+                <table id="am-tbl-fills" class="data-table tbl-fills">
+                    <colgroup id="am-fills-cols"></colgroup>
+                    <thead>
+                        <tr id="am-fills-head"></tr>
+                    </thead>
+                    <tbody id="am-fills-tbody">
                         <tr><td class="text-text-muted">载入中…</td></tr>
                     </tbody>
                 </table>
@@ -761,6 +801,7 @@ function fillActLabel(f) {
 
 let lastPaper = null;
 let fillFilter = 'all';
+let amFillFilter = 'all';
 
 function sortedBots(paper) {
     const bots = Object.values(paper.bots || {});
@@ -789,7 +830,9 @@ function botCardHtml(paper, b) {
     const nested = botPositions(paper, b);
     const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
     const nPos = nested.length;
-    const active = b.id === fillFilter ? ' is-active' : '';
+    const active = isAmBot(b)
+        ? (b.id === amFillFilter ? ' is-active' : '')
+        : (b.id === fillFilter ? ' is-active' : '');
     const initBal = b.live_only || b.paper === false
         ? (b.balance != null ? Number(b.balance) : (b.equity != null ? Number(b.equity) : NaN))
         : (b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance));
@@ -903,8 +946,8 @@ function botFills(paper, bot) {
     });
 }
 
-function collectFills(paper, filterId) {
-    const bots = sortedBots(paper);
+function collectFills(paper, filterId, botList) {
+    const bots = botList || sortedBots(paper);
     const rows = [];
     for (const b of bots) {
         if (filterId !== 'all' && b.id !== filterId) continue;
@@ -923,17 +966,31 @@ function collectFills(paper, filterId) {
 function setFillFilter(id) {
     fillFilter = id || 'all';
     if (lastPaper) {
-        renderFills(lastPaper);
+        renderDeskFills(lastPaper);
+    }
+    syncActiveChrome();
+}
+
+function setAmFillFilter(id) {
+    amFillFilter = id || 'all';
+    if (lastPaper) {
+        renderAmFills(lastPaper);
     }
     syncActiveChrome();
 }
 
 function syncActiveChrome() {
-    document.querySelectorAll('.bot-card').forEach((el) => {
+    document.querySelectorAll('#bots-strip .bot-card').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.botId === fillFilter);
     });
-    document.querySelectorAll('.fill-tab').forEach((el) => {
+    document.querySelectorAll('#am-bots-strip .bot-card').forEach((el) => {
+        el.classList.toggle('is-active', el.dataset.botId === amFillFilter);
+    });
+    document.querySelectorAll('#fill-tabs .fill-tab').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.filter === fillFilter);
+    });
+    document.querySelectorAll('#am-fill-tabs .fill-tab').forEach((el) => {
+        el.classList.toggle('is-active', el.dataset.filter === amFillFilter);
     });
 }
 
@@ -998,45 +1055,85 @@ function fillRowsHtml(fills, showBot) {
     }).join('');
 }
 
-function renderFillTabs(paper) {
-    const bots = sortedBots(paper);
-    const tabs = [{ id: 'all', label: '全部' }].concat(
+function renderFillTabsInto(el, bots, activeId, allLabel) {
+    if (!el) return;
+    const tabs = [{ id: 'all', label: allLabel || '全部' }].concat(
         bots.map((b) => ({ id: b.id, label: botLabel(b.id) }))
     );
-    const el = document.getElementById('fill-tabs');
     el.innerHTML = tabs.map((t) => (
-        `<button type="button" class="fill-tab${t.id === fillFilter ? ' is-active' : ''}" data-filter="${t.id}">${t.label}</button>`
+        `<button type="button" class="fill-tab${t.id === activeId ? ' is-active' : ''}" data-filter="${t.id}">${t.label}</button>`
     )).join('');
 }
 
-function renderFills(paper) {
-    const showBot = fillFilter === 'all';
-    const fills = collectFills(paper, fillFilter);
-    const table = document.getElementById('tbl-fills');
+function paintFillsTable(opts) {
+    const {
+        tableId, colsId, headId, bodyId, subId,
+        paper, filterId, bots, allWho,
+    } = opts;
+    const showBot = filterId === 'all';
+    const fills = collectFills(paper, filterId, bots);
+    const table = document.getElementById(tableId);
+    if (!table) return;
     table.classList.toggle('hide-bot', !showBot);
 
-    document.getElementById('fills-cols').innerHTML = showBot
+    document.getElementById(colsId).innerHTML = showBot
         ? '<col class="c-bot" /><col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />'
         : '<col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />';
 
-    document.getElementById('fills-head').innerHTML = showBot
+    document.getElementById(headId).innerHTML = showBot
         ? '<th>账户</th><th>时间</th><th>动作</th><th>币</th><th class="num">价格</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>'
         : '<th>时间</th><th>动作</th><th>币</th><th class="num">价格</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>';
 
-    document.getElementById('fills-tbody').innerHTML = fillRowsHtml(fills, showBot);
-    const sub = document.getElementById('fills-sub');
-    const cap = fillFilter === 'all' ? FILL_LIMIT_ALL : FILL_LIMIT;
-    const who = fillFilter === 'all' ? '全部账户' : botLabel(fillFilter);
-    sub.textContent = `${who} · 近 ${fills.length}/${cap} · 北京时间`;
+    document.getElementById(bodyId).innerHTML = fillRowsHtml(fills, showBot);
+    const sub = document.getElementById(subId);
+    if (sub) {
+        const cap = filterId === 'all' ? FILL_LIMIT_ALL : FILL_LIMIT;
+        const who = filterId === 'all' ? allWho : botLabel(filterId);
+        sub.textContent = `${who} · 近 ${fills.length}/${cap} · 北京时间`;
+    }
+}
+
+function renderDeskFills(paper) {
+    const deskBots = sortedDeskBots(paper);
+    renderFillTabsInto(document.getElementById('fill-tabs'), deskBots, fillFilter, '主桌全部');
+    paintFillsTable({
+        tableId: 'tbl-fills',
+        colsId: 'fills-cols',
+        headId: 'fills-head',
+        bodyId: 'fills-tbody',
+        subId: 'fills-sub',
+        paper,
+        filterId: fillFilter,
+        bots: deskBots,
+        allWho: '主桌全部',
+    });
+}
+
+function renderAmFills(paper) {
+    const amBots = sortedAmBots(paper);
+    renderFillTabsInto(document.getElementById('am-fill-tabs'), amBots, amFillFilter, 'AM全部');
+    paintFillsTable({
+        tableId: 'am-tbl-fills',
+        colsId: 'am-fills-cols',
+        headId: 'am-fills-head',
+        bodyId: 'am-fills-tbody',
+        subId: 'am-fills-sub',
+        paper,
+        filterId: amFillFilter,
+        bots: amBots,
+        allWho: '反马丁全部',
+    });
 }
 
 function renderPaper(paper) {
     lastPaper = paper;
-    const allBots = sortedBots(paper);
     const deskBots = sortedDeskBots(paper);
     const amBots = sortedAmBots(paper);
-    if (fillFilter !== 'all' && !allBots.some((b) => b.id === fillFilter)) {
+    if (fillFilter !== 'all' && !deskBots.some((b) => b.id === fillFilter)) {
         fillFilter = 'all';
+    }
+    if (amFillFilter !== 'all' && !amBots.some((b) => b.id === amFillFilter)) {
+        amFillFilter = 'all';
     }
 
     const strip = document.getElementById('bots-strip');
@@ -1048,23 +1145,23 @@ function renderPaper(paper) {
 
     const amStrip = document.getElementById('am-bots-strip');
     const amPos = document.getElementById('am-pos-by-strategy');
-    const amSec = document.getElementById('am-section');
-    if (amStrip && amPos) {
+    if (amStrip) {
         amStrip.innerHTML = amBots.map((b) => botCardHtml(paper, b)).join('')
             || '<p class="text-text-muted text-sm">反马丁席位加载中…</p>';
+    }
+    if (amPos) {
         amPos.innerHTML = amBots.map((b) => strategyBlockHtml(paper, b)).join('')
             || '';
     }
-    if (amSec) amSec.style.display = '';
     const amSub = document.getElementById('am-sub');
     if (amSub && amBots.length) {
         const eq = amBots.reduce((s, b) => s + (Number(b.equity) || 0), 0);
         const scales = amBots.map((b) => `${botLabel(b.id).replace(/^反马丁\s*/, '')}${(Number(b.am_scale) || 1).toFixed(1).replace(/\.0$/, '')}×`).join(' · ');
-        amSub.textContent = `温和反马丁 · 纸面合计 ${fmtUsd(eq)} · ${scales || '1×'} · 原 A/E/C 仍为 1×`;
+        amSub.textContent = `纸面合计 ${fmtUsd(eq)} · ${scales || '1×'} · 原 A/E/C 仍在上方主桌 1×`;
     }
 
-    renderFillTabs(paper);
-    renderFills(paper);
+    renderDeskFills(paper);
+    renderAmFills(paper);
     syncActiveChrome();
     const { sub } = deskBalanceLine(deskBots);
     const subEl = document.getElementById('bots-sub');
@@ -1371,7 +1468,7 @@ if (amStripEl) {
         const card = e.target.closest('.bot-card');
         if (!card) return;
         const id = card.dataset.botId;
-        setFillFilter(fillFilter === id ? 'all' : id);
+        setAmFillFilter(amFillFilter === id ? 'all' : id);
     });
 }
 
@@ -1380,6 +1477,15 @@ document.getElementById('fill-tabs').addEventListener('click', (e) => {
     if (!tab) return;
     setFillFilter(tab.dataset.filter);
 });
+
+const amFillTabs = document.getElementById('am-fill-tabs');
+if (amFillTabs) {
+    amFillTabs.addEventListener('click', (e) => {
+        const tab = e.target.closest('.fill-tab');
+        if (!tab) return;
+        setAmFillFilter(tab.dataset.filter);
+    });
+}
 
 loadAll(true);
 pollTimer = setInterval(() => loadAll(false), 15000);

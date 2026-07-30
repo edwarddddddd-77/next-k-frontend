@@ -175,6 +175,10 @@
             color: var(--neon-purple);
             background: color-mix(in srgb, var(--neon-purple) 14%, transparent);
         }
+        .bot-tag.is-live {
+            color: #1a7f4b;
+            background: color-mix(in srgb, #1a7f4b 14%, transparent);
+        }
         .bot-tag.is-extra {
             color: var(--text-secondary);
             background: color-mix(in srgb, var(--surface-light) 80%, transparent);
@@ -631,6 +635,9 @@ const STYLE_TAG_LABEL = {
 
 function botTagHtml(b) {
     const parts = [];
+    if (b && (b.live_only || b.paper === false || b.venue === 'binance')) {
+        parts.push('<span class="bot-tag is-live">实盘</span>');
+    }
     const main = botTag(b);
     if (main) parts.push(`<span class="bot-tag ${main.cls}">${main.label}</span>`);
     const extras = Array.isArray(b && b.style_tags) ? b.style_tags : [];
@@ -656,7 +663,7 @@ function styleCellHtml(r) {
 }
 
 const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_m', 'bot_n', 'bot_o'];
-const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip']);
+const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip', 'live_sync']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;
 const ACT_LABEL = {
@@ -700,6 +707,7 @@ function fillActLabel(f) {
         reduce: `减${pos}`,
         close: `平${pos}`,
         flip: `反手开${pos}`,
+        live_sync: '实盘对齐',
         risk_halt_close: `熔断平${pos}`,
         risk_tp_close: `止盈平${pos}`,
         risk_sl_close: `止损平${pos}`,
@@ -880,8 +888,22 @@ function renderPaper(paper) {
         const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
         const nPos = nested.length;
         const active = b.id === fillFilter ? ' is-active' : '';
-        const initBal = b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance);
-        const balTag = Number.isFinite(initBal) ? ` · ${Math.round(initBal)}U` : '';
+        const initBal = b.live_only || b.paper === false
+            ? (b.balance != null ? Number(b.balance) : (b.equity != null ? Number(b.equity) : NaN))
+            : (b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance));
+        const balTag = Number.isFinite(initBal)
+            ? ` · ${b.live_only || b.paper === false ? '实盘 ' : ''}${Math.round(initBal)}U`
+            : '';
+        const liveErr = b.live_error
+            ? `<div class="bot-health bad">币安：${escapeHtml(String(b.live_error))}</div>`
+            : '';
+        const upnlLive = (b.live_only || b.paper === false) && b.u_pnl != null
+            ? Number(b.u_pnl)
+            : upnl2;
+        const realizedShow = (b.live_only || b.paper === false)
+            ? (b.u_pnl != null ? Number(b.u_pnl) : 0)
+            : Number(b.realized_pnl);
+        // For live seats show wallet equity; realized column → 浮盈 total from exchange.
         const h = b.target_health || {};
         const healthCls = !h.status || h.status === 'ok'
             ? ''
@@ -896,29 +918,34 @@ function renderPaper(paper) {
         const fundLine = tav != null
             ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>`
             : '';
+        const isLive = !!(b.live_only || b.paper === false);
+        const thirdLabel = isLive ? '可用' : '已实现';
+        const thirdVal = isLive
+            ? (b.live_available != null ? Number(b.live_available) : (b.balance != null ? Number(b.balance) : 0))
+            : Number(b.realized_pnl);
         return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
             <div class="bot-card-top">
                 <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
                 <div class="bot-card-meta">
                     <span>${nPos} 仓${balTag}</span>
-                    <button type="button" class="bot-reset" data-bot-reset="${b.id}" title="重置此席位">重置</button>
+                    <button type="button" class="bot-reset" data-bot-reset="${b.id}" title="${isLive ? '平掉币安仓位' : '重置此席位'}">重置</button>
                 </div>
             </div>
             <div class="bot-stats">
                 <div class="bot-stat">
-                    <span class="stat-label">权益</span>
+                    <span class="stat-label">${isLive ? '实盘权益' : '权益'}</span>
                     <span class="stat-value equity">${fmtUsd(b.equity)}</span>
                 </div>
                 <div class="bot-stat">
                     <span class="stat-label">浮盈</span>
-                    <span class="stat-value ${upnl2 >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnl2)}</span>
+                    <span class="stat-value ${upnlLive >= 0 ? 'pos' : 'neg'}">${fmtUsd(upnlLive)}</span>
                 </div>
                 <div class="bot-stat">
-                    <span class="stat-label">已实现</span>
-                    <span class="stat-value">${fmtUsd(b.realized_pnl)}</span>
+                    <span class="stat-label">${thirdLabel}</span>
+                    <span class="stat-value">${fmtUsd(thirdVal)}</span>
                 </div>
             </div>
-            ${healthLine}${fundLine}
+            ${liveErr}${healthLine}${fundLine}
         </div>`;
     }).join('') || '<p class="text-text-muted text-sm">暂无账户</p>';
 
@@ -1196,7 +1223,12 @@ document.getElementById('btn-paper-reset').addEventListener('click', async () =>
 async function resetOneBot(botId, btn) {
     const id = String(botId || '').trim();
     if (!id) return;
-    if (!confirm(`重置 ${botLabel(id)}？将清空该席仓位与成交，恢复初始资金。`)) return;
+    const bot = lastPaper && lastPaper.bots ? lastPaper.bots[id] : null;
+    const isLive = !!(bot && (bot.live_only || bot.paper === false));
+    const msg = isLive
+        ? `平掉 ${botLabel(id)} 币安实盘仓位？不会再走纸面账本。`
+        : `重置 ${botLabel(id)}？将清空该席仓位与成交，恢复初始资金。`;
+    if (!confirm(msg)) return;
     if (btn) btn.disabled = true;
     try {
         const res = await fetch(`${API}/api/hl-short/paper/reset/${encodeURIComponent(id)}`, {

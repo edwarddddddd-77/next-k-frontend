@@ -1379,18 +1379,23 @@ async function loadAll(refresh) {
         pollTick += 1;
         // Mark mids at most every 3rd poll (~45s) or on manual refresh
         const wantMark = !!refresh || (pollTick % 3 === 0);
-        const [paper, st, cands] = await Promise.all([
-            fetchPaper(wantMark),
-            fetchCopyStatus(),
+        // Paper is the desk source of truth — don't let copy/candidates flap the pill.
+        const paper = await fetchPaper(wantMark);
+        renderPaper(paper);
+        setStatus(true, '已连接');
+        const [st, cands] = await Promise.all([
+            fetchCopyStatus().catch((e) => {
+                console.warn('copy/status', e);
+                return null;
+            }),
             fetchCandidates(false).catch(() => null),
         ]);
-        renderPaper(paper);
-        renderCopyStatus(st);
+        if (st) renderCopyStatus(st);
         if (cands) renderCandidates(cands);
-        setStatus(true, '已连接');
     } catch (err) {
         console.error(err);
-        setStatus(false, '连接失败');
+        const detail = String(err.message || err).slice(0, 48);
+        setStatus(false, detail ? `连接失败 · ${detail}` : '连接失败');
         document.getElementById('status-line').textContent = String(err.message || err);
     }
 }

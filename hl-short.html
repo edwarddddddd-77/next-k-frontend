@@ -98,6 +98,25 @@
         .bot-card.is-bad {
             border-color: color-mix(in srgb, var(--neon-red, #e85d5d) 45%, var(--border));
         }
+        .bot-card.is-quality {
+            border-color: color-mix(in srgb, #0f7a5a 55%, var(--border));
+            background:
+                linear-gradient(135deg, color-mix(in srgb, #0f7a5a 10%, transparent), transparent 55%),
+                color-mix(in srgb, var(--surface-light) 18%, var(--surface));
+            box-shadow: inset 3px 0 0 #0f7a5a;
+        }
+        .bot-card.is-quality.is-active {
+            border-color: color-mix(in srgb, #0f7a5a 70%, var(--border));
+            box-shadow:
+                inset 3px 0 0 #0f7a5a,
+                0 0 0 1px color-mix(in srgb, #0f7a5a 28%, transparent);
+        }
+        .bot-card.is-quality:hover {
+            border-color: color-mix(in srgb, #0f7a5a 65%, var(--border));
+            background:
+                linear-gradient(135deg, color-mix(in srgb, #0f7a5a 14%, transparent), transparent 55%),
+                color-mix(in srgb, #0f7a5a 5%, var(--surface));
+        }
         .bot-health {
             font-size: 0.65rem;
             letter-spacing: 0.02em;
@@ -181,6 +200,12 @@
         .bot-tag.is-live {
             color: #1a7f4b;
             background: color-mix(in srgb, #1a7f4b 14%, transparent);
+        }
+        .bot-tag.is-quality {
+            color: #0b5c44;
+            background: color-mix(in srgb, #0f7a5a 18%, transparent);
+            font-weight: 650;
+            letter-spacing: 0.06em;
         }
         .bot-tag.is-extra {
             color: var(--text-secondary);
@@ -269,6 +294,13 @@
             min-width: 0;
             box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 35%, transparent);
         }
+        .strategy-block.is-quality {
+            border-color: color-mix(in srgb, #0f7a5a 50%, var(--border));
+            background:
+                linear-gradient(180deg, color-mix(in srgb, #0f7a5a 8%, transparent), transparent 40%),
+                var(--surface);
+            box-shadow: inset 3px 0 0 #0f7a5a;
+        }
         .strategy-block-head {
             display: flex;
             align-items: center;
@@ -327,6 +359,16 @@
             border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
             color: var(--accent);
             background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+        }
+        .fill-tab.is-quality {
+            border-color: color-mix(in srgb, #0f7a5a 45%, var(--border));
+            color: #0b5c44;
+            font-weight: 650;
+        }
+        .fill-tab.is-quality.is-active {
+            border-color: color-mix(in srgb, #0f7a5a 60%, var(--border));
+            color: #0b5c44;
+            background: color-mix(in srgb, #0f7a5a 12%, var(--surface));
         }
         .fills-scroll {
             max-height: 22rem;
@@ -681,6 +723,8 @@ function botLabel(id) {
         bot_l: '账户 L',
         bot_m: '账户 M',
         bot_n: '账户 N',
+        bot_o: '账户 O',
+        bot_p: '账户 P',
         bot_am_a: '反马丁 A',
         bot_am_e: '反马丁 E',
         bot_am_c: '反马丁 C',
@@ -722,10 +766,20 @@ function isAmBot(b) {
     return String(b.id || '').startsWith('bot_am_');
 }
 
+/** 质量优先席：G / I / J（90d 纸面质量复审） */
+const QUALITY_BOTS = new Set(['bot_g', 'bot_i', 'bot_j']);
+
+function isQualityBot(b) {
+    return !!(b && QUALITY_BOTS.has(String(b.id || '')));
+}
+
 function botTagHtml(b) {
     const parts = [];
     if (b && (b.live_only || b.paper === false || b.live === true || b.venue === 'bitget' || b.venue === 'binance')) {
         parts.push('<span class="bot-tag is-live">实盘</span>');
+    }
+    if (isQualityBot(b)) {
+        parts.push('<span class="bot-tag is-quality">优质</span>');
     }
     if (isAmBot(b)) {
         const sc = b.am_scale != null ? Number(b.am_scale) : 1;
@@ -757,7 +811,7 @@ function styleCellHtml(r) {
     return bits.join(' ');
 }
 
-const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_m', 'bot_n', 'bot_am_a', 'bot_am_e', 'bot_am_c'];
+const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_m', 'bot_n', 'bot_o', 'bot_p', 'bot_am_a', 'bot_am_e', 'bot_am_c'];
 const AM_BOT_ORDER = ['bot_am_a', 'bot_am_e', 'bot_am_c'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip', 'live_sync']);
 const FILL_LIMIT = 20;
@@ -826,7 +880,9 @@ function sortedBots(paper) {
 }
 
 function sortedDeskBots(paper) {
-    return sortedBots(paper).filter((b) => !isAmBot(b));
+    return sortedBots(paper)
+        .filter((b) => !isAmBot(b))
+        .sort((a, b) => Number(isQualityBot(b)) - Number(isQualityBot(a)));
 }
 
 function sortedAmBots(paper) {
@@ -876,6 +932,7 @@ function botCardHtml(paper, b) {
         ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>`
         : '';
     const isLive = !!(b.live_only || b.paper === false);
+    const qualityCls = isQualityBot(b) ? ' is-quality' : '';
     const thirdLabel = isLive ? '可用' : (isAmBot(b) ? 'scale' : '已实现');
     let thirdVal;
     if (isLive) {
@@ -891,7 +948,7 @@ function botCardHtml(paper, b) {
     const amReason = isAmBot(b) && b.am_reason
         ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">${escapeHtml(String(b.am_reason))}</div>`
         : '';
-    return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
+    return `<div class="bot-card${active}${healthCls}${qualityCls}" data-bot-id="${b.id}" role="button" tabindex="0">
         <div class="bot-card-top">
             <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
             <div class="bot-card-meta">
@@ -919,7 +976,8 @@ function botCardHtml(paper, b) {
 
 function strategyBlockHtml(paper, b) {
     const positions = botPositions(paper, b);
-    return `<div class="strategy-block">
+    const qCls = isQualityBot(b) ? ' is-quality' : '';
+    return `<div class="strategy-block${qCls}">
         <div class="strategy-block-head">
             <div class="strategy-block-title"><span>${botLabel(b.id)}</span>${botTagHtml(b)}</div>
             <div class="strategy-block-meta">${positions.length} 仓</div>
@@ -1071,10 +1129,14 @@ function fillRowsHtml(fills, showBot) {
 function renderFillTabsInto(el, bots, activeId, allLabel) {
     if (!el) return;
     const tabs = [{ id: 'all', label: allLabel || '全部' }].concat(
-        bots.map((b) => ({ id: b.id, label: botLabel(b.id) }))
+        bots.map((b) => ({
+            id: b.id,
+            label: isQualityBot(b) ? `${botLabel(b.id)} · 优质` : botLabel(b.id),
+            quality: isQualityBot(b),
+        }))
     );
     el.innerHTML = tabs.map((t) => (
-        `<button type="button" class="fill-tab${t.id === activeId ? ' is-active' : ''}" data-filter="${t.id}">${t.label}</button>`
+        `<button type="button" class="fill-tab${t.id === activeId ? ' is-active' : ''}${t.quality ? ' is-quality' : ''}" data-filter="${t.id}">${t.label}</button>`
     )).join('');
 }
 

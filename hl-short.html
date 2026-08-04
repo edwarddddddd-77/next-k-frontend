@@ -766,8 +766,8 @@ function isAmBot(b) {
     return String(b.id || '').startsWith('bot_am_');
 }
 
-/** 质量优先席：G / I / J（90d 纸面质量复审） */
-const QUALITY_BOTS = new Set(['bot_g', 'bot_i', 'bot_j']);
+/** 质量优先席：C / M / B（90d 回合筛 · 实盘+备选） */
+const QUALITY_BOTS = new Set(['bot_c', 'bot_m', 'bot_b']);
 
 function isQualityBot(b) {
     return !!(b && QUALITY_BOTS.has(String(b.id || '')));
@@ -811,7 +811,7 @@ function styleCellHtml(r) {
     return bits.join(' ');
 }
 
-const BOT_ORDER = ['bot_a', 'bot_b', 'bot_c', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_m', 'bot_n', 'bot_o', 'bot_p', 'bot_am_a', 'bot_am_e', 'bot_am_c'];
+const BOT_ORDER = ['bot_c', 'bot_m', 'bot_b', 'bot_a', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_n', 'bot_o', 'bot_p', 'bot_am_a', 'bot_am_e', 'bot_am_c'];
 const AM_BOT_ORDER = ['bot_am_a', 'bot_am_e', 'bot_am_c'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip', 'live_sync']);
 const FILL_LIMIT = 20;

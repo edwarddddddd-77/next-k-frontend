@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Next K · 网格</title>
+  <title>Next K · 网格（已暂停）</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="theme.css" />
-  <script src="api-base.js"></script>
   <style>
     html, body { height: 100%; margin: 0; }
     body.board-canvas {
@@ -17,39 +16,31 @@
       color: var(--text-primary);
       font-family: "Source Sans 3", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
     }
-    .grid-frame-wrap {
+    .paused-wrap {
       flex: 1;
       min-height: 0;
-      padding: 0 clamp(0.65rem, 1.2vw, 1.25rem) clamp(0.65rem, 1.2vw, 1.25rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(1.5rem, 4vw, 3rem);
       box-sizing: border-box;
     }
-    .grid-frame-shell {
-      height: 100%;
-      border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+    .paused-copy {
+      max-width: 28rem;
+      text-align: center;
     }
-    .grid-frame-shell iframe {
-      width: 100%;
-      height: 100%;
-      border: 0;
-      display: block;
-      background: var(--bg);
+    .paused-copy h2 {
+      margin: 0 0 0.65rem;
+      font-family: "Noto Serif SC", serif;
+      font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
-    .grid-hint {
-      font-size: 0.6875rem;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.03em;
+    .paused-copy p {
+      margin: 0;
       color: var(--text-muted);
-      padding: 0.28rem 0.55rem;
-      border-radius: 0.375rem;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      max-width: 42vw;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-size: 0.95rem;
+      line-height: 1.55;
     }
   </style>
 </head>
@@ -66,36 +57,22 @@
             </div>
             <div>
               <h1 class="brand-title">Next <span style="color:var(--accent)">K</span></h1>
-              <div class="brand-subtitle" style="display:none;">网格</div>
             </div>
           </div>
           <nav style="display:flex;align-items:center;gap:0.2rem;" class="grid-nav">
             <a class="nav-pill" href="index.html">观盘台</a>
             <a class="nav-pill" href="hl-short.html">映仓台</a>
-            <a class="nav-pill nav-pill-active" href="grid.html">Next K 网格</a>
+            <!-- Next K 网格：暂时隐藏（后台 WANGGE_ENABLED=0） -->
           </nav>
-        </div>
-        <div style="display:flex;align-items:center;gap:0.45rem;flex-shrink:0;">
-          <span class="grid-hint" id="hint" title="">加载中…</span>
-          <a class="nav-pill" id="openRaw" href="#" target="_blank" rel="noopener" style="border-bottom:none;margin:0;padding:0.4rem 0.7rem;border:1px solid var(--border);border-radius:0.375rem;background:var(--surface);">新窗口</a>
         </div>
       </div>
     </div>
   </header>
-  <div class="grid-frame-wrap">
-    <div class="grid-frame-shell">
-      <iframe id="frame" title="Next K 网格" src="about:blank"></iframe>
+  <div class="paused-wrap">
+    <div class="paused-copy">
+      <h2>Next K 网格已暂停</h2>
+      <p>后台进程已关闭（<code>WANGGE_ENABLED=0</code>），导航入口暂时隐藏。恢复时重新开启该开关并部署即可。</p>
     </div>
   </div>
-  <script>
-    const base = (typeof resolveProtocolBase === 'function'
-      ? resolveProtocolBase() : 'http://127.0.0.1:8001').replace(/\/$/, '');
-    const url = base + '/';
-    const hint = document.getElementById('hint');
-    hint.textContent = base;
-    hint.title = base;
-    document.getElementById('openRaw').href = url;
-    document.getElementById('frame').src = url;
-  </script>
 </body>
 </html>

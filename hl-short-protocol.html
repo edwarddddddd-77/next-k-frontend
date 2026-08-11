@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Next K · 映仓台</title>
+    <title>Next K · 映仓台 · Protocol</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -499,18 +499,19 @@
                     </div>
                     <div>
                         <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
-                        <div class="brand-subtitle hidden sm:block">映仓台</div>
+                        <div class="brand-subtitle hidden sm:block">映仓台 · Protocol</div>
                     </div>
                 </div>
                 <nav class="hidden sm:flex items-center gap-1 ml-1">
                     <a class="nav-pill" href="index.html">观盘台</a>
-                    <a class="nav-pill nav-pill-active" href="hl-short.html">映仓台</a>
-                    <a class="nav-pill" href="hl-short-protocol.html">映仓台·P</a>
+                    <a class="nav-pill" href="hl-short.html">映仓台</a>
+                    <a class="nav-pill nav-pill-active" href="hl-short-protocol.html">映仓台·P</a>
                     <!-- Next K 网格：暂时隐藏（后台 WANGGE_ENABLED=0） -->
                 </nav>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
                 <span id="header-bj-clock" class="header-clock hidden sm:inline" title="北京时间">--:-- 北京</span>
+                <span id="protocol-base-hint" class="header-clock hidden md:inline" title="Protocol API">Protocol</span>
                 <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">刷新</button>
                 <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
                     <span class="status-dot"></span><span>连接中…</span>
@@ -616,8 +617,16 @@
 </main>
 
 <script>
-const API = resolveApiBase();
+const API = (typeof resolveProtocolBase === 'function'
+    ? resolveProtocolBase()
+    : 'http://127.0.0.1:8001').replace(/\/$/, '');
 let pollTimer = null;
+(function hintProtocolBase() {
+    const el = document.getElementById('protocol-base-hint');
+    if (!el) return;
+    el.textContent = 'P · ' + API.replace(/^https?:\/\//, '');
+    el.title = 'Next-k-protocol · ' + API;
+})();
 
 function setStatus(ok, text) {
     const el = document.getElementById('connection-status');

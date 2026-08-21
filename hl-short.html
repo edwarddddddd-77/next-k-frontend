@@ -411,7 +411,7 @@
         <div class="hero-top">
             <div>
                 <div class="panel-kicker">Paper · Hyperliquid</div>
-                <h2 class="panel-title">纸面账户桌面</h2>
+                <h2 class="panel-title">交易桌</h2>
                 <p id="status-line" class="panel-sub">载入中…</p>
             </div>
             <div class="flex flex-wrap gap-1.5 items-center">
@@ -425,7 +425,7 @@
     <section aria-label="账户仓位">
         <div class="section-head">
             <h3 class="section-title">账户仓位</h3>
-            <p class="section-sub" id="bots-sub">账户 C · 1000U</p>
+            <p class="section-sub" id="bots-sub">账户 · 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
@@ -674,7 +674,7 @@ function renderClosedHistory(paper) {
     if (tbody) tbody.innerHTML = coinPnlRowsHtml(rows);
     const sub = document.getElementById('closed-sub');
     if (sub) {
-        const who = bots.length === 1 ? botLabel(bots[0].id) : '账户 C';
+        const who = bots.length === 1 ? botLabel(bots[0].id) : '账户';
         const openN = rows.filter((r) => r.open).length;
         const closedN = rows.length - openN;
         const tot = rows.reduce((s, r) => s + (r.hasTotal ? Number(r.total) || 0 : 0), 0);
@@ -705,7 +705,7 @@ function fmtPosU(sz, px) {
 
 function botLabel(id) {
     const map = {
-        bot_c: '账户 C',
+        bot_c: '账户',
     };
     return map[id] || id || '账户';
 }
@@ -912,20 +912,9 @@ function deskBalanceLine(bots) {
 }
 
 function deskSeatRangeLabel(bots) {
-    const ordered = [...(bots || [])].sort((a, b) => {
-        const ia = BOT_ORDER.indexOf(a && a.id);
-        const ib = BOT_ORDER.indexOf(b && b.id);
-        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
-    const letters = [];
-    for (const b of ordered) {
-        const lab = botLabel(b && b.id).replace(/^账户\s*/, '');
-        if (lab && lab.length <= 2) letters.push(lab);
-    }
-    if (!letters.length) return `${(bots || []).length} 账户`;
-    const uniq = [...new Set(letters)];
-    if (uniq.length === 1) return `账户 ${uniq[0]}`;
-    return `账户 ${uniq[0]}–${uniq[uniq.length - 1]}`;
+    const n = (bots || []).length;
+    if (n <= 1) return '账户';
+    return `${n} 账户`;
 }
 
 function renderCopyStatus(st) {

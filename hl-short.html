@@ -630,6 +630,25 @@ function botPositions(paper, bot) {
     return Object.values(paper.positions || {}).filter((p) => p.source === bot.id);
 }
 
+function posRowsHtml(positions) {
+    if (!positions.length) {
+        return '<tr><td colspan="6" class="text-text-muted">空仓</td></tr>';
+    }
+    return positions.map((p) => {
+        const mark = p.mark_px != null ? p.mark_px : p.entry_px;
+        const up = Number(p.u_pnl);
+        const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
+        return `<tr>
+            <td class="coin">${p.coin}</td>
+            <td class="num">${fmtPx(p.entry_px)}</td>
+            <td class="num">${fmtPx(mark)}</td>
+            <td class="num ${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
+            <td class="num">${lev}</td>
+            <td class="num ${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
+        </tr>`;
+    }).join('');
+}
+
 function renderPaper(paper) {
     lastPaper = paper;
     const deskBots = sortedDeskBots(paper);

@@ -350,13 +350,12 @@
             background: var(--surface);
             z-index: 1;
         }
-        .tbl-hist col.c-coin { width: 14%; }
+        .tbl-hist col.c-coin { width: 18%; }
         .tbl-hist col.c-status { width: 12%; }
         .tbl-hist col.c-side { width: 10%; }
+        .tbl-hist col.c-pnl { width: 20%; }
         .tbl-hist col.c-upnl { width: 18%; }
-        .tbl-hist col.c-rpnl { width: 18%; }
-        .tbl-hist col.c-ts { width: 16%; }
-        .tbl-hist col.c-n { width: 12%; }
+        .tbl-hist col.c-rpnl { width: 22%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -443,17 +442,16 @@
                 <table class="data-table tbl-hist" id="tbl-closed">
                     <colgroup>
                         <col class="c-coin" /><col class="c-status" /><col class="c-side" />
-                        <col class="c-upnl" /><col class="c-rpnl" /><col class="c-n" /><col class="c-ts" />
+                        <col class="c-pnl" /><col class="c-upnl" /><col class="c-rpnl" />
                     </colgroup>
                     <thead>
                         <tr>
                             <th>币</th><th>状态</th><th>方向</th>
-                            <th class="num">浮盈</th><th class="num">已实现</th>
-                            <th class="num">平仓笔</th><th>最近</th>
+                            <th class="num">盈亏</th><th class="num">浮盈</th><th class="num">已实现</th>
                         </tr>
                     </thead>
                     <tbody id="closed-tbody">
-                        <tr><td colspan="7" class="text-text-muted">载入中…</td></tr>
+                        <tr><td colspan="6" class="text-text-muted">载入中…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -577,6 +575,21 @@ function collectCoinPnlRows(paper) {
     }
 
     for (const b of bots) {
+        const fromBg = b.coin_pnl && typeof b.coin_pnl === 'object' ? b.coin_pnl : {};
+        for (const [coin, info] of Object.entries(fromBg)) {
+            const row = ensure(coin);
+            if (!row || !info || typeof info !== 'object') continue;
+            if (info.realized != null && info.realized !== '') {
+                const rp = Number(info.realized);
+                if (Number.isFinite(rp)) {
+                    row.realized = rp;
+                    row.hasRealized = true;
+                }
+            }
+            if (info.closes != null) row.closes = Number(info.closes) || row.closes;
+            if (info.last_ts) row.last_ts = info.last_ts;
+        }
+
         for (const p of botPositions(paper, b)) {
             const row = ensure(p.coin);
             if (!row) continue;
@@ -586,44 +599,57 @@ function collectCoinPnlRows(paper) {
             row.u_pnl = Number(p.u_pnl);
             if (!Number.isFinite(row.u_pnl)) row.u_pnl = 0;
         }
-        for (const f of botAllFills(paper, b)) {
-            if (!f || f.skipped) continue;
-            const row = ensure(f.coin);
-            if (!row) continue;
-            const ts = f.ts || null;
-            if (ts && (!row.last_ts || String(ts) > String(row.last_ts))) {
-                row.last_ts = ts;
-            }
-            if (!isCloseFill(f)) continue;
-            row.closes += 1;
-            if (f.realized_pnl != null && f.realized_pnl !== '') {
-                const rp = Number(f.realized_pnl);
-                if (Number.isFinite(rp)) {
-                    row.realized = (row.realized || 0) + rp;
-                    row.hasRealized = true;
+
+        // Paper seats: fall back to fill realized when Bitget history absent.
+        if (!Object.keys(fromBg).length) {
+            for (const f of botAllFills(paper, b)) {
+                if (!f || f.skipped) continue;
+                const row = ensure(f.coin);
+                if (!row) continue;
+                const ts = f.ts || null;
+                if (ts && (!row.last_ts || String(ts) > String(row.last_ts))) {
+                    row.last_ts = ts;
+                }
+                if (!isCloseFill(f)) continue;
+                row.closes += 1;
+                if (f.realized_pnl != null && f.realized_pnl !== '') {
+                    const rp = Number(f.realized_pnl);
+                    if (Number.isFinite(rp)) {
+                        row.realized = (row.realized || 0) + rp;
+                        row.hasRealized = true;
+                    }
                 }
             }
         }
     }
 
-    return Array.from(byCoin.values()).sort((a, b) => {
+    return Array.from(byCoin.values()).map((r) => {
+        const up = r.open && Number.isFinite(Number(r.u_pnl)) ? Number(r.u_pnl) : 0;
+        const rp = r.hasRealized ? Number(r.realized) : 0;
+        const hasAny = r.open || r.hasRealized;
+        r.total = hasAny ? (up + (r.hasRealized ? rp : 0)) : null;
+        r.hasTotal = hasAny && (r.open || r.hasRealized);
+        return r;
+    }).sort((a, b) => {
         if (a.open !== b.open) return a.open ? -1 : 1;
-        const ua = Math.abs(Number(a.u_pnl) || 0);
-        const ub = Math.abs(Number(b.u_pnl) || 0);
-        if (a.open && b.open && ua !== ub) return ub - ua;
-        const ta = a.last_ts ? new Date(a.last_ts).getTime() : 0;
-        const tb = b.last_ts ? new Date(b.last_ts).getTime() : 0;
-        return tb - ta;
+        const ta = Math.abs(Number(a.total) || 0);
+        const tb = Math.abs(Number(b.total) || 0);
+        if (ta !== tb) return tb - ta;
+        return String(a.coin).localeCompare(String(b.coin));
     });
 }
 
 function coinPnlRowsHtml(rows) {
     if (!rows.length) {
-        return '<tr><td colspan="7" class="text-text-muted">暂无币种记录</td></tr>';
+        return '<tr><td colspan="6" class="text-text-muted">暂无币种盈亏</td></tr>';
     }
     return rows.map((r) => {
         const status = r.open ? '持仓' : '已平';
         const sideCls = r.side === '多' ? 'pos' : (r.side === '空' ? 'neg' : '');
+        const total = r.hasTotal ? Number(r.total) : null;
+        const totalCell = total == null
+            ? '<span class="text-text-muted">—</span>'
+            : `<span class="${total >= 0 ? 'pos' : 'neg'}">${fmtUsd(total)}</span>`;
         const upnl = r.open
             ? `<span class="${r.u_pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(r.u_pnl)}</span>`
             : '<span class="text-text-muted">—</span>';
@@ -634,10 +660,9 @@ function coinPnlRowsHtml(rows) {
             <td class="coin">${escapeHtml(r.coin)}</td>
             <td>${status}</td>
             <td class="${sideCls}">${r.side || '—'}</td>
+            <td class="num">${totalCell}</td>
             <td class="num">${upnl}</td>
             <td class="num">${rpnl}</td>
-            <td class="num">${r.closes || 0}</td>
-            <td class="mono">${fmtBjTime(r.last_ts)}</td>
         </tr>`;
     }).join('');
 }
@@ -652,7 +677,8 @@ function renderClosedHistory(paper) {
         const who = bots.length === 1 ? botLabel(bots[0].id) : '账户 C';
         const openN = rows.filter((r) => r.open).length;
         const closedN = rows.length - openN;
-        sub.textContent = `${who} · ${rows.length} 币（持仓 ${openN} / 已平 ${closedN}）`;
+        const tot = rows.reduce((s, r) => s + (r.hasTotal ? Number(r.total) || 0 : 0), 0);
+        sub.textContent = `${who} · ${rows.length} 币（持仓 ${openN} / 已平 ${closedN}）· 合计 ${fmtUsd(tot)}`;
     }
 }
 

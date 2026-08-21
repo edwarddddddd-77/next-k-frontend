@@ -441,48 +441,11 @@
             gap: 0.75rem;
             margin-top: 1rem;
         }
-        #am-bots-strip.am-strip {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
         @media (min-width: 900px) {
             #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.85rem; }
         }
         @media (min-width: 640px) and (max-width: 899px) {
             #bots-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        }
-        @media (max-width: 639px) {
-            #am-bots-strip.am-strip { grid-template-columns: 1fr; }
-        }
-        .bot-tag.is-am {
-            color: var(--gold, #c4a574);
-            border-color: color-mix(in srgb, var(--gold, #c4a574) 40%, transparent);
-            background: color-mix(in srgb, var(--gold, #c4a574) 12%, transparent);
-        }
-        .am-desk {
-            margin-top: 0.35rem;
-            border-color: color-mix(in srgb, var(--gold, #c4a574) 26%, var(--border));
-            background:
-                linear-gradient(
-                    180deg,
-                    color-mix(in srgb, var(--gold, #E8B84A) 4%, var(--surface)) 0%,
-                    color-mix(in srgb, var(--surface) 94%, var(--bg)) 42%
-                );
-        }
-        .am-desk .hero-top {
-            border-bottom-color: color-mix(in srgb, var(--gold, #E8B84A) 18%, var(--border));
-        }
-        #am-pos-by-strategy.pos-grid,
-        #am-pos-by-strategy.am-pos-grid {
-            grid-template-columns: 1fr;
-        }
-        @media (min-width: 900px) {
-            #am-pos-by-strategy.pos-grid,
-            #am-pos-by-strategy.am-pos-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
         }
     </style>
 </head>
@@ -520,42 +483,6 @@
 </header>
 
 <main class="page-shell page-shell-y desk-stack">
-    <section class="focus-hero am-desk" aria-label="反马丁桌面" id="am-section">
-        <div class="hero-top">
-            <div>
-                <div class="panel-kicker">Paper · Anti-martingale</div>
-                <h2 class="panel-title">反马丁桌 · A / E / C</h2>
-                <p id="am-sub" class="panel-sub">温和反马丁（绿日 +0.5 封顶 2×）· 与主桌同址分账 · 独立展示</p>
-            </div>
-        </div>
-        <div id="am-bots-strip" class="am-strip"></div>
-        <div class="section-head" style="margin-top:1.15rem;margin-bottom:0.55rem;">
-            <h3 class="section-title">反马丁仓位</h3>
-            <p class="section-sub">仅 AM 三席 · 不影响原 A/E/C</p>
-        </div>
-        <div id="am-pos-by-strategy" class="pos-grid am-pos-grid"></div>
-        <div class="section-head" style="margin-top:1.15rem;">
-            <div>
-                <h3 class="section-title">反马丁成交</h3>
-                <p class="section-sub" id="am-fills-sub">仅反马丁席 · 北京时间</p>
-            </div>
-            <div id="am-fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选反马丁账户"></div>
-        </div>
-        <div class="fills-shell">
-            <div class="fills-scroll">
-                <table id="am-tbl-fills" class="data-table tbl-fills">
-                    <colgroup id="am-fills-cols"></colgroup>
-                    <thead>
-                        <tr id="am-fills-head"></tr>
-                    </thead>
-                    <tbody id="am-fills-tbody">
-                        <tr><td class="text-text-muted">载入中…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
     <section class="focus-hero" aria-label="账户桌面">
         <div class="hero-top">
             <div>
@@ -574,20 +501,9 @@
     <section aria-label="账户仓位">
         <div class="section-head">
             <h3 class="section-title">账户仓位</h3>
-            <p class="section-sub" id="bots-sub">账户桌面 · 两列 · 各 1000U</p>
+            <p class="section-sub" id="bots-sub">账户 C · 1000U</p>
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
-    </section>
-
-    <section aria-label="跟单候选池">
-        <div class="section-head">
-            <div>
-                <h3 class="section-title">跟单候选池</h3>
-                <p class="section-sub" id="cand-sub">ready 日内/波段 · flat WR≥80% · 钱包有钱可绑 · 周筛 周一 09:30</p>
-            </div>
-            <button id="btn-cand-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">刷新池</button>
-        </div>
-        <div id="cand-ready" class="pos-grid"></div>
     </section>
 
     <section aria-label="成交记录">
@@ -709,29 +625,7 @@ function fmtPosU(sz, px) {
 
 function botLabel(id) {
     const map = {
-        bot_a: '账户 A',
-        bot_b: '账户 B',
         bot_c: '账户 C',
-        bot_d: '账户 D',
-        bot_e: '账户 E',
-        bot_f: '账户 F',
-        bot_g: '账户 G',
-        bot_h: '账户 H',
-        bot_i: '账户 I',
-        bot_j: '账户 J',
-        bot_k: '账户 K',
-        bot_l: '账户 L',
-        bot_m: '账户 M',
-        bot_n: '账户 N',
-        bot_o: '账户 O',
-        bot_p: '账户 P',
-        bot_am_a: '反马丁 A',
-        bot_am_e: '反马丁 E',
-        wr94_hype: '账户 A',
-        wr72_multi: '账户 B',
-        wr88_btc_ada: '账户 C',
-        wr63_alts: '账户 D',
-        wr75_btc_eth: '账户 E',
     };
     return map[id] || id || '账户';
 }
@@ -748,70 +642,17 @@ function botTag(b) {
     return null;
 }
 
-const STYLE_TAG_LABEL = {
-    concentrated: { label: '单币集中', cls: 'is-conc' },
-    sniper: { label: '短线狙', cls: 'is-extra' },
-    degen: { label: '高频', cls: 'is-extra' },
-    grinder: { label: '磨单', cls: 'is-extra' },
-    diversified: { label: '分散', cls: 'is-extra' },
-    anti_martingale: { label: '反马丁', cls: 'is-am' },
-};
-
-function isAmBot(b) {
-    if (!b) return false;
-    if (String(b.section || '').toLowerCase() === 'anti_martingale') return true;
-    const am = String(b.anti_martingale || '').toLowerCase();
-    if (am && am !== '0' && am !== 'false' && am !== 'off') return true;
-    return String(b.id || '').startsWith('bot_am_');
-}
-
-/** 质量优先席：C / M / B（90d 回合筛 · 实盘+备选） */
-const QUALITY_BOTS = new Set(['bot_c', 'bot_m', 'bot_b']);
-
-function isQualityBot(b) {
-    return !!(b && QUALITY_BOTS.has(String(b.id || '')));
-}
-
 function botTagHtml(b) {
     const parts = [];
     if (b && (b.live_only || b.paper === false || b.live === true || b.venue === 'bitget' || b.venue === 'binance')) {
         parts.push('<span class="bot-tag is-live">实盘</span>');
     }
-    if (isQualityBot(b)) {
-        parts.push('<span class="bot-tag is-quality">优质</span>');
-    }
-    if (isAmBot(b)) {
-        const sc = b.am_scale != null ? Number(b.am_scale) : 1;
-        const scTxt = Number.isFinite(sc) ? sc.toFixed(1).replace(/\.0$/, '') + '×' : '';
-        parts.push(`<span class="bot-tag is-am">反马丁${scTxt ? ' ' + scTxt : ''}</span>`);
-    }
     const main = botTag(b);
     if (main) parts.push(`<span class="bot-tag ${main.cls}">${main.label}</span>`);
-    const extras = Array.isArray(b && b.style_tags) ? b.style_tags : [];
-    for (const raw of extras) {
-        const key = String(raw || '').toLowerCase();
-        if (key === 'anti_martingale') continue;
-        const meta = STYLE_TAG_LABEL[key];
-        if (!meta) continue;
-        parts.push(`<span class="bot-tag ${meta.cls}">${meta.label}</span>`);
-    }
     return parts.join('');
 }
 
-function styleCellHtml(r) {
-    const style = r.style === 'day_trader' ? '日内' : (r.style === 'swing_trader' ? '波段' : (r.style || '—'));
-    const bits = [escapeHtml(style)];
-    const extras = Array.isArray(r.style_tags) ? r.style_tags : [];
-    for (const raw of extras) {
-        const key = String(raw || '').toLowerCase();
-        const meta = STYLE_TAG_LABEL[key];
-        if (meta) bits.push(`<span class="bot-tag ${meta.cls}">${meta.label}</span>`);
-    }
-    return bits.join(' ');
-}
-
-const BOT_ORDER = ['bot_c', 'bot_m', 'bot_b', 'bot_a', 'bot_d', 'bot_k', 'bot_e', 'bot_f', 'bot_g', 'bot_h', 'bot_i', 'bot_j', 'bot_l', 'bot_n', 'bot_o', 'bot_p', 'bot_am_a', 'bot_am_e'];
-const AM_BOT_ORDER = ['bot_am_a', 'bot_am_e'];
+const BOT_ORDER = ['bot_c'];
 const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip', 'live_sync']);
 const FILL_LIMIT = 20;
 const FILL_LIMIT_ALL = 40;
@@ -867,7 +708,6 @@ function fillActLabel(f) {
 
 let lastPaper = null;
 let fillFilter = 'all';
-let amFillFilter = 'all';
 
 function sortedBots(paper) {
     const bots = Object.values(paper.bots || {});
@@ -879,18 +719,7 @@ function sortedBots(paper) {
 }
 
 function sortedDeskBots(paper) {
-    return sortedBots(paper)
-        .filter((b) => !isAmBot(b))
-        .sort((a, b) => Number(isQualityBot(b)) - Number(isQualityBot(a)));
-}
-
-function sortedAmBots(paper) {
-    const bots = Object.values(paper.bots || {}).filter(isAmBot);
-    return bots.sort((a, b) => {
-        const ia = AM_BOT_ORDER.indexOf(a.id);
-        const ib = AM_BOT_ORDER.indexOf(b.id);
-        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
+    return sortedBots(paper);
 }
 
 function botCardHtml(paper, b) {
@@ -898,9 +727,7 @@ function botCardHtml(paper, b) {
     const nested = botPositions(paper, b);
     const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
     const nPos = nested.length;
-    const active = isAmBot(b)
-        ? (b.id === amFillFilter ? ' is-active' : '')
-        : (b.id === fillFilter ? ' is-active' : '');
+    const active = b.id === fillFilter ? ' is-active' : '';
     const initBal = b.live_only || b.paper === false
         ? (b.balance != null ? Number(b.balance) : (b.equity != null ? Number(b.equity) : NaN))
         : (b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance));
@@ -931,23 +758,15 @@ function botCardHtml(paper, b) {
         ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">对方永续 $${Number(tav).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>`
         : '';
     const isLive = !!(b.live_only || b.paper === false);
-    const qualityCls = isQualityBot(b) ? ' is-quality' : '';
-    const thirdLabel = isLive ? '可用' : (isAmBot(b) ? 'scale' : '已实现');
+    const thirdLabel = isLive ? '可用' : '已实现';
     let thirdVal;
     if (isLive) {
         thirdVal = b.live_available != null ? Number(b.live_available) : (b.balance != null ? Number(b.balance) : 0);
-    } else if (isAmBot(b)) {
-        thirdVal = null;
     } else {
         thirdVal = Number(b.realized_pnl);
     }
-    const thirdHtml = isAmBot(b) && !isLive
-        ? `<span class="stat-value">${(Number(b.am_scale) || 1).toFixed(1).replace(/\.0$/, '')}×</span>`
-        : `<span class="stat-value">${fmtUsd(thirdVal)}</span>`;
-    const amReason = isAmBot(b) && b.am_reason
-        ? `<div class="bot-health" style="color:var(--text-muted);font-weight:400;">${escapeHtml(String(b.am_reason))}</div>`
-        : '';
-    return `<div class="bot-card${active}${healthCls}${qualityCls}" data-bot-id="${b.id}" role="button" tabindex="0">
+    const thirdHtml = `<span class="stat-value">${fmtUsd(thirdVal)}</span>`;
+    return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
         <div class="bot-card-top">
             <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
             <div class="bot-card-meta">
@@ -969,14 +788,13 @@ function botCardHtml(paper, b) {
                 ${thirdHtml}
             </div>
         </div>
-        ${liveErr}${healthLine}${fundLine}${amReason}
+        ${liveErr}${healthLine}${fundLine}
     </div>`;
 }
 
 function strategyBlockHtml(paper, b) {
     const positions = botPositions(paper, b);
-    const qCls = isQualityBot(b) ? ' is-quality' : '';
-    return `<div class="strategy-block${qCls}">
+    return `<div class="strategy-block">
         <div class="strategy-block-head">
             <div class="strategy-block-title"><span>${botLabel(b.id)}</span>${botTagHtml(b)}</div>
             <div class="strategy-block-meta">${positions.length} 仓</div>
@@ -1041,26 +859,12 @@ function setFillFilter(id) {
     syncActiveChrome();
 }
 
-function setAmFillFilter(id) {
-    amFillFilter = id || 'all';
-    if (lastPaper) {
-        renderAmFills(lastPaper);
-    }
-    syncActiveChrome();
-}
-
 function syncActiveChrome() {
     document.querySelectorAll('#bots-strip .bot-card').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.botId === fillFilter);
     });
-    document.querySelectorAll('#am-bots-strip .bot-card').forEach((el) => {
-        el.classList.toggle('is-active', el.dataset.botId === amFillFilter);
-    });
     document.querySelectorAll('#fill-tabs .fill-tab').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.filter === fillFilter);
-    });
-    document.querySelectorAll('#am-fill-tabs .fill-tab').forEach((el) => {
-        el.classList.toggle('is-active', el.dataset.filter === amFillFilter);
     });
 }
 
@@ -1130,12 +934,11 @@ function renderFillTabsInto(el, bots, activeId, allLabel) {
     const tabs = [{ id: 'all', label: allLabel || '全部' }].concat(
         bots.map((b) => ({
             id: b.id,
-            label: isQualityBot(b) ? `${botLabel(b.id)} · 优质` : botLabel(b.id),
-            quality: isQualityBot(b),
+            label: botLabel(b.id),
         }))
     );
     el.innerHTML = tabs.map((t) => (
-        `<button type="button" class="fill-tab${t.id === activeId ? ' is-active' : ''}${t.quality ? ' is-quality' : ''}" data-filter="${t.id}">${t.label}</button>`
+        `<button type="button" class="fill-tab${t.id === activeId ? ' is-active' : ''}" data-filter="${t.id}">${t.label}</button>`
     )).join('');
 }
 
@@ -1183,31 +986,11 @@ function renderDeskFills(paper) {
     });
 }
 
-function renderAmFills(paper) {
-    const amBots = sortedAmBots(paper);
-    renderFillTabsInto(document.getElementById('am-fill-tabs'), amBots, amFillFilter, 'AM全部');
-    paintFillsTable({
-        tableId: 'am-tbl-fills',
-        colsId: 'am-fills-cols',
-        headId: 'am-fills-head',
-        bodyId: 'am-fills-tbody',
-        subId: 'am-fills-sub',
-        paper,
-        filterId: amFillFilter,
-        bots: amBots,
-        allWho: '反马丁全部',
-    });
-}
-
 function renderPaper(paper) {
     lastPaper = paper;
     const deskBots = sortedDeskBots(paper);
-    const amBots = sortedAmBots(paper);
     if (fillFilter !== 'all' && !deskBots.some((b) => b.id === fillFilter)) {
         fillFilter = 'all';
-    }
-    if (amFillFilter !== 'all' && !amBots.some((b) => b.id === amFillFilter)) {
-        amFillFilter = 'all';
     }
 
     const strip = document.getElementById('bots-strip');
@@ -1217,25 +1000,7 @@ function renderPaper(paper) {
     document.getElementById('pos-by-strategy').innerHTML = deskBots.map((b) => strategyBlockHtml(paper, b)).join('')
         || '<p class="text-text-muted text-sm">暂无仓位</p>';
 
-    const amStrip = document.getElementById('am-bots-strip');
-    const amPos = document.getElementById('am-pos-by-strategy');
-    if (amStrip) {
-        amStrip.innerHTML = amBots.map((b) => botCardHtml(paper, b)).join('')
-            || '<p class="text-text-muted text-sm">反马丁席位加载中…</p>';
-    }
-    if (amPos) {
-        amPos.innerHTML = amBots.map((b) => strategyBlockHtml(paper, b)).join('')
-            || '';
-    }
-    const amSub = document.getElementById('am-sub');
-    if (amSub && amBots.length) {
-        const eq = amBots.reduce((s, b) => s + (Number(b.equity) || 0), 0);
-        const scales = amBots.map((b) => `${botLabel(b.id).replace(/^反马丁\s*/, '')}${(Number(b.am_scale) || 1).toFixed(1).replace(/\.0$/, '')}×`).join(' · ');
-        amSub.textContent = `纸面合计 ${fmtUsd(eq)} · ${scales || '1×'} · 下方主桌原 A/E/C 仍为 1×`;
-    }
-
     renderDeskFills(paper);
-    renderAmFills(paper);
     syncActiveChrome();
     const { sub } = deskBalanceLine(deskBots);
     const subEl = document.getElementById('bots-sub');
@@ -1383,58 +1148,6 @@ async function fetchCopyStatus() {
 
 let pollTick = 0;
 
-async function fetchCandidates(refresh) {
-    const q = refresh ? '?refresh=true' : '';
-    const res = await fetch(`${API}/api/hl-short/candidates${q}`);
-    if (!res.ok) throw new Error('candidates ' + res.status);
-    return res.json();
-}
-
-function renderCandidates(board) {
-    const el = document.getElementById('cand-ready');
-    const sub = document.getElementById('cand-sub');
-    if (!el) return;
-    if (!board || board.ok === false) {
-        el.innerHTML = '<p class="text-text-muted text-sm">暂无候选池 · 等周筛或手动重建</p>';
-        if (sub) sub.textContent = 'ready 日内/波段 · flat WR≥80% · 钱包资金可绑';
-        return;
-    }
-    const ready = board.ready || [];
-    const watch = board.watch || [];
-    const gen = board.generated_at ? String(board.generated_at).replace('T', ' ').slice(0, 19) : '—';
-    if (sub) {
-        sub.textContent = `更新 ${gen} · ready ${board.ready_count ?? ready.length} · watch ${board.watch_count ?? watch.length} · bound ${board.bound_count ?? 0}`;
-    }
-    const rows = ready.slice(0, 12);
-    if (!rows.length) {
-        el.innerHTML = '<p class="text-text-muted text-sm">ready 为空 · 看周筛是否跑完</p>';
-        return;
-    }
-    el.innerHTML = `<div class="scroll-panel"><table class="data-table">
-        <thead><tr>
-            <th>#</th><th>风格</th><th>地址</th><th>WR</th><th>回合</th><th>钱包$</th><th>永续</th><th>静默</th><th>币</th>
-        </tr></thead>
-        <tbody>${rows.map((r, i) => {
-            const addr = String(r.addr || '');
-            const short = addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : '—';
-            const wr = r.wr7 != null ? `${(Number(r.wr7) * 100).toFixed(0)}%` : '—';
-            const href = r.hl_url || (addr ? `https://app.hyperliquid.xyz/explorer/address/${addr}` : '#');
-            const style = styleCellHtml(r);
-            const wallet = r.wallet_usd != null ? r.wallet_usd : r.live_av;
-            return `<tr>
-                <td>${i + 1}</td>
-                <td>${style}</td>
-                <td><a href="${escapeHtml(href)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">${escapeHtml(short)}</a></td>
-                <td>${escapeHtml(wr)}</td>
-                <td>${escapeHtml(r.trips7 ?? '—')}</td>
-                <td>${fmtUsd(wallet)}</td>
-                <td>${fmtUsd(r.live_av)}</td>
-                <td>${r.quiet_h != null ? `${Number(r.quiet_h).toFixed(1)}h` : '—'}</td>
-                <td>${escapeHtml(r.coins || '—')}</td>
-            </tr>`;
-        }).join('')}</tbody></table></div>`;
-}
-
 async function loadAll(refresh) {
     try {
         pollTick += 1;
@@ -1442,15 +1155,11 @@ async function loadAll(refresh) {
         const wantMark = !!refresh || (pollTick % 3 === 0);
         const paper = await fetchPaper(wantMark);
         renderPaper(paper);
-        const [st, cands] = await Promise.all([
-            fetchCopyStatus().catch((e) => {
-                console.warn('copy/status', e);
-                return null;
-            }),
-            fetchCandidates(false).catch(() => null),
-        ]);
+        const st = await fetchCopyStatus().catch((e) => {
+            console.warn('copy/status', e);
+            return null;
+        });
         if (st) renderCopyStatus(st);
-        if (cands) renderCandidates(cands);
         setStatus(true, '已连接');
     } catch (err) {
         console.error(err);
@@ -1461,21 +1170,6 @@ async function loadAll(refresh) {
 }
 
 document.getElementById('btn-refresh').addEventListener('click', () => loadAll(true));
-document.getElementById('btn-cand-refresh')?.addEventListener('click', async () => {
-    const btn = document.getElementById('btn-cand-refresh');
-    if (btn) btn.disabled = true;
-    try {
-        const board = await fetchCandidates(true);
-        renderCandidates(board);
-        if (board.refresh_skipped) {
-            alert(`候选池冷却中，约 ${board.retry_after_sec || '?'}s 后再试（已显示缓存）`);
-        }
-    } catch (err) {
-        alert(String(err.message || err));
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-});
 document.getElementById('btn-paper-reset').addEventListener('click', async () => {
     if (!confirm('重置全部模拟账本？')) return;
     try {
@@ -1534,37 +1228,11 @@ document.getElementById('bots-strip').addEventListener('click', (e) => {
     setFillFilter(fillFilter === id ? 'all' : id);
 });
 
-const amStripEl = document.getElementById('am-bots-strip');
-if (amStripEl) {
-    amStripEl.addEventListener('click', (e) => {
-        const resetBtn = e.target.closest('[data-bot-reset]');
-        if (resetBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            resetOneBot(resetBtn.dataset.botReset, resetBtn);
-            return;
-        }
-        const card = e.target.closest('.bot-card');
-        if (!card) return;
-        const id = card.dataset.botId;
-        setAmFillFilter(amFillFilter === id ? 'all' : id);
-    });
-}
-
 document.getElementById('fill-tabs').addEventListener('click', (e) => {
     const tab = e.target.closest('.fill-tab');
     if (!tab) return;
     setFillFilter(tab.dataset.filter);
 });
-
-const amFillTabs = document.getElementById('am-fill-tabs');
-if (amFillTabs) {
-    amFillTabs.addEventListener('click', (e) => {
-        const tab = e.target.closest('.fill-tab');
-        if (!tab) return;
-        setAmFillFilter(tab.dataset.filter);
-    });
-}
 
 loadAll(true);
 pollTimer = setInterval(() => loadAll(false), 15000);

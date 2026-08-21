@@ -333,6 +333,30 @@
             background: var(--surface);
             z-index: 1;
         }
+        .hist-shell {
+            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            overflow: hidden;
+        }
+        .hist-scroll {
+            max-height: 22rem;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .hist-scroll .data-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 1;
+        }
+        .tbl-hist col.c-ts { width: 16%; }
+        .tbl-hist col.c-act { width: 12%; }
+        .tbl-hist col.c-coin { width: 12%; }
+        .tbl-hist col.c-px { width: 16%; }
+        .tbl-hist col.c-sz { width: 16%; }
+        .tbl-hist col.c-lev { width: 12%; }
+        .tbl-hist col.c-pnl { width: 16%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -406,6 +430,35 @@
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
+
+    <section aria-label="已平仓">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">已平仓</h3>
+                <p class="section-sub" id="closed-sub">账户 C · 北京时间</p>
+            </div>
+        </div>
+        <div class="hist-shell">
+            <div class="hist-scroll">
+                <table class="data-table tbl-hist" id="tbl-closed">
+                    <colgroup>
+                        <col class="c-ts" /><col class="c-act" /><col class="c-coin" />
+                        <col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>时间</th><th>方向</th><th>币</th>
+                            <th class="num">平仓价</th><th class="num">名义(U)</th>
+                            <th class="num">杠杆</th><th class="num">盈亏</th>
+                        </tr>
+                    </thead>
+                    <tbody id="closed-tbody">
+                        <tr><td colspan="7" class="text-text-muted">载入中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 </main>
 
 <script>
@@ -460,6 +513,169 @@ function tickBjClock() {
         el.textContent = t + ' 北京';
     } catch (e) {
         el.textContent = '--:-- 北京';
+    }
+}
+
+function fmtBjTime(iso) {
+    if (!iso) return '—';
+    try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '—';
+        return new Intl.DateTimeFormat('zh-CN', {
+            timeZone: 'Asia/Shanghai',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        }).format(d);
+    } catch (e) {
+        return '—';
+    }
+}
+
+const CLOSED_LIMIT = 40;
+const CLOSE_ACTIONS = new Set([
+    'close', 'reduce', 'flip',
+    'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce',
+]);
+
+function isCloseFill(f) {
+    if (!f || f.skipped) return false;
+    const dir = String(f.dir || '').toLowerCase();
+    if (dir.includes('close')) return true;
+    const act = String(f.action || '').replace(/^sync_/, '');
+    return CLOSE_ACTIONS.has(act);
+}
+
+function closeSideLabel(f) {
+    const dir = String(f.dir || '').toLowerCase();
+    if (dir.includes('close long')) return '平多';
+    if (dir.includes('close short')) return '平空';
+    const act = String(f.action || '').replace(/^sync_/, '');
+    const side = String(f.side || '').toLowerCase();
+    const pos = String(f.pos || f.position_side || '').toLowerCase();
+    if (pos === 'long' || pos === 'l') return act === 'reduce' ? '减多' : '平多';
+    if (pos === 'short' || pos === 's') return act === 'reduce' ? '减空' : '平空';
+    if (side === 'sell') return act === 'reduce' ? '减多' : '平多';
+    if (side === 'buy') return act === 'reduce' ? '减空' : '平空';
+    if (act === 'reduce') return '减仓';
+    if (act === 'flip') return '反手';
+    if (act === 'risk_halt_close') return '熔断平仓';
+    if (act === 'risk_tp_close') return '止盈平仓';
+    if (act === 'risk_sl_close') return '止损平仓';
+    if (act === 'risk_tp_reduce') return '软止盈减仓';
+    return '平仓';
+}
+
+function closeNotional(f) {
+    if (f.notional != null && Number.isFinite(Number(f.notional))) {
+        return Math.abs(Number(f.notional));
+    }
+    const fromSz = notionalU(f.our_sz, f.px);
+    if (fromSz != null) return Math.abs(fromSz);
+    return null;
+}
+
+function botClosedFills(paper, bot) {
+    const local = Array.isArray(bot.fills) ? bot.fills : [];
+    const fromAgg = (paper.fills || []).filter((f) => f.source === bot.id || f.bot_id === bot.id);
+    const pool = local.length ? local : fromAgg;
+    return pool.filter(isCloseFill);
+}
+
+/** Merge same-coin close bursts (live_sync micro fills) into one row. */
+function coalesceClosedFills(fills) {
+    const sorted = fills.slice().sort((a, b) => {
+        const ta = a.ts ? new Date(a.ts).getTime() : 0;
+        const tb = b.ts ? new Date(b.ts).getTime() : 0;
+        return tb - ta;
+    });
+    const out = [];
+    for (const f of sorted) {
+        const coin = String(f.coin || '');
+        const side = closeSideLabel(f);
+        const t = f.ts ? new Date(f.ts).getTime() : 0;
+        const prev = out[out.length - 1];
+        if (
+            prev
+            && prev.coin === coin
+            && prev._side === side
+            && Math.abs((prev._t || 0) - t) <= 5000
+        ) {
+            prev._parts += 1;
+            const n = closeNotional(f);
+            if (n != null) prev._notional = (prev._notional || 0) + n;
+            const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
+            if (rp != null && Number.isFinite(rp)) {
+                prev._rpnl = (prev._rpnl || 0) + rp;
+            }
+            if (t >= (prev._t || 0)) {
+                prev.ts = f.ts;
+                prev._t = t;
+                prev.px = f.px != null ? f.px : prev.px;
+                prev.leverage = f.leverage != null ? f.leverage : prev.leverage;
+            }
+            continue;
+        }
+        const n0 = closeNotional(f);
+        const rp0 = f.realized_pnl != null ? Number(f.realized_pnl) : null;
+        out.push({
+            ...f,
+            _side: side,
+            _t: t,
+            _parts: 1,
+            _notional: n0,
+            _rpnl: (rp0 != null && Number.isFinite(rp0)) ? rp0 : null,
+        });
+    }
+    return out.slice(0, CLOSED_LIMIT);
+}
+
+function closedRowsHtml(rows) {
+    if (!rows.length) {
+        return '<tr><td colspan="7" class="text-text-muted">暂无已平仓记录</td></tr>';
+    }
+    return rows.map((f) => {
+        const side = f._side || closeSideLabel(f);
+        const sideCls = side.includes('多') ? 'pos' : (side.includes('空') ? 'neg' : '');
+        const notion = f._notional;
+        const notionLabel = notion == null
+            ? '—'
+            : '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
+        const rp = f._rpnl;
+        const pnlCell = rp == null
+            ? '<span class="text-text-muted">—</span>'
+            : `<span class="${rp >= 0 ? 'pos' : 'neg'}">${fmtUsd(rp)}</span>`;
+        return `<tr>
+            <td class="mono">${fmtBjTime(f.ts)}</td>
+            <td class="${sideCls}">${side}</td>
+            <td class="coin">${escapeHtml(f.coin || '—')}</td>
+            <td class="num">${fmtPx(f.px)}</td>
+            <td class="num">${notionLabel}</td>
+            <td class="num">${lev}</td>
+            <td class="num">${pnlCell}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderClosedHistory(paper) {
+    const bots = sortedDeskBots(paper);
+    const rows = [];
+    for (const b of bots) {
+        for (const f of botClosedFills(paper, b)) {
+            rows.push(f);
+        }
+    }
+    const coalesced = coalesceClosedFills(rows);
+    const tbody = document.getElementById('closed-tbody');
+    if (tbody) tbody.innerHTML = closedRowsHtml(coalesced);
+    const sub = document.getElementById('closed-sub');
+    if (sub) {
+        const who = bots.length === 1 ? botLabel(bots[0].id) : '账户 C';
+        sub.textContent = `${who} · 近 ${coalesced.length} 笔平仓 · 北京时间`;
     }
 }
 
@@ -659,6 +875,8 @@ function renderPaper(paper) {
 
     document.getElementById('pos-by-strategy').innerHTML = deskBots.map((b) => strategyBlockHtml(paper, b)).join('')
         || '<p class="text-text-muted text-sm">暂无仓位</p>';
+
+    renderClosedHistory(paper);
 
     const { sub } = deskBalanceLine(deskBots);
     const subEl = document.getElementById('bots-sub');

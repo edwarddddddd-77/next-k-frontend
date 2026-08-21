@@ -333,105 +333,6 @@
             background: var(--surface);
             z-index: 1;
         }
-        .fills-shell {
-            border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-            border-radius: var(--radius-md);
-            background: var(--surface);
-            overflow: hidden;
-        }
-        .fill-tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.3rem;
-        }
-        .fill-tab {
-            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-            background: color-mix(in srgb, var(--surface-light) 35%, transparent);
-            color: var(--text-secondary);
-            border-radius: var(--radius-sm);
-            padding: 0.18rem 0.55rem;
-            font-size: 0.7rem;
-            line-height: 1.2;
-            cursor: pointer;
-        }
-        .fill-tab:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); color: var(--text-secondary); }
-        .fill-tab.is-active {
-            border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-            color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-        }
-        .fill-tab.is-quality {
-            border-color: color-mix(in srgb, #0f7a5a 45%, var(--border));
-            color: #0b5c44;
-            font-weight: 650;
-        }
-        .fill-tab.is-quality.is-active {
-            border-color: color-mix(in srgb, #0f7a5a 60%, var(--border));
-            color: #0b5c44;
-            background: color-mix(in srgb, #0f7a5a 12%, var(--surface));
-        }
-        .fills-scroll {
-            max-height: 22rem;
-            overflow: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .fills-scroll .data-table thead th {
-            position: sticky;
-            top: 0;
-            background: var(--surface);
-            z-index: 1;
-        }
-        .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
-        .data-table thead th {
-            padding: 0.45rem 0.75rem;
-            font-size: 0.6rem;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            white-space: nowrap;
-        }
-        .data-table tbody td {
-            padding: 0.42rem 0.75rem;
-            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-            vertical-align: middle;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .data-table tbody tr:last-child td { border-bottom: none; }
-        .data-table .num {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 0.72rem;
-        }
-        .data-table thead th.num { text-align: right; }
-        .data-table .coin { font-weight: 500; }
-        .tbl-pos col.c-coin { width: 14%; }
-        .tbl-pos col.c-entry { width: 18%; }
-        .tbl-pos col.c-mark { width: 18%; }
-        .tbl-pos col.c-sz { width: 20%; }
-        .tbl-pos col.c-lev { width: 12%; }
-        .tbl-pos col.c-pnl { width: 18%; }
-        .tbl-fills col.c-bot { width: 10%; }
-        .tbl-fills col.c-ts { width: 11%; }
-        .tbl-fills col.c-act { width: 10%; }
-        .tbl-fills col.c-coin { width: 10%; }
-        .tbl-fills col.c-px { width: 14%; }
-        .tbl-fills col.c-sz { width: 15%; }
-        .tbl-fills col.c-lev { width: 10%; }
-        .tbl-fills col.c-pnl { width: 20%; }
-        /* 单账户筛选：无账户列，宽度铺满 */
-        .tbl-fills.hide-bot col.c-ts { width: 13%; }
-        .tbl-fills.hide-bot col.c-act { width: 12%; }
-        .tbl-fills.hide-bot col.c-coin { width: 11%; }
-        .tbl-fills.hide-bot col.c-px { width: 16%; }
-        .tbl-fills.hide-bot col.c-sz { width: 18%; }
-        .tbl-fills.hide-bot col.c-lev { width: 12%; }
-        .tbl-fills.hide-bot col.c-pnl { width: 18%; }
         .pos { color: var(--neon-green); }
         .neg { color: var(--neon-red); }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -505,29 +406,6 @@
         </div>
         <div id="pos-by-strategy" class="pos-grid"></div>
     </section>
-
-    <section aria-label="成交记录">
-        <div class="section-head">
-            <div>
-                <h3 class="section-title">成交记录</h3>
-                <p class="section-sub" id="fills-sub">主桌 · 北京时间</p>
-            </div>
-            <div id="fill-tabs" class="fill-tabs" role="tablist" aria-label="筛选主桌账户"></div>
-        </div>
-        <div class="fills-shell">
-            <div class="fills-scroll">
-                <table id="tbl-fills" class="data-table tbl-fills">
-                    <colgroup id="fills-cols"></colgroup>
-                    <thead>
-                        <tr id="fills-head"></tr>
-                    </thead>
-                    <tbody id="fills-tbody">
-                        <tr><td class="text-text-muted">载入中…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
 </main>
 
 <script>
@@ -565,23 +443,6 @@ function fmtPx(n) {
     if (v >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
     if (v >= 1) return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
     return v.toLocaleString(undefined, { maximumFractionDigits: 6 });
-}
-
-function fmtBjTime(iso) {
-    if (!iso) return '—';
-    try {
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return String(iso).slice(0, 19);
-        return new Intl.DateTimeFormat('zh-CN', {
-            timeZone: 'Asia/Shanghai',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-        }).format(d);
-    } catch (e) {
-        return String(iso).slice(0, 19);
-    }
 }
 
 function tickBjClock() {
@@ -653,61 +514,8 @@ function botTagHtml(b) {
 }
 
 const BOT_ORDER = ['bot_c'];
-const FILL_REAL = new Set(['open', 'close', 'reduce', 'increase', 'risk_halt_close', 'risk_tp_close', 'risk_sl_close', 'risk_tp_reduce', 'flip', 'live_sync']);
-const FILL_LIMIT = 20;
-const FILL_LIMIT_ALL = 40;
-const ACT_LABEL = {
-    open: '开仓',
-    increase: '加仓',
-    reduce: '减仓',
-    close: '平仓',
-    flip: '反手',
-    risk_halt_close: '熔断平仓',
-    risk_tp_close: '总账止盈平仓',
-    risk_sl_close: '总账止损平仓',
-    risk_tp_reduce: '总账软止盈减仓',
-};
-
-/** 多/空：优先用后端 pos；否则由 buy/sell + 动作推断 */
-function fillPos(f) {
-    const p = String(f.pos || f.position_side || '').toLowerCase();
-    if (p === 'long' || p === 'l') return '多';
-    if (p === 'short' || p === 's') return '空';
-    const side = String(f.side || '').toLowerCase();
-    const act = String(f.action || '').replace(/^sync_/, '');
-    if (act === 'close' || act === 'reduce' || act === 'risk_halt_close' || act === 'risk_tp_close' || act === 'risk_sl_close' || act === 'risk_tp_reduce') {
-        // 卖平多、买平空
-        if (side === 'sell') return '多';
-        if (side === 'buy') return '空';
-        return '';
-    }
-    if (side === 'buy') return '多';
-    if (side === 'sell') return '空';
-    return '';
-}
-
-function fillActLabel(f) {
-    const actRaw = String(f.action || '').replace(/^sync_/, '');
-    const base = ACT_LABEL[actRaw] || actRaw || '—';
-    const pos = fillPos(f);
-    if (!pos) return base;
-    const withPos = {
-        open: `开${pos}`,
-        increase: `加${pos}`,
-        reduce: `减${pos}`,
-        close: `平${pos}`,
-        flip: `反手开${pos}`,
-        live_sync: '实盘对齐',
-        risk_halt_close: `熔断平${pos}`,
-        risk_tp_close: `止盈平${pos}`,
-        risk_sl_close: `止损平${pos}`,
-        risk_tp_reduce: `软止盈减${pos}`,
-    };
-    return withPos[actRaw] || `${base}·${pos}`;
-}
 
 let lastPaper = null;
-let fillFilter = 'all';
 
 function sortedBots(paper) {
     const bots = Object.values(paper.bots || {});
@@ -727,7 +535,6 @@ function botCardHtml(paper, b) {
     const nested = botPositions(paper, b);
     const upnl2 = nested.reduce((s, p) => s + (Number(p.u_pnl) || 0), 0);
     const nPos = nested.length;
-    const active = b.id === fillFilter ? ' is-active' : '';
     const initBal = b.live_only || b.paper === false
         ? (b.balance != null ? Number(b.balance) : (b.equity != null ? Number(b.equity) : NaN))
         : (b.paper_balance != null ? Number(b.paper_balance) : Number(b.balance));
@@ -766,7 +573,7 @@ function botCardHtml(paper, b) {
         thirdVal = Number(b.realized_pnl);
     }
     const thirdHtml = `<span class="stat-value">${fmtUsd(thirdVal)}</span>`;
-    return `<div class="bot-card${active}${healthCls}" data-bot-id="${b.id}" role="button" tabindex="0">
+    return `<div class="bot-card${healthCls}" data-bot-id="${b.id}">
         <div class="bot-card-top">
             <div class="bot-card-name"><span>${botLabel(b.id)}</span>${botTagHtml(b)}${halted}</div>
             <div class="bot-card-meta">
@@ -823,175 +630,9 @@ function botPositions(paper, bot) {
     return Object.values(paper.positions || {}).filter((p) => p.source === bot.id);
 }
 
-function botFills(paper, bot) {
-    const local = Array.isArray(bot.fills) ? bot.fills : [];
-    const fromAgg = (paper.fills || []).filter((f) => f.source === bot.id);
-    const pool = local.length ? local : fromAgg;
-    return pool.filter((f) => {
-        if (f.skipped) return false;
-        const act = String(f.action || '').replace(/^sync_/, '');
-        return FILL_REAL.has(act);
-    });
-}
-
-function collectFills(paper, filterId, botList) {
-    const bots = botList || sortedBots(paper);
-    const rows = [];
-    for (const b of bots) {
-        if (filterId !== 'all' && b.id !== filterId) continue;
-        for (const f of botFills(paper, b)) {
-            rows.push(Object.assign({}, f, { _bot: b.id }));
-        }
-    }
-    rows.sort((a, b) => {
-        const ta = a.ts ? new Date(a.ts).getTime() : 0;
-        const tb = b.ts ? new Date(b.ts).getTime() : 0;
-        return tb - ta;
-    });
-    return rows.slice(0, filterId === 'all' ? FILL_LIMIT_ALL : FILL_LIMIT);
-}
-
-function setFillFilter(id) {
-    fillFilter = id || 'all';
-    if (lastPaper) {
-        renderDeskFills(lastPaper);
-    }
-    syncActiveChrome();
-}
-
-function syncActiveChrome() {
-    document.querySelectorAll('#bots-strip .bot-card').forEach((el) => {
-        el.classList.toggle('is-active', el.dataset.botId === fillFilter);
-    });
-    document.querySelectorAll('#fill-tabs .fill-tab').forEach((el) => {
-        el.classList.toggle('is-active', el.dataset.filter === fillFilter);
-    });
-}
-
-function posRowsHtml(positions) {
-    if (!positions.length) {
-        return '<tr><td colspan="6" class="text-text-muted">空仓</td></tr>';
-    }
-    return positions.map((p) => {
-        const mark = p.mark_px != null ? p.mark_px : p.entry_px;
-        const up = Number(p.u_pnl);
-        const lev = p.leverage != null ? Number(p.leverage).toFixed(1) + 'x' : '—';
-        return `<tr>
-            <td class="coin">${p.coin}</td>
-            <td class="num">${fmtPx(p.entry_px)}</td>
-            <td class="num">${fmtPx(mark)}</td>
-            <td class="num ${sideClass(p.sz)}">${fmtPosU(p.sz, mark)}</td>
-            <td class="num">${lev}</td>
-            <td class="num ${up >= 0 ? 'pos' : 'neg'}">${fmtUsd(up)}</td>
-        </tr>`;
-    }).join('');
-}
-
-function fillRowsHtml(fills, showBot) {
-    const cols = showBot ? 8 : 7;
-    if (!fills.length) {
-        return `<tr><td colspan="${cols}" class="text-text-muted">暂无成交</td></tr>`;
-    }
-    return fills.map((f) => {
-        const ts = fmtBjTime(f.ts);
-        const actRaw = String(f.action || '').replace(/^sync_/, '');
-        const act = fillActLabel(f);
-        const pos = fillPos(f);
-        const isOpen = actRaw === 'open' || actRaw === 'increase';
-        const isClose = actRaw === 'close' || actRaw === 'reduce' || actRaw === 'risk_halt_close'
-            || actRaw === 'risk_tp_close' || actRaw === 'risk_sl_close' || actRaw === 'risk_tp_reduce';
-        const rp = f.realized_pnl != null ? Number(f.realized_pnl) : null;
-        const notion = f.notional != null ? Number(f.notional) : Math.abs(notionalU(f.our_sz, f.px) || 0);
-        // 名义符号：开/加多 +、开/加空 −；平/减与仓位方向一致（平多 −、平空 +）
-        const longish = pos === '多';
-        const shortish = pos === '空';
-        const exposeUp = isOpen ? longish : (isClose ? shortish : (f.side === 'buy'));
-        const notionLabel = !notion
-            ? '—'
-            : (exposeUp ? '+' : '-') + '$' + Math.abs(notion).toLocaleString(undefined, { maximumFractionDigits: 0 });
-        const lev = f.leverage != null ? Number(f.leverage).toFixed(1) + 'x' : '—';
-        const pxTitle = isClose ? '平仓价' : (isOpen ? '开仓价' : '成交价');
-        const pnlCell = isOpen
-            ? '<span class="text-text-muted">—</span>'
-            : `<span class="${rp == null ? '' : (rp >= 0 ? 'pos' : 'neg')}">${rp == null ? '—' : fmtUsd(rp)}</span>`;
-        const actClass = longish ? 'pos' : (shortish ? 'neg' : '');
-        const botCell = showBot ? `<td>${botLabel(f._bot)}</td>` : '';
-        return `<tr>
-            ${botCell}
-            <td class="mono">${ts || '—'}</td>
-            <td class="${actClass}">${act}</td>
-            <td class="coin">${f.coin || '—'}</td>
-            <td class="num" title="${pxTitle}">${fmtPx(f.px)}</td>
-            <td class="num ${exposeUp ? 'pos' : 'neg'}">${notionLabel}</td>
-            <td class="num">${lev}</td>
-            <td class="num">${pnlCell}</td>
-        </tr>`;
-    }).join('');
-}
-
-function renderFillTabsInto(el, bots, activeId, allLabel) {
-    if (!el) return;
-    const tabs = [{ id: 'all', label: allLabel || '全部' }].concat(
-        bots.map((b) => ({
-            id: b.id,
-            label: botLabel(b.id),
-        }))
-    );
-    el.innerHTML = tabs.map((t) => (
-        `<button type="button" class="fill-tab${t.id === activeId ? ' is-active' : ''}" data-filter="${t.id}">${t.label}</button>`
-    )).join('');
-}
-
-function paintFillsTable(opts) {
-    const {
-        tableId, colsId, headId, bodyId, subId,
-        paper, filterId, bots, allWho,
-    } = opts;
-    const showBot = filterId === 'all';
-    const fills = collectFills(paper, filterId, bots);
-    const table = document.getElementById(tableId);
-    if (!table) return;
-    table.classList.toggle('hide-bot', !showBot);
-
-    document.getElementById(colsId).innerHTML = showBot
-        ? '<col class="c-bot" /><col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />'
-        : '<col class="c-ts" /><col class="c-act" /><col class="c-coin" /><col class="c-px" /><col class="c-sz" /><col class="c-lev" /><col class="c-pnl" />';
-
-    document.getElementById(headId).innerHTML = showBot
-        ? '<th>账户</th><th>时间</th><th>动作</th><th>币</th><th class="num">价格</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>'
-        : '<th>时间</th><th>动作</th><th>币</th><th class="num">价格</th><th class="num">名义(U)</th><th class="num">杠杆</th><th class="num">盈亏</th>';
-
-    document.getElementById(bodyId).innerHTML = fillRowsHtml(fills, showBot);
-    const sub = document.getElementById(subId);
-    if (sub) {
-        const cap = filterId === 'all' ? FILL_LIMIT_ALL : FILL_LIMIT;
-        const who = filterId === 'all' ? allWho : botLabel(filterId);
-        sub.textContent = `${who} · 近 ${fills.length}/${cap} · 北京时间`;
-    }
-}
-
-function renderDeskFills(paper) {
-    const deskBots = sortedDeskBots(paper);
-    renderFillTabsInto(document.getElementById('fill-tabs'), deskBots, fillFilter, '主桌全部');
-    paintFillsTable({
-        tableId: 'tbl-fills',
-        colsId: 'fills-cols',
-        headId: 'fills-head',
-        bodyId: 'fills-tbody',
-        subId: 'fills-sub',
-        paper,
-        filterId: fillFilter,
-        bots: deskBots,
-        allWho: '主桌全部',
-    });
-}
-
 function renderPaper(paper) {
     lastPaper = paper;
     const deskBots = sortedDeskBots(paper);
-    if (fillFilter !== 'all' && !deskBots.some((b) => b.id === fillFilter)) {
-        fillFilter = 'all';
-    }
 
     const strip = document.getElementById('bots-strip');
     strip.innerHTML = deskBots.map((b) => botCardHtml(paper, b)).join('')
@@ -1000,8 +641,6 @@ function renderPaper(paper) {
     document.getElementById('pos-by-strategy').innerHTML = deskBots.map((b) => strategyBlockHtml(paper, b)).join('')
         || '<p class="text-text-muted text-sm">暂无仓位</p>';
 
-    renderDeskFills(paper);
-    syncActiveChrome();
     const { sub } = deskBalanceLine(deskBots);
     const subEl = document.getElementById('bots-sub');
     if (subEl && sub) subEl.textContent = sub;
@@ -1220,18 +859,7 @@ document.getElementById('bots-strip').addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         resetOneBot(resetBtn.dataset.botReset, resetBtn);
-        return;
     }
-    const card = e.target.closest('.bot-card');
-    if (!card) return;
-    const id = card.dataset.botId;
-    setFillFilter(fillFilter === id ? 'all' : id);
-});
-
-document.getElementById('fill-tabs').addEventListener('click', (e) => {
-    const tab = e.target.closest('.fill-tab');
-    if (!tab) return;
-    setFillFilter(tab.dataset.filter);
 });
 
 loadAll(true);

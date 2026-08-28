@@ -366,7 +366,7 @@
             margin-top: 1rem;
         }
         @media (min-width: 900px) {
-            #bots-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.85rem; }
+            #bots-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.85rem; }
         }
         @media (min-width: 640px) and (max-width: 899px) {
             #bots-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -410,7 +410,7 @@
     <section class="focus-hero" aria-label="账户桌面">
         <div class="hero-top">
             <div>
-                <div class="panel-kicker">Paper · Hyperliquid</div>
+                <div class="panel-kicker">Live · Bitget KYC ×6 · 跟 bot_c</div>
                 <h2 class="panel-title">交易桌</h2>
                 <p id="status-line" class="panel-sub">载入中…</p>
             </div>
@@ -461,6 +461,24 @@
 
 <script>
 const API = resolveApiBase();
+/** 6 KYC client-exec（跟 bot_c）— 映仓台实盘卡 */
+const DESK_CLIENTS = (() => {
+    try {
+        const raw = localStorage.getItem('NEXT_K_DESK_CLIENTS');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) return parsed;
+        }
+    } catch (e) { /* ignore */ }
+    return [
+        { id: 'client_a', label: '账户 A', url: 'https://client-a-production.up.railway.app' },
+        { id: 'client_b', label: '账户 B', url: 'https://client-b-production-49bb.up.railway.app' },
+        { id: 'client_c', label: '账户 C', url: 'https://client-c-production-768c.up.railway.app' },
+        { id: 'client_d', label: '账户 D', url: 'https://client-d-production.up.railway.app' },
+        { id: 'client_e', label: '账户 E', url: 'https://client-e-production.up.railway.app' },
+        { id: 'client_f', label: '账户 F', url: 'https://client-f-production.up.railway.app' },
+    ];
+})();
 let pollTimer = null;
 
 function setStatus(ok, text) {
@@ -704,8 +722,16 @@ function fmtPosU(sz, px) {
 }
 
 function botLabel(id) {
+    const fromCfg = DESK_CLIENTS.find((c) => c.id === id);
+    if (fromCfg && fromCfg.label) return fromCfg.label;
     const map = {
-        bot_c: '账户',
+        bot_c: '账户 C·领袖',
+        client_a: '账户 A',
+        client_b: '账户 B',
+        client_c: '账户 C',
+        client_d: '账户 D',
+        client_e: '账户 E',
+        client_f: '账户 F',
     };
     return map[id] || id || '账户';
 }
@@ -732,7 +758,7 @@ function botTagHtml(b) {
     return parts.join('');
 }
 
-const BOT_ORDER = ['bot_c'];
+const BOT_ORDER = ['client_a', 'client_b', 'client_c', 'client_d', 'client_e', 'client_f', 'bot_c'];
 
 let lastPaper = null;
 
@@ -1014,21 +1040,94 @@ async function fetchCopyStatus() {
     return res.json();
 }
 
+async function fetchClientDesk(client) {
+    const base = String(client.url || '').replace(/\/$/, '');
+    const res = await fetch(`${base}/live/desk`, { mode: 'cors' });
+    if (!res.ok) throw new Error(`${client.id} desk ${res.status}`);
+    const data = await res.json();
+    const bot = (data && data.bot) || {};
+    bot.id = client.id;
+    bot.live_only = true;
+    bot.paper = false;
+    bot.live = true;
+    bot.venue = bot.venue || 'bitget';
+    bot.desk_url = base;
+    bot.live_meta = data.live || null;
+    if (data.ok === false && !bot.live_error) {
+        bot.live_error = 'desk_unavailable';
+    }
+    return bot;
+}
+
+async function fetchAllClientDesks() {
+    const results = await Promise.allSettled(DESK_CLIENTS.map((c) => fetchClientDesk(c)));
+    const bots = {};
+    let okN = 0;
+    results.forEach((r, i) => {
+        const cfg = DESK_CLIENTS[i];
+        if (r.status === 'fulfilled' && r.value) {
+            bots[cfg.id] = r.value;
+            okN += 1;
+        } else {
+            const reason = r.status === 'rejected' ? String(r.reason && r.reason.message || r.reason || 'fail') : 'empty';
+            bots[cfg.id] = {
+                id: cfg.id,
+                live_only: true,
+                paper: false,
+                live: true,
+                venue: 'bitget',
+                desk_url: cfg.url,
+                equity: null,
+                balance: null,
+                u_pnl: null,
+                positions: {},
+                live_error: reason.slice(0, 120),
+            };
+        }
+    });
+    const list = Object.values(bots);
+    const equitySum = list.reduce((s, b) => s + (Number(b.equity) || 0), 0);
+    const upnlSum = list.reduce((s, b) => s + (Number(b.u_pnl) || 0), 0);
+    return {
+        bots,
+        positions: {},
+        equity: equitySum,
+        portfolio_equity: equitySum,
+        u_pnl: upnlSum,
+        desk_clients_ok: okN,
+        desk_clients_total: DESK_CLIENTS.length,
+        as_of: new Date().toISOString(),
+    };
+}
+
 let pollTick = 0;
 
 async function loadAll(refresh) {
     try {
         pollTick += 1;
-        // Mark mids at most every 3rd poll (~45s) or on manual refresh
-        const wantMark = !!refresh || (pollTick % 3 === 0);
-        const paper = await fetchPaper(wantMark);
+        const paper = await fetchAllClientDesks();
         renderPaper(paper);
-        const st = await fetchCopyStatus().catch((e) => {
-            console.warn('copy/status', e);
-            return null;
-        });
-        if (st) renderCopyStatus(st);
-        setStatus(true, '已连接');
+        const ok = paper.desk_clients_ok || 0;
+        const tot = paper.desk_clients_total || DESK_CLIENTS.length;
+        const ws = document.getElementById('ws-badge');
+        if (ws) {
+            ws.textContent = `KYC ${ok}/${tot} 在线`;
+        }
+        const { line, sub } = deskBalanceLine(sortedDeskBots(paper));
+        const statusLine = document.getElementById('status-line');
+        if (statusLine) {
+            statusLine.textContent = line || `交易桌 · ${tot} KYC 跟 bot_c`;
+        }
+        const subEl = document.getElementById('bots-sub');
+        if (subEl && sub) subEl.textContent = sub + ' · 跟单 bot_c';
+        setStatus(ok > 0, ok === tot ? '已连接' : `部分在线 ${ok}/${tot}`);
+        if (refresh || pollTick % 6 === 0) {
+            fetchCopyStatus().then((st) => {
+                if (st && st.running != null && ws && ok === tot) {
+                    ws.textContent = `KYC ${ok}/${tot}` + (st.running ? ' · HL WS' : '');
+                }
+            }).catch(() => {});
+        }
     } catch (err) {
         console.error(err);
         const detail = String(err.message || err).slice(0, 48);
@@ -1039,20 +1138,17 @@ async function loadAll(refresh) {
 
 document.getElementById('btn-refresh').addEventListener('click', () => loadAll(true));
 document.getElementById('btn-paper-reset').addEventListener('click', async () => {
-    if (!confirm('重置全部模拟账本？')) return;
-    try {
-        const res = await fetch(`${API}/api/hl-short/paper/reset`, { method: 'POST' });
-        if (!res.ok) throw new Error('reset ' + res.status);
-        await loadAll(false);
-    } catch (err) {
-        alert(String(err.message || err));
-    }
+    alert('多 KYC 实盘桌：请在各 Bitget 账户自行平仓，或对单号使用重置。');
 });
 
 async function resetOneBot(botId, btn) {
     const id = String(botId || '').trim();
     if (!id) return;
     const bot = lastPaper && lastPaper.bots ? lastPaper.bots[id] : null;
+    if (String(id).startsWith('client_')) {
+        alert(`${botLabel(id)} 为独立 KYC 实盘，请到 Bitget 平仓；或在该 client 服务调用 /live/catch-up。`);
+        return;
+    }
     const isLiveOnly = !!(bot && (bot.live_only || bot.paper === false));
     const venue = String((bot && bot.venue) || '').toLowerCase();
     const msg = isLiveOnly

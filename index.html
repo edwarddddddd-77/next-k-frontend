@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Next K · 观盘台</title>
+    <title>Next K · 观盘台（已暂停）</title>
+    <!-- 观盘台扫描已暂停：入口跳转映仓台 -->
+    <meta http-equiv="refresh" content="0;url=hl-short.html" />
+    <script>location.replace('hl-short.html');</script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -374,7 +377,7 @@
                         </div>
                     </div>
                     <nav class="hidden sm:flex items-center gap-1.5 ml-2">
-                    <a class="nav-pill nav-pill-active" href="index.html">观盘台</a>
+                    <!-- 观盘台：暂时隐藏（后台 NEXT_K_ACCUMULATION_SCHEDULER 默认关） -->
                     <a class="nav-pill" href="hl-short.html">映仓台</a>
                     <!-- Next K 网格：暂时隐藏（后台 WANGGE_ENABLED=0） -->
                     </nav>

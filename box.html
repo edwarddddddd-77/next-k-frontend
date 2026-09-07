@@ -159,15 +159,15 @@
         <div>
           <div class="panel-kicker">BOX BREAKOUT</div>
           <div class="panel-title">箱体突破扫描</div>
-          <div class="panel-sub">A股四条件 / 币圈三条件 · 公开行情 · 只读看板</div>
+          <div class="panel-sub">币圈箱体扫描 · 公开行情 · 只读看板（A股暂关）</div>
         </div>
         <div class="panel-toolbar" style="flex-wrap:wrap;">
-          <div class="tabs-wrap" id="marketTabs">
-            <button type="button" class="tab-btn on" data-market="stock">A股</button>
-            <button type="button" class="tab-btn" data-market="crypto">币圈</button>
+          <div class="tabs-wrap" id="marketTabs" style="display:none;">
+            <button type="button" class="tab-btn" data-market="stock">A股</button>
+            <button type="button" class="tab-btn on" data-market="crypto">币圈</button>
           </div>
-          <button type="button" class="scan-btn ghost" id="btnQuick" title="量比粗筛 TOP200">快扫</button>
-          <button type="button" class="scan-btn" id="btnScan">全市场扫描</button>
+          <button type="button" class="scan-btn ghost" id="btnQuick" title="量比粗筛 TOP200" style="display:none;">快扫</button>
+          <button type="button" class="scan-btn" id="btnScan">币圈扫描</button>
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem;align-items:center;font-size:0.78rem;color:var(--text-secondary);">
@@ -193,7 +193,8 @@
   <script>
 const API = (typeof resolveProtocolBase === 'function' ? resolveProtocolBase() : 'http://127.0.0.1:8001');
 const S = {
-  market: 'stock',
+  market: 'crypto',
+  ashareEnabled: false,
   watch: null,
   crypto: null,
   status: null,
@@ -273,6 +274,10 @@ async function loadAll() {
     jfetch('/api/box/hot').catch(() => ({ hot_topics: [] })),
   ]);
   S.watch = w; S.crypto = c; S.status = st; S.hot = (hot && hot.hot_topics) || []; S.loaded = true;
+  S.ashareEnabled = !!(st && st.ashare_enabled);
+  if (!S.ashareEnabled) S.market = 'crypto';
+  const tabs = $('marketTabs');
+  if (tabs) tabs.style.display = S.ashareEnabled ? '' : 'none';
   renderAll();
 }
 
@@ -292,14 +297,14 @@ function renderAll() {
   $('hpAsOf').textContent = data.as_of || '—';
 
   $('btnScan').textContent = isCrypto ? '币圈扫描' : '全市场扫描';
-  $('btnQuick').style.display = isCrypto ? 'none' : '';
+  $('btnQuick').style.display = (!isCrypto && S.ashareEnabled) ? '' : 'none';
 
   document.querySelectorAll('#marketTabs .tab-btn').forEach(t => {
     t.classList.toggle('on', t.dataset.market === S.market);
   });
 
   const hotEl = $('hotTopics');
-  if (!isCrypto) {
+  if (!isCrypto && S.ashareEnabled) {
     hotEl.style.display = 'flex';
     if (S.hot.length) {
       hotEl.innerHTML = S.hot.slice(0, 8).map(b =>
@@ -531,6 +536,10 @@ async function refreshQuotes() {
 }
 
 function switchMarket(market) {
+  if (market !== 'crypto' && !S.ashareEnabled) {
+    toast('A股暂已关闭');
+    return;
+  }
   S.market = market;
   S.selBoard = null;
   S.kbars = {};

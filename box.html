@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Next K · 箱体台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="theme.css" />
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="api-base.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+            sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            background: 'var(--bg)',
+            surface: 'var(--surface)',
+            'surface-light': 'var(--surface-light)',
+            border: 'var(--border)',
+            accent: 'var(--accent)',
+            gold: 'var(--gold)',
+            'neon-green': 'var(--neon-green)',
+            'neon-red': 'var(--neon-red)',
+            'neon-blue': 'var(--neon-blue)',
+            warn: 'var(--warn)',
+            'text-primary': 'var(--text-primary)',
+            'text-secondary': 'var(--text-secondary)',
+            'text-muted': 'var(--text-muted)',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    .box-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+      gap: 0.85rem;
+    }
+    .sig-card {
+      border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+      padding: 0.85rem 0.9rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .sig-card.q {
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    }
+    .sig-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .sig-nm { font-weight: 650; font-size: 0.95rem; color: var(--text-primary); }
+    .sig-cd { font-size: 0.72rem; color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; margin-top: 0.1rem; }
+    .sig-px { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.95rem; }
+    .sig-chg { font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+    .score-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 2rem; height: 1.35rem; padding: 0 0.4rem;
+      border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .q-badge {
+      margin-left: 0.35rem; font-size: 0.65rem; font-weight: 700;
+      color: var(--bg); background: var(--accent); border-radius: 999px; padding: 0.05rem 0.4rem;
+      vertical-align: middle;
+    }
+    .sig-chart { position: relative; height: 220px; border-radius: var(--radius-sm); overflow: hidden; background: color-mix(in srgb, var(--surface-light) 35%, var(--surface)); }
+    .sig-chart canvas { width: 100%; height: 100%; display: block; }
+    .sig-tip {
+      display: none; position: absolute; z-index: 2; pointer-events: none;
+      background: color-mix(in srgb, var(--surface) 92%, #000); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.35rem 0.5rem; font-size: 0.68rem; color: var(--text-secondary);
+      font-family: ui-monospace, Menlo, monospace; max-width: 190px; line-height: 1.35;
+    }
+    .sig-flags {
+      display: flex; flex-wrap: wrap; gap: 0.35rem 0.65rem;
+      font-size: 0.72rem; color: var(--text-secondary);
+    }
+    .sig-flags .no { color: var(--text-muted); opacity: 0.75; }
+    .sig-flags .box-span { margin-left: auto; font-family: ui-monospace, Menlo, monospace; color: var(--text-muted); }
+    .tab-btn {
+      border: none; background: transparent; color: var(--text-muted);
+      font-size: 0.8rem; font-weight: 600; padding: 0.35rem 0.85rem; border-radius: 999px; cursor: pointer;
+    }
+    .tab-btn.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text-primary); }
+    .tabs-wrap {
+      display: inline-flex; gap: 2px; padding: 3px;
+      background: color-mix(in srgb, var(--surface-light) 50%, var(--surface));
+      border-radius: 999px; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    }
+    .scan-btn {
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--text-primary); font-size: 0.8rem; font-weight: 650;
+      padding: 0.4rem 0.95rem; border-radius: 999px; cursor: pointer;
+    }
+    .scan-btn:disabled { opacity: 0.55; cursor: wait; }
+    .scan-btn.ghost {
+      background: transparent; border-color: color-mix(in srgb, var(--border) 90%, transparent);
+      color: var(--text-secondary); font-weight: 500;
+    }
+    .hot-chip {
+      font-size: 0.7rem; color: var(--text-secondary);
+      background: color-mix(in srgb, var(--surface-light) 40%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+      border-radius: 999px; padding: 0.15rem 0.55rem; cursor: pointer;
+    }
+    .hot-chip.sel { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 650; }
+    .log-line { font-size: 0.7rem; font-family: ui-monospace, Menlo, monospace; color: var(--text-muted); line-height: 1.45; }
+    .empty-box { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+    .empty-box .big { font-size: 1.1rem; font-weight: 650; color: var(--text-secondary); letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body class="board-canvas">
+  <header class="app-header shrink-0">
+    <div class="page-shell" style="padding-top:0.55rem;padding-bottom:0.55rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:0.85rem;min-width:0;">
+          <div style="display:flex;align-items:center;gap:0.55rem;flex-shrink:0;">
+            <div class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <div>
+              <h1 class="brand-title">Next <span style="color:var(--accent)">K</span></h1>
+              <div class="brand-subtitle hidden sm:block">箱体台 · Protocol</div>
+            </div>
+          </div>
+          <nav style="display:flex;align-items:center;gap:0.2rem;" class="grid-nav">
+            <a class="nav-pill" href="hl-short.html">映仓台</a>
+            <a class="nav-pill active" href="box.html">箱体台</a>
+          </nav>
+        </div>
+        <div id="statusPill" class="status-pill status-pill-idle">
+          <span class="status-dot"></span>
+          <span id="statusText">就绪</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell" style="padding-top:1rem;padding-bottom:2.5rem;">
+    <section class="focus-hero dash-card" style="margin-bottom:1rem;">
+      <div class="panel-head" style="border:none;background:transparent;padding:0 0 0.75rem;">
+        <div>
+          <div class="panel-kicker">BOX BREAKOUT</div>
+          <div class="panel-title">箱体突破扫描</div>
+          <div class="panel-sub">A股四条件 / 币圈三条件 · 公开行情 · 只读看板</div>
+        </div>
+        <div class="panel-toolbar" style="flex-wrap:wrap;">
+          <div class="tabs-wrap" id="marketTabs">
+            <button type="button" class="tab-btn on" data-market="stock">A股</button>
+            <button type="button" class="tab-btn" data-market="crypto">币圈</button>
+          </div>
+          <button type="button" class="scan-btn ghost" id="btnQuick" title="量比粗筛 TOP200">快扫</button>
+          <button type="button" class="scan-btn" id="btnScan">全市场扫描</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem;align-items:center;font-size:0.78rem;color:var(--text-secondary);">
+        <span>达标 <b id="hpHit" style="color:var(--accent)">—</b></span>
+        <span>覆盖 <b id="hpCover">—</b></span>
+        <span>更新 <b id="hpAsOf" style="font-family:ui-monospace,Menlo,monospace;font-weight:500">—</b></span>
+        <div id="hotTopics" style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-left:auto;"></div>
+      </div>
+      <div id="scanLog" style="margin-top:0.65rem;max-height:4.5rem;overflow:auto;"></div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;margin-bottom:0.65rem;">
+        <h2 id="cardsTitle" style="font-size:0.95rem;font-weight:650;">今日达标</h2>
+        <span id="poolCount" style="font-size:0.75rem;color:var(--text-muted);"></span>
+      </div>
+      <div id="cards" class="box-grid">
+        <div class="empty-box" style="grid-column:1/-1;"><div class="big">LOADING</div><p>拉取扫描结果…</p></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+const API = (typeof resolveProtocolBase === 'function' ? resolveProtocolBase() : 'http://127.0.0.1:8001');
+const S = {
+  market: 'stock',
+  watch: null,
+  crypto: null,
+  status: null,
+  hot: [],
+  loaded: false,
+  selBoard: null,
+  kbars: {},
+};
+
+const $ = (id) => document.getElementById(id);
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = 'position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:50;background:var(--surface);border:1px solid var(--border);color:var(--text-primary);padding:0.45rem 0.9rem;border-radius:999px;font-size:0.8rem;box-shadow:0 8px 24px rgba(0,0,0,.35)';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1800);
+}
+
+async function jfetch(path, opts) {
+  const r = await fetch(API + path, opts);
+  if (!r.ok) {
+    let detail = path + ' -> ' + r.status;
+    try { const j = await r.json(); if (j.detail) detail = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); } catch (_) {}
+    throw new Error(detail);
+  }
+  return r.json();
+}
+
+function fmt2(v) {
+  if (v == null || Number.isNaN(Number(v))) return '—';
+  return Number(v).toFixed(2);
+}
+function fmtc(v) {
+  if (v == null || Number.isNaN(Number(v))) return '—';
+  const n = Number(v);
+  if (n >= 1000) return n.toFixed(1);
+  if (n >= 1) return n.toFixed(2);
+  return n.toPrecision(3);
+}
+function signOf(chg) {
+  if (chg == null || Number.isNaN(Number(chg))) return '—';
+  const n = Number(chg);
+  return (n > 0 ? '+' : '') + n.toFixed(2);
+}
+function clsOf(chg) {
+  if (chg == null) return 'flat';
+  return Number(chg) >= 0 ? 'text-neon-green' : 'text-neon-red';
+}
+function moneyW(wan) {
+  if (wan == null) return '—';
+  if (Math.abs(wan) >= 10000) return (wan / 10000).toFixed(1) + '亿';
+  return Math.round(wan) + '万';
+}
+
+function setStatusUI() {
+  const st = S.status || {};
+  const pill = $('statusPill');
+  const scanning = !!st.scanning;
+  pill.className = 'status-pill ' + (scanning ? 'status-pill-warn' : (st.last_error ? 'status-pill-error' : 'status-pill-ok'));
+  $('statusText').textContent = scanning
+    ? ('扫描中' + (st.scan_mode ? ' · ' + st.scan_mode : ''))
+    : (st.last_error ? '出错' : '就绪');
+  const log = $('scanLog');
+  const lines = st.scan_log || [];
+  log.innerHTML = lines.slice(-6).map(l => `<div class="log-line">${l}</div>`).join('');
+  const busy = scanning;
+  $('btnScan').disabled = busy;
+  $('btnQuick').disabled = busy;
+}
+
+async function loadAll() {
+  const [w, c, st, hot] = await Promise.all([
+    jfetch('/api/box/watchlist').catch(() => ({ candidates: [] })),
+    jfetch('/api/box/crypto').catch(() => ({ candidates: [] })),
+    jfetch('/api/box/status').catch(() => null),
+    jfetch('/api/box/hot').catch(() => ({ hot_topics: [] })),
+  ]);
+  S.watch = w; S.crypto = c; S.status = st; S.hot = (hot && hot.hot_topics) || []; S.loaded = true;
+  renderAll();
+}
+
+function renderAll() {
+  setStatusUI();
+  const isCrypto = S.market === 'crypto';
+  const data = isCrypto ? (S.crypto || {}) : (S.watch || {});
+  const rows = data.candidates || [];
+  const hits = rows.filter(r => r.qualified);
+  const scope = data.scope;
+
+  $('hpHit').textContent = S.loaded ? hits.length : '—';
+  $('hpCover').textContent = S.loaded
+    ? (scope === 'crypto' ? ((data.universe_size ?? '—') + ' 币')
+      : scope === 'market' ? ((data.universe_size ?? '—') + ' 只') : '自选池')
+    : '—';
+  $('hpAsOf').textContent = data.as_of || '—';
+
+  $('btnScan').textContent = isCrypto ? '币圈扫描' : '全市场扫描';
+  $('btnQuick').style.display = isCrypto ? 'none' : '';
+
+  document.querySelectorAll('#marketTabs .tab-btn').forEach(t => {
+    t.classList.toggle('on', t.dataset.market === S.market);
+  });
+
+  const hotEl = $('hotTopics');
+  if (!isCrypto) {
+    hotEl.style.display = 'flex';
+    if (S.hot.length) {
+      hotEl.innerHTML = S.hot.slice(0, 8).map(b =>
+        `<span class="hot-chip${S.selBoard === b.name ? ' sel' : ''}" data-board="${b.name}">${b.name}${b.chg1 != null ? ' ' + Number(b.chg1).toFixed(1) + '%' : ''}</span>`
+      ).join('');
+    } else {
+      hotEl.innerHTML = '<span class="hot-chip" style="cursor:default;opacity:.7">热点板块暂无数据</span>';
+    }
+  } else {
+    hotEl.style.display = 'none';
+  }
+
+  if (isCrypto) {
+    $('cardsTitle').textContent = '币圈涨幅池';
+    $('poolCount').textContent = `共 ${rows.length} · 达标 ${hits.length}`;
+  } else if (S.selBoard) {
+    $('cardsTitle').textContent = `板块「${S.selBoard}」`;
+  } else {
+    $('cardsTitle').textContent = '今日达标';
+    $('poolCount').textContent = hits.length ? `${hits.length} 只` : '';
+  }
+
+  renderCards(rows);
+}
+
+function renderCards(rows) {
+  const box = $('cards');
+  if (!S.loaded) {
+    box.innerHTML = '<div class="empty-box" style="grid-column:1/-1;"><div class="big">LOADING</div></div>';
+    return;
+  }
+  const isCrypto = S.market === 'crypto';
+  let shown;
+  if (isCrypto) {
+    shown = rows.slice().sort((a, b) => (b.chg || 0) - (a.chg || 0));
+  } else if (S.selBoard) {
+    shown = rows.filter(r => {
+      const c = (r.concepts || []).concat(r.hot_boards || []);
+      return c.some(n => n === S.selBoard || (n && (n.includes(S.selBoard) || S.selBoard.includes(n))));
+    }).sort((a, b) => (b.score || 0) - (a.score || 0));
+    $('poolCount').textContent = `${shown.length} 只`;
+  } else {
+    shown = rows.filter(r => r.qualified);
+  }
+  if (!shown.length) {
+    box.innerHTML = `<div class="empty-box" style="grid-column:1/-1;">
+      <div class="big">NO SIGNAL</div>
+      <p style="margin:0.4rem 0 1rem;">${S.selBoard ? '该板块暂无标的' : '暂无达标结果，点击上方扫描'}</p>
+      <button type="button" class="scan-btn" onclick="doScan()">${isCrypto ? '币圈扫描' : '全市场扫描'}</button>
+    </div>`;
+    return;
+  }
+  box.innerHTML = shown.map((r, i) => cardHTML(r, i)).join('');
+  shown.forEach(r => loadChart(r.code));
+}
+
+function cardHTML(r, i) {
+  const isCrypto = S.market === 'crypto';
+  const items = isCrypto
+    ? [
+        ['倍量', (r.volume_days || 0) + '日', r.volume_days >= 3 && r.volume_ratio >= 1.8],
+        ['试盘', (r.tests ?? 0) + '次', (r.tests || 0) >= 3],
+        ['24h', signOf(r.chg) + '%', r.chg > 0],
+      ]
+    : [
+        ['热点', r.theme_ok ? '✓' : '—', !!r.theme_ok],
+        ['倍量', (r.volume_days || 0) + '日', r.volume_days >= 3 && r.volume_ratio >= 1.8],
+        ['流入', moneyW(r.fund_5d), r.fund_state === '流入'],
+        ['控盘', r.control || '—', r.control === '高'],
+        ['试盘', (r.tests ?? 0) + '次', (r.tests || 0) >= 3],
+      ];
+  const price = isCrypto ? fmtc(r.price) : fmt2(r.price);
+  const qBadge = (isCrypto && r.qualified) ? '<span class="q-badge">达标</span>' : '';
+  return `<article class="sig-card${(isCrypto && r.qualified) ? ' q' : ''}" data-code="${r.code}">
+    <div class="sig-top">
+      <div><div class="sig-nm">${r.name || r.code}${qBadge}</div><div class="sig-cd">${r.code}</div></div>
+      <div style="text-align:right;">
+        <div class="sig-px" data-px>${price}</div>
+        <div class="sig-chg ${clsOf(r.chg)}" data-chg>${signOf(r.chg)}%</div>
+        <div style="margin-top:0.25rem;"><span class="score-badge">${r.score ?? '—'}</span></div>
+      </div>
+    </div>
+    <div class="sig-chart">
+      <canvas height="220" data-code="${r.code}" data-market="${S.market}"></canvas>
+      <div class="sig-tip" data-tip="${r.code}"></div>
+    </div>
+    <div class="sig-flags">
+      ${items.map(([t, v, ok]) => ok
+        ? `<span><b>${t}</b> ${v}</span>`
+        : `<span class="no">${t} ${v}</span>`).join('')}
+      <span class="box-span">箱 ${fmt2(r.box_low)}–${fmt2(r.box_high)}</span>
+    </div>
+  </article>`;
+}
+
+async function ensureK(code) {
+  const key = S.market + ':' + code;
+  if (S.kbars[key]) return S.kbars[key];
+  const d = await jfetch('/api/box/kline?code=' + encodeURIComponent(code) + '&lmt=100&market=' + S.market).catch(() => null);
+  S.kbars[key] = d;
+  return d;
+}
+
+async function loadChart(code) {
+  const d = await ensureK(code);
+  if (!d || d.error || !(d.bars || []).length) return;
+  const cv = document.querySelector(`.sig-card[data-code="${CSS.escape(code)}"] canvas`);
+  if (cv) drawChart(cv, d);
+}
+
+function drawChart(cv, d) {
+  const market = cv.dataset.market || 'stock';
+  const isCrypto = market === 'crypto';
+  const code = cv.dataset.code;
+  const cssW = cv.clientWidth || 300, cssH = 220, dpr = window.devicePixelRatio || 1;
+  cv.width = cssW * dpr; cv.height = cssH * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = cssW, H = cssH, padL = 6, padR = 48, padT = 10, vh = Math.round(H * 0.68), volH = H - vh - 26;
+  const bars = d.bars || [];
+  if (!bars.length) return;
+  let lo = Infinity, hi = -Infinity, vmax = 0;
+  bars.forEach(b => { lo = Math.min(lo, b.low); hi = Math.max(hi, b.high); vmax = Math.max(vmax, b.vol); });
+  const span = (hi - lo) || 1e-9;
+  const n = bars.length, step = (W - padL - padR) / n, bw = Math.max(1, Math.min(8, step * 0.62));
+  const y = v => padT + (hi - v) / span * vh;
+  const box = d.box || {};
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '10px ui-monospace, Menlo, monospace';
+  const priceFmt = isCrypto ? (v => v >= 1 ? v.toFixed(2) : Number(v).toPrecision(3)) : (v => v.toFixed(2));
+  for (let i = 0; i <= 4; i++) {
+    const yy = padT + i / 4 * vh, v = hi - i / 4 * span;
+    ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+    ctx.fillStyle = 'rgba(154,163,175,.75)'; ctx.textAlign = 'left'; ctx.fillText(priceFmt(v), W - padR + 5, yy + 3);
+  }
+  if (box.box_high != null) {
+    [[box.box_high, '#2EC4B6'], [box.box_low, 'rgba(154,163,175,.45)']].forEach(([v, col]) => {
+      const yy = Math.max(padT, Math.min(padT + vh, y(v)));
+      ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = col; ctx.beginPath();
+      ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = col; ctx.fillText(priceFmt(Number(v)), padL + 2, yy - 3);
+    });
+  }
+  bars.forEach((b, i) => {
+    const x = padL + i * step + step / 2, up = b.close >= b.open;
+    const col = isCrypto ? (up ? '#3DDC97' : '#F07178') : (up ? '#F07178' : '#3DDC97');
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    const x0 = Math.max(padL, x - bw / 2), x1 = Math.min(W - padR, x + bw / 2);
+    const yO = y(b.open), yC = y(b.close);
+    ctx.beginPath(); ctx.moveTo(x, y(b.high)); ctx.lineTo(x, y(b.low)); ctx.stroke();
+    ctx.fillRect(x0, Math.min(yO, yC), Math.max(1, x1 - x0), Math.max(1, Math.abs(yC - yO)));
+    const vy = vh + 8 + (1 - b.vol / (vmax || 1)) * volH;
+    ctx.globalAlpha = 0.32; ctx.fillRect(x0, vy, Math.max(1, x1 - x0), Math.max(1, vh + 8 + volH - vy)); ctx.globalAlpha = 1;
+  });
+  ctx.fillStyle = 'rgba(154,163,175,.65)'; ctx.textAlign = 'right';
+  ctx.fillText((vmax / 10000).toFixed(0) + (isCrypto ? '万' : '万手'), W - padR, vh + 18);
+  ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.beginPath(); ctx.moveTo(padL, vh + 8); ctx.lineTo(W - padR, vh + 8); ctx.stroke();
+  ctx.textAlign = 'center';
+  [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor(n * 3 / 4), n - 1].forEach(i => {
+    if (!bars[i]) return;
+    ctx.fillStyle = 'rgba(154,163,175,.65)';
+    ctx.fillText(String(bars[i].date).slice(5), padL + i * step + step / 2, H - 3);
+  });
+
+  const tip = document.querySelector(`.sig-tip[data-tip="${CSS.escape(code)}"]`);
+  if (!tip) return;
+  cv.onmousemove = ev => {
+    const rect = cv.getBoundingClientRect();
+    const i = Math.max(0, Math.min(n - 1, Math.floor((ev.clientX - rect.left - padL) / step)));
+    const b = bars[i];
+    if (!b) return;
+    tip.style.display = 'block';
+    tip.style.left = Math.min(W - 170, ev.clientX - rect.left + 12) + 'px';
+    tip.style.top = Math.max(4, ev.clientY - rect.top - 8) + 'px';
+    tip.innerHTML = `${b.date}<br>O ${priceFmt(b.open)} H ${priceFmt(b.high)}<br>L ${priceFmt(b.low)} C ${priceFmt(b.close)}`;
+  };
+  cv.onmouseleave = () => { tip.style.display = 'none'; };
+}
+
+async function doScan(mode) {
+  const isCrypto = S.market === 'crypto';
+  const m = mode || (isCrypto ? 'crypto' : 'market');
+  try {
+    const r = await jfetch('/api/box/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: m }),
+    });
+    toast(r.status === 'running' ? '扫描进行中…' : '已开始扫描');
+    pollStatus();
+  } catch (e) {
+    toast(String(e.message || e));
+  }
+}
+
+async function pollStatus() {
+  try {
+    S.status = await jfetch('/api/box/status');
+    setStatusUI();
+    if (S.status && S.status.scanning) {
+      setTimeout(pollStatus, 2500);
+    } else {
+      await loadAll();
+    }
+  } catch (_) {
+    setTimeout(pollStatus, 4000);
+  }
+}
+
+async function refreshQuotes() {
+  if (S.market !== 'stock' || !S.loaded) return;
+  const cards = [...document.querySelectorAll('.sig-card[data-code]')];
+  const codes = cards.map(c => c.dataset.code).filter(Boolean);
+  if (!codes.length) return;
+  try {
+    const q = await jfetch('/api/box/quotes?codes=' + codes.join(','));
+    cards.forEach(card => {
+      const qq = q[card.dataset.code];
+      if (!qq) return;
+      const px = card.querySelector('[data-px]');
+      const chg = card.querySelector('[data-chg]');
+      if (px) px.textContent = fmt2(qq.price);
+      if (chg) {
+        chg.textContent = signOf(qq.chg) + '%';
+        chg.className = 'sig-chg ' + clsOf(qq.chg);
+      }
+    });
+  } catch (_) {}
+}
+
+function switchMarket(market) {
+  S.market = market;
+  S.selBoard = null;
+  S.kbars = {};
+  renderAll();
+}
+
+function boot() {
+  $('marketTabs').addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (btn) switchMarket(btn.dataset.market);
+  });
+  $('hotTopics').addEventListener('click', e => {
+    const chip = e.target.closest('.hot-chip[data-board]');
+    if (!chip) return;
+    S.selBoard = S.selBoard === chip.dataset.board ? null : chip.dataset.board;
+    renderAll();
+  });
+  $('btnScan').addEventListener('click', () => doScan());
+  $('btnQuick').addEventListener('click', () => doScan('quick'));
+  loadAll().catch(e => {
+    $('cards').innerHTML = `<div class="empty-box" style="grid-column:1/-1;"><div class="big">OFFLINE</div><p>${e.message || e}</p><p style="margin-top:0.5rem;font-size:0.75rem;">确认 Protocol 已启动且 CORS 允许本页</p></div>`;
+  });
+  setInterval(() => {
+    if (S.status && S.status.scanning) return;
+    loadAll().catch(() => {});
+  }, 20000);
+  setInterval(refreshQuotes, 4000);
+}
+
+boot();
+  </script>
+</body>
+</html>

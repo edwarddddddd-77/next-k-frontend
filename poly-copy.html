@@ -166,6 +166,7 @@
             <div class="flex flex-wrap gap-1.5 items-center">
                 <span id="ws-badge" class="metric-chip">WS —</span>
                 <span id="mode-badge" class="metric-chip">mode —</span>
+                <button id="btn-sync-pos" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">同步对方仓位</button>
                 <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置纸面</button>
             </div>
         </div>
@@ -487,6 +488,19 @@ async function refresh() {
 }
 
 document.getElementById('btn-refresh').addEventListener('click', () => refresh());
+document.getElementById('btn-sync-pos').addEventListener('click', async () => {
+    if (!confirm('按当前权益比例，一次性镜像对方全部持仓？不会清空成交记录。')) return;
+    try {
+        const r = await fetch(`${API}/api/poly-copy/paper/sync-positions`, { method: 'POST' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.detail || r.statusText);
+        const s = (d.synced && d.synced[0]) || {};
+        alert(`已同步 ${s.positions ?? '—'} 仓 · 比例 ${(s.ratio != null ? Number(s.ratio).toExponential(3) : '—')}`);
+        await refresh();
+    } catch (err) {
+        alert('同步失败: ' + (err && err.message ? err.message : err));
+    }
+});
 document.getElementById('btn-paper-reset').addEventListener('click', async () => {
     if (!confirm('重置全部纸面仓位与成交？不会影响对方钱包。')) return;
     try {

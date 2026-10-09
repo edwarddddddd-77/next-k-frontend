@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next K · Poly台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="theme.css" />
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script src="api-base.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'Georgia', 'serif'],
+                        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: 'var(--bg)',
+                        surface: 'var(--surface)',
+                        'surface-light': 'var(--surface-light)',
+                        border: 'var(--border)',
+                        accent: 'var(--accent)',
+                        gold: 'var(--gold)',
+                        'neon-green': 'var(--neon-green)',
+                        'neon-red': 'var(--neon-red)',
+                        'neon-blue': 'var(--neon-blue)',
+                        warn: 'var(--warn)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'text-muted': 'var(--text-muted)',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .desk-stack { display: flex; flex-direction: column; gap: clamp(1.15rem, 1.8vw, 1.75rem); }
+        .focus-hero {
+            border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+            border-radius: var(--radius-lg);
+            background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+            padding: 1.05rem clamp(1rem, 1.5vw, 1.35rem) 1.2rem;
+        }
+        .hero-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.65rem 1rem;
+            padding-bottom: 0.55rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+            margin-bottom: 0.85rem;
+        }
+        .panel-kicker { font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+        .panel-title { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 1.05rem; font-weight: 650; line-height: 1.3; margin-top: 0.2rem; }
+        .panel-sub { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; line-height: 1.45; }
+        .metric-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.32rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+            background: color-mix(in srgb, var(--surface-light) 45%, var(--surface));
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.2;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+            gap: 0.65rem;
+        }
+        .metric-cell {
+            border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+            border-radius: var(--radius-md);
+            background: color-mix(in srgb, var(--surface-light) 22%, var(--surface));
+            padding: 0.65rem 0.75rem;
+        }
+        .metric-label { font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+        .metric-value { font-size: 1.05rem; font-weight: 650; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+        .metric-value.pos { color: var(--neon-green); }
+        .metric-value.neg { color: var(--neon-red); }
+        .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.65rem; }
+        .section-title { font-size: 0.95rem; font-weight: 650; }
+        .section-sub { font-size: 0.75rem; color: var(--text-muted); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        .data-table th {
+            text-align: left;
+            font-size: 0.65rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0.45rem 0.5rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+            white-space: nowrap;
+        }
+        .data-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+            vertical-align: top;
+            font-variant-numeric: tabular-nums;
+        }
+        .data-table tr:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+        .side-buy { color: var(--neon-green); font-weight: 600; }
+        .side-sell { color: var(--neon-red); font-weight: 600; }
+        .table-shell {
+            border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+            border-radius: var(--radius-lg);
+            background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+            overflow: hidden;
+        }
+        .table-scroll { overflow-x: auto; max-height: 28rem; overflow-y: auto; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; }
+        .addr-link { color: var(--accent); text-decoration: none; }
+        .addr-link:hover { text-decoration: underline; }
+        .empty { color: var(--text-muted); padding: 1rem 0.75rem; font-size: 0.82rem; }
+    </style>
+</head>
+<body class="min-h-screen board-canvas">
+<header class="app-header sticky top-0 z-50">
+    <div class="page-shell">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="brand-title text-text-primary">Next <span class="text-accent">K</span></h1>
+                        <div class="brand-subtitle hidden sm:block">Poly台 · Protocol</div>
+                    </div>
+                </div>
+                <nav class="hidden sm:flex items-center gap-1 ml-1">
+                    <a class="nav-pill" href="hl-short.html">映仓台</a>
+                    <a class="nav-pill" href="box.html">箱体台</a>
+                    <a class="nav-pill nav-pill-active" href="poly-copy.html">Poly台</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span id="header-bj-clock" class="header-clock hidden sm:inline" title="北京时间">--:-- 北京</span>
+                <span id="protocol-base-hint" class="header-clock hidden md:inline" title="Protocol API">Protocol</span>
+                <button id="btn-refresh" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">刷新</button>
+                <div id="connection-status" class="status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18">
+                    <span class="status-dot"></span><span>连接中…</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="page-shell page-shell-y desk-stack">
+    <section class="focus-hero" aria-label="跟单状态">
+        <div class="hero-top">
+            <div>
+                <div class="panel-kicker">Paper · Polymarket</div>
+                <h2 class="panel-title">跟单桌面</h2>
+                <p id="status-line" class="panel-sub">载入中…</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5 items-center">
+                <span id="ws-badge" class="metric-chip">WS —</span>
+                <span id="mode-badge" class="metric-chip">mode —</span>
+                <button id="btn-paper-reset" type="button" class="metric-chip hover:border-gold/40 cursor-pointer">重置纸面</button>
+            </div>
+        </div>
+        <div id="metrics" class="metric-grid"></div>
+        <p id="leader-line" class="panel-sub" style="margin-top:0.85rem;"></p>
+    </section>
+
+    <section aria-label="纸面仓位">
+        <div class="section-head">
+            <h3 class="section-title">纸面仓位</h3>
+            <p class="section-sub" id="pos-sub">市场 · Yes/No · 份额</p>
+        </div>
+        <div class="table-shell">
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>市场</th>
+                            <th>结果</th>
+                            <th>份额</th>
+                            <th>均价</th>
+                            <th>标记</th>
+                            <th>名义</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pos-tbody">
+                        <tr><td colspan="6" class="empty">载入中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section aria-label="跟单成交">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">跟单成交</h3>
+                <p class="section-sub">纸面记账 · 北京时间</p>
+            </div>
+        </div>
+        <div class="table-shell">
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>方向</th>
+                            <th>份额</th>
+                            <th>价格</th>
+                            <th>名义</th>
+                            <th>比例</th>
+                            <th>来源</th>
+                            <th>市场</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fills-tbody">
+                        <tr><td colspan="8" class="empty">载入中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section aria-label="跳过记录">
+        <div class="section-head">
+            <div>
+                <h3 class="section-title">跳过</h3>
+                <p class="section-sub">防抖 / 粉尘 / 无可卖仓等</p>
+            </div>
+        </div>
+        <div class="table-shell">
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>原因</th>
+                            <th>方向</th>
+                            <th>份额</th>
+                            <th>市场</th>
+                        </tr>
+                    </thead>
+                    <tbody id="skips-tbody">
+                        <tr><td colspan="5" class="empty">暂无</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+const API = (typeof resolveProtocolBase === 'function'
+    ? resolveProtocolBase()
+    : 'http://127.0.0.1:8001').replace(/\/$/, '');
+let pollTimer = null;
+
+(function hintProtocolBase() {
+    const el = document.getElementById('protocol-base-hint');
+    if (!el) return;
+    el.textContent = 'P · ' + API.replace(/^https?:\/\//, '');
+    el.title = 'Next-k-protocol · ' + API;
+})();
+
+function setStatus(ok, text) {
+    const el = document.getElementById('connection-status');
+    el.className = ok
+        ? 'status-pill status-pill-ok bg-neon-green/[0.07] text-neon-green border-neon-green/18'
+        : 'status-pill status-pill-err bg-neon-red/[0.07] text-neon-red border-neon-red/18';
+    el.innerHTML = `<span class="status-dot"></span><span>${escapeHtml(text)}</span>`;
+}
+
+function escapeHtml(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function fmtUsd(n, digits = 2) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    const v = Number(n);
+    const abs = Math.abs(v).toLocaleString(undefined, {
+        maximumFractionDigits: digits,
+        minimumFractionDigits: 0,
+    });
+    return (v < 0 ? '-$' : '$') + abs;
+}
+
+function fmtNum(n, digits = 2) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    return Number(n).toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+function fmtRatio(n) {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    return (Number(n) * 100).toFixed(2) + '%';
+}
+
+function toBj(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+}
+
+function tickClock() {
+    const el = document.getElementById('header-bj-clock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+    }) + ' 北京';
+}
+
+function shortAddr(a) {
+    const s = String(a || '');
+    if (s.length < 12) return s || '—';
+    return s.slice(0, 6) + '…' + s.slice(-4);
+}
+
+function pnlClass(n) {
+    const v = Number(n);
+    if (!Number.isFinite(v) || v === 0) return '';
+    return v > 0 ? 'pos' : 'neg';
+}
+
+async function fetchJson(path) {
+    const res = await fetch(`${API}${path}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${path} ${res.status}`);
+    return res.json();
+}
+
+function firstBot(paper) {
+    const bots = (paper && paper.bots) || [];
+    return bots[0] || null;
+}
+
+function renderMetrics(status, paper, leader) {
+    const bot = firstBot(paper);
+    const ws = status.ws || {};
+    const leaderRow = ((leader && leader.leaders) || [])[0] || null;
+    const equity = bot ? bot.equity : null;
+    const realized = bot ? bot.realized_pnl : null;
+    const ratio = bot ? bot.copy_ratio : null;
+    const leaderEq = bot?.leader_equity ?? leaderRow?.value;
+    const copied = status.fills_copied ?? bot?.stats?.fills_copied ?? 0;
+    const seen = status.fills_seen ?? 0;
+
+    document.getElementById('metrics').innerHTML = [
+        ['纸面权益', fmtUsd(equity), pnlClass(realized)],
+        ['已实现', fmtUsd(realized), pnlClass(realized)],
+        ['跟单比例', fmtRatio(ratio), ''],
+        ['对方权益', fmtUsd(leaderEq), ''],
+        ['已跟笔数', String(copied), ''],
+        ['轮询', String(status.poll_cycles ?? 0), ''],
+    ].map(([label, value, cls]) => `
+        <div class="metric-cell">
+            <div class="metric-label">${escapeHtml(label)}</div>
+            <div class="metric-value ${cls}">${escapeHtml(value)}</div>
+        </div>
+    `).join('');
+
+    const running = !!status.running;
+    const mode = status.mode || paper?.mode || 'paper';
+    document.getElementById('mode-badge').textContent = `mode ${mode}`;
+    document.getElementById('ws-badge').textContent = ws.connected
+        ? `WS ok · ${ws.matched || 0} hit`
+        : `WS ${running ? '…' : 'off'}`;
+
+    const addr = bot?.address || leaderRow?.address || '';
+    const profile = addr
+        ? `https://polymarket.com/profile/${addr}`
+        : '';
+    const label = bot?.id || 'leader';
+    document.getElementById('leader-line').innerHTML = addr
+        ? `跟单目标 <a class="addr-link mono" href="${escapeHtml(profile)}" target="_blank" rel="noopener">${escapeHtml(label)} · ${escapeHtml(shortAddr(addr))}</a>
+           · 持仓 ${((leaderRow && leaderRow.positions) || []).length} · seen ${seen}`
+        : '未配置目标钱包';
+
+    document.getElementById('status-line').textContent = running
+        ? `监督器运行中 · 更新 ${toBj(paper?.updated || status.started_at)}`
+        : `监督器未运行（需 POLY_DESK_ENABLED=1 且 POLY_COPY_ENABLED=1）· ${status.error || 'idle'}`;
+}
+
+function renderPositions(paper) {
+    const bot = firstBot(paper);
+    const positions = (bot && bot.positions) || [];
+    document.getElementById('pos-sub').textContent = bot
+        ? `${bot.id} · 现金 ${fmtUsd(bot.balance)} · ${positions.length} 仓`
+        : '无纸面席位';
+    const tbody = document.getElementById('pos-tbody');
+    if (!positions.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无仓位（只跟新成交，启动后才记账）</td></tr>';
+        return;
+    }
+    tbody.innerHTML = positions.map((p) => {
+        const shares = Number(p.shares || 0);
+        const mark = Number(p.mark || p.avg_price || 0);
+        const notional = shares * mark;
+        return `<tr>
+            <td>${escapeHtml(p.title || p.slug || p.condition_id || '—')}</td>
+            <td>${escapeHtml(p.outcome || '—')}</td>
+            <td>${escapeHtml(fmtNum(shares, 4))}</td>
+            <td>${escapeHtml(fmtNum(p.avg_price, 4))}</td>
+            <td>${escapeHtml(fmtNum(mark, 4))}</td>
+            <td>${escapeHtml(fmtUsd(notional))}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderFills(paper) {
+    const bot = firstBot(paper);
+    const fills = [...((bot && bot.fills) || [])].reverse();
+    const tbody = document.getElementById('fills-tbody');
+    if (!fills.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无跟单成交</td></tr>';
+        return;
+    }
+    tbody.innerHTML = fills.slice(0, 80).map((f) => {
+        const side = String(f.side || '').toUpperCase();
+        const sideCls = side === 'BUY' ? 'side-buy' : side === 'SELL' ? 'side-sell' : '';
+        return `<tr>
+            <td>${escapeHtml(toBj(f.at))}</td>
+            <td class="${sideCls}">${escapeHtml(side || '—')}</td>
+            <td>${escapeHtml(fmtNum(f.shares, 4))}</td>
+            <td>${escapeHtml(fmtNum(f.price, 4))}</td>
+            <td>${escapeHtml(fmtUsd(f.notional))}</td>
+            <td>${escapeHtml(fmtRatio(f.ratio))}</td>
+            <td>${escapeHtml(f.source || '—')}</td>
+            <td>${escapeHtml((f.outcome ? f.outcome + ' · ' : '') + (f.title || '—'))}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderSkips(paper) {
+    const bot = firstBot(paper);
+    const skips = [...((bot && bot.skips) || [])].reverse();
+    const tbody = document.getElementById('skips-tbody');
+    if (!skips.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无跳过</td></tr>';
+        return;
+    }
+    tbody.innerHTML = skips.slice(0, 40).map((s) => {
+        const side = String(s.side || '').toUpperCase();
+        const sideCls = side === 'BUY' ? 'side-buy' : side === 'SELL' ? 'side-sell' : '';
+        return `<tr>
+            <td>${escapeHtml(toBj(s.at))}</td>
+            <td class="mono">${escapeHtml(s.reason || '—')}</td>
+            <td class="${sideCls}">${escapeHtml(side || '—')}</td>
+            <td>${escapeHtml(fmtNum(s.size, 4))}</td>
+            <td>${escapeHtml((s.outcome ? s.outcome + ' · ' : '') + (s.title || '—'))}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function refresh() {
+    try {
+        const [status, paper, leader] = await Promise.all([
+            fetchJson('/api/poly-copy/copy/status'),
+            fetchJson('/api/poly-copy/paper'),
+            fetchJson('/api/poly-copy/leader').catch(() => ({ leaders: [] })),
+        ]);
+        renderMetrics(status, paper, leader);
+        renderPositions(paper);
+        renderFills(paper);
+        renderSkips(paper);
+        setStatus(true, status.running ? '跟单中' : '已连接');
+    } catch (err) {
+        setStatus(false, '断连');
+        document.getElementById('status-line').textContent =
+            '无法连接 Protocol /api/poly-copy/* · ' + (err && err.message ? err.message : err);
+    }
+}
+
+document.getElementById('btn-refresh').addEventListener('click', () => refresh());
+document.getElementById('btn-paper-reset').addEventListener('click', async () => {
+    if (!confirm('重置全部纸面仓位与成交？不会影响对方钱包。')) return;
+    try {
+        await fetch(`${API}/api/poly-copy/paper/reset`, { method: 'POST' });
+        await refresh();
+    } catch (err) {
+        alert('重置失败: ' + (err && err.message ? err.message : err));
+    }
+});
+
+tickClock();
+setInterval(tickClock, 1000);
+refresh();
+pollTimer = setInterval(refresh, 5000);
+</script>
+</body>
+</html>
